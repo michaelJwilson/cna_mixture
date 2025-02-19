@@ -273,7 +273,7 @@ class CNA_Sim:
 
         return self.data[:, col]
 
-    def plot_rdr_baf(self, rdr, baf, state_posteriors=None, states=None):
+    def plot_rdr_baf(self, rdr, baf, state_posteriors=None, states=None, title=None):
         plt.scatter(rdr, baf, c=state_posteriors, marker=".", lw=0.0, alpha=0.25)
 
         if states is not None:
@@ -286,7 +286,9 @@ class CNA_Sim:
         pl.xlabel(r"$\mu_{\rm RDR}$")
         pl.ylabel(r"$p_{\rm BAF}$")
 
-        pl.title(r"CNA realization")
+        if title is not None:
+            pl.title(title)
+
         pl.show()
 
     def plot_realization(self):
@@ -297,7 +299,7 @@ class CNA_Sim:
             "normal_coverage"
         )
 
-        self.plot_rdr_baf(rdr, baf, states=states)
+        self.plot_rdr_baf(rdr, baf, states=states, title="CNA realization")
 
     def fit_gaussian_mixture(
         self,
@@ -401,7 +403,10 @@ class CNA_Sim:
         state_posteriors = np.exp(ln_state_posteriors[:, :3])
 
         self.plot_rdr_baf(
-            rdr, baf, state_posteriors=state_posteriors, states=init_mixture_params.cna_states
+            rdr,
+            baf,
+            state_posteriors=state_posteriors,
+            states=init_mixture_params.cna_states,
         )
 
 
