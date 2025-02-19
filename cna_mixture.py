@@ -49,6 +49,7 @@ def reparameterize_beta_binom(input_bafs, overdispersion):
 
 def beta_binom_state_logprobs(state_alpha_betas, ks, ns):
     """
+    TODO port from python
     """
     result = np.zeros((len(ks), len(state_alpha_betas)))
     
@@ -124,15 +125,16 @@ class CNA_Sim:
 
         # NB SNP-covering reads per segment.
         self.num_segments = 10_000
-        self.min_snp_coverage, self.max_snp_coverage = 100, 1_000
+        self.min_coverage, self.max_coverage = 100, 1_000
 
         self.snp_coverages = np.random.randint(
-            self.min_snp_coverage, self.max_snp_coverage, self.num_segments
+            self.min_coverage, self.max_coverage, self.num_segments
         )
-
-        # NB DEBUG
-        self.total_coverages = 3 * self.snp_coverages.copy()
-
+        
+        self.normal_coverages = self.snp_coverages.copy() + np.random.randint(
+            self.min_coverage, self.max_coverage, self.num_segments
+        )
+        
     def realize(self):
         result = []
 
@@ -145,30 +147,36 @@ class CNA_Sim:
             # NB overdisp_tau parameterizes the degree of deviations from the mean baf.
             beta, alpha = baf * self.overdisp_tau, (1.0 - baf) * self.overdisp_tau
 
-            sim_b_reads = betabinom.rvs(self.snp_coverages[ii], alpha, beta)
-            sim_a_reads = self.snp_coverages[ii] - sim_b_reads
+            b_reads = betabinom.rvs(self.snp_coverages[ii], alpha, beta)
+            a_reads = self.snp_coverages[ii] - b_reads
 
-            sim_baf = sim_b_reads / self.snp_coverages[ii]
+            baf = b_reads / self.snp_coverages[ii]
 
-            sim_lost_reads, dropout_rate = reparameterize_nbinom(
-                rdr * self.total_coverages[ii], self.overdisp_phi
+            lost_reads, dropout_rate = reparameterize_nbinom(
+                rdr * self.normal_coverages[ii], self.overdisp_phi
             )
-            sim_retained_reads = nbinom.rvs(sim_lost_reads, dropout_rate, size=1)[0]
+            retained_reads = nbinom.rvs(lost_reads, dropout_rate, size=1)[0]
 
             # NB CNA state, obs. transcripts (NegBin), lost transcripts (NegBin), B-allele support transcripts, vis a vis A.
             result.append(
-                [kk, sim_retained_reads, sim_lost_reads, sim_b_reads, self.snp_coverages[ii]]
+                [kk, retained_reads, rdr * self.normal_coverages[ii], b_reads, self.snp_coverages[ii]]
             )
 
         self.data = np.array(result)
 
+    def get_data_bykey(key):
+        keys = {"state": 0, "retained_reads": 1, "exp_coverage": 2, "b_reads": 3, "snp_coverage": 4}
+        col = keys[key]
+        
+        return self.data[:,col]
+        
     def plot_realization(self):
         realized_states = self.data[:, 0]
 
-        sim_rdr = self.data[:, 1] / self.total_coverages
-        sim_baf = self.data[:, 3] / (self.data[:, 3] + self.data[:, 4])
+        rdr = self.data[:, 1] / self.normal_coverages
+        baf = self.data[:, 3] / self.data[:, 4]
 
-        plt.scatter(sim_rdr, sim_baf, c=realized_states, marker=".", lw=0.0, alpha=0.25)
+        plt.scatter(rdr, baf, c=realized_states, marker=".", lw=0.0, alpha=0.25)
 
         pl.axhline(1.0, c="k", lw=0.75)
 
@@ -193,10 +201,10 @@ class CNA_Sim:
         """
         see:  https://github.com/raphael-group/CalicoST/blob/5e4a8a1230e71505667d51390dc9c035a69d60d9/src/calicost/utils_hmm.py#L163
         """
-        sim_rdr = self.data[:, 1] / self.total_coverages
-        sim_baf = self.data[:, 3] / (self.data[:, 3] + self.data[:, 4])
+        rdr = self.data[:, 1] / self.normal_coverages
+        baf = self.data[:, 3] / (self.data[:, 3] + self.data[:, 4])
 
-        X = np.c_[sim_rdr, sim_baf]
+        X = np.c_[rdr, baf]
 
         # NB covariance_type = {diag, full}
         #
@@ -259,12 +267,15 @@ class CNA_Sim:
         init_responsibilities = np.random.rand(5)
         init_responsibilities /= np.sum(init_responsibilities)
 
-        ln_state_posteriors = np.log(init_responsibilities)
-            
-        result = beta_binom_state_logprobs(state_alpha_betas, self.data[:,3], self.data[:,4])
-        
+        init_ln_state_posteriors = np.log(init_responsibilities)
+
+        # NB fed with num b reads and total snp covering reads.
+        ln_state_posteriors = beta_binom_state_logprobs(state_alpha_betas, self.data[:,3], self.data[:,4])
+
         # NB broadcast (# state, 1) to (# samples, # states)
-        result += ln_state_posteriors
+        ln_state_posteriors += init_ln_state_posteriors
+
+        print(ln_state_posteriors)
         
         """
         # NB increment with ln BAF prob. and ln RDR prob., assuming independent given state.
@@ -285,7 +296,7 @@ if __name__ == "__main__":
     cna_sim = CNA_Sim()
     cna_sim.realize()
 
-    # cna_sim.plot_realization()
-    # cna_sim.fit_gaussian_mixture()
+    cna_sim.plot_realization()
+    cna_sim.fit_gaussian_mixture()
 
-    cna_sim.fit_cna_mixture()
+    # cna_sim.fit_cna_mixture()
