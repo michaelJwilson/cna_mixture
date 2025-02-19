@@ -278,7 +278,7 @@ class CNA_Sim:
 
         if states is not None:
             for baf, rdr in states:
-                pl.scatter(baf, rdr, c="k", marker="*")
+                pl.scatter(rdr, baf, c="k", marker="*")
 
         pl.xlim(-0.05, 15.0)
         pl.ylim(-0.05, 1.05)
@@ -401,7 +401,7 @@ class CNA_Sim:
         state_posteriors = np.exp(ln_state_posteriors[:, :3])
 
         self.plot_rdr_baf(
-            rdr, baf, states=state_posteriors, states=init_mixture_params.cna_states
+            rdr, baf, state_posteriors=state_posteriors, states=init_mixture_params.cna_states
         )
 
 
