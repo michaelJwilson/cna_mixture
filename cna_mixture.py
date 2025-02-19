@@ -11,11 +11,14 @@ from sklearn.mixture import GaussianMixture
 
 np.random.seed(1234)
 
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 logger = logging.getLogger(__name__)
+
 
 def __logsumexp(array):
     max_val = array.max()
@@ -55,7 +58,9 @@ def reparameterize_nbinom(means, overdisp):
 def reparameterize_beta_binom(input_bafs, overdispersion):
     """
     Given the array of BAFs for all states and a shared overdispersion,
-    return the (# states, 2) array of [beta, alpha] for each state.
+    return the (# states, 2) array of [alpha, beta] for each state.
+
+    NB
     """
     return np.array(
         [
@@ -125,6 +130,7 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model with
     shared overdispersions.
     """
+
     def __init__(self):
         """
         Initialize an instance of the class with random values in
@@ -182,7 +188,7 @@ class CNA_mixture_params:
         ), f"cna_states attribute must be a numpy array. Found {type(self.cna_states)}"
 
         logging.info(f"Simulating CNA states:\n{self.cna_states}")
-        
+
     def __str__(self):
         printable = [f"{key}: {value}" for key, value in self.__dict__.items()]
         return ",  ".join(printable)
@@ -203,7 +209,13 @@ class CNA_Sim:
             ],
             "normal_state": [0.5, 1.0],
             "lambdas": np.array(
-                [0.27584543, 0.30778346, 0.05386917, 0.07099214, 0.2915098] # BUG 5, not 4, states?? 
+                [
+                    0.27584543,
+                    0.30778346,
+                    0.05386917,
+                    0.07099214,
+                    0.2915098,
+                ]  # BUG 5, not 4, states??
             ),
         }
 
@@ -244,6 +256,9 @@ class CNA_Sim:
 
             # NB assumes some slop in terms of deviates from mean baf.
             b_reads = betabinom.rvs(self.snp_coverages[ii], beta, alpha)
+            baf = b_reads / self.snp_coverages[ii]
+            
+            assert baf <= 0.5, f"{b_reads}\t{self.snp_coverages[ii]}\t{baf}"
 
             true_read_coverage = rdr * self.normal_coverages[ii]
             lost_reads, dropout_rate = reparameterize_nbinom(
@@ -306,7 +321,9 @@ class CNA_Sim:
             "normal_coverage"
         )
 
-        self.plot_rdr_baf(rdr, baf, state_posteriors=decoded_states, title="CNA realization")
+        self.plot_rdr_baf(
+            rdr, baf, state_posteriors=decoded_states, title="CNA realization"
+        )
 
     def fit_gaussian_mixture(
         self,
@@ -424,4 +441,4 @@ if __name__ == "__main__":
     # cna_sim.plot_realization()
     # cna_sim.fit_gaussian_mixture()
 
-    cna_sim.fit_cna_mixture()
+    # cna_sim.fit_cna_mixture()
