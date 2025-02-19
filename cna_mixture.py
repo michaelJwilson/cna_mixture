@@ -292,14 +292,14 @@ class CNA_Sim:
         pl.show()
 
     def plot_realization(self):
-        states = self.get_data_bykey("state")
+        decoded_states = self.get_data_bykey("state")
 
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
         rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
             "normal_coverage"
         )
 
-        self.plot_rdr_baf(rdr, baf, states=states, title="CNA realization")
+        self.plot_rdr_baf(rdr, baf, state_posteriors=decoded_states, title="CNA realization")
 
     def fit_gaussian_mixture(
         self,
