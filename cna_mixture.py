@@ -96,7 +96,7 @@ class CNA_mixture_params:
         self.cna_states = [self.normal_state] + self.cna_states
         self.cna_states = np.array(self.cna_states)
         self.normal_state = np.array(self.normal_state)
-        
+
         self.__verify()
 
     def update(self, input_params_dict):
@@ -152,7 +152,7 @@ class CNA_Sim:
 
         self.cna_states = np.array(self.cna_states)
         self.normal_state = np.array(self.normal_state)
-            
+
     def realize(self):
         """
         Generate a realization (one seed only) for given configuration settings.
@@ -197,7 +197,7 @@ class CNA_Sim:
                     true_read_coverage,
                     b_reads,
                     self.snp_coverages[ii],
-                    self.normal_coverages[ii]
+                    self.normal_coverages[ii],
                 ]
             )
 
@@ -212,7 +212,7 @@ class CNA_Sim:
             "snp_coverage": 4,
             "normal_coverage": 5,
         }
-        
+
         col = keys[key]
 
         return self.data[:, col]
