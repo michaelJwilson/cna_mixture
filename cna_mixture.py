@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 from matplotlib.colors import LogNorm
 from scipy.stats import nbinom, betabinom
+from scipy.special import gamma
 from sklearn.mixture import GaussianMixture
 
 np.random.seed(1234)
@@ -23,6 +24,29 @@ def reparameterize_nbinom(mean, overdisp):
     return (n, p)
 
 
+def reparametize_beta_binom(input_bafs, overdispersion):
+    """
+    Given the array of BAFs for all states and a shared overdispersion,
+    return the array of [beta, alpha] per state.
+    """
+    return np.array(
+        [
+            [
+                baf * overdispersion,
+                (1.0 - baf) * overdispersion,
+            ]
+            for baf in input_bafs
+        ]
+    )
+
+
+def onehot_encode_states(state_array):
+    num_states = np.max(state_array).astype(int) + 1
+    states = state_array.astype(int)
+
+    return np.eye(num_states)[states]
+
+
 class CNA_mixture_params:
     def __init__(self):
         # NB BAF overdispersion.  Random between 25. and 55.
@@ -32,23 +56,42 @@ class CNA_mixture_params:
         self.overdisp_phi = 1.0e-2 * np.random.randint(1, 5)
 
         # NB list of (baf, rdr) for k=4 states.
-        integer_samples = np.random.randint(1, 10)
+        integer_samples = np.random.randint(1, 10, 4)
         self.cna_states = [
             [1.0 / int_sample, 1.0 * int_sample] for int_sample in integer_samples
         ]
 
-        self.normal_state = [0.5, 1.0]
+        self.normal_state = [[0.5, 1.0]]
         self.cna_states = self.cna_states + self.normal_state
+        self.cna_states = np.array(self.cna_states)
 
-    def update(input_params_dict):
+        self.__verify()
+
+    def update(self, input_params_dict):
         keys = self.__dict__.keys()
         params_dict = input_params_dict.copy()
 
         for key in keys:
-            value = params_dict.copy()
+            value = params_dict[key]
             setattr(self, key, value)
 
-        assert not params_dict, r"Input params dict must include all of {keys}"
+            params_dict.pop(key)
+
+        assert (
+            not params_dict
+        ), f"Input params dict must include all of {keys}. Found {input_params_dict.keys()}"
+
+        self.cna_states = np.array(self.cna_states)
+        self.__verify()
+
+    def __verify(self):
+        assert isinstance(
+            self.cna_states, np.ndarray
+        ), f"cna_states attribute must be a numpy array. Found {type(self.cna_states)}"
+
+    def __str__(self):
+        printable = [f"{key}: {value}" for key, value in self.__dict__.items()]
+        return ",  ".join(printable)
 
 
 class CNA_Sim:
@@ -61,6 +104,7 @@ class CNA_Sim:
                 [0.25, 4.0],
                 [0.33, 3.0],
             ],
+            "normal_state": [0.5, 1.0],
         }
 
         for key, value in self.assumed_cna_mixture_params.items():
@@ -82,9 +126,9 @@ class CNA_Sim:
 
         for ii in range(self.num_segments):
             # NB Equal-probability for categorical states: {0, .., K-1}.
-            kk = np.random.randint(0, len(self.sim_cna_states))
+            kk = np.random.randint(0, len(self.cna_states))
 
-            baf, rdr = self.sim_cna_states[kk]
+            baf, rdr = self.cna_states[kk]
 
             # NB overdisp_tau parameterizes the degree of deviations from the mean baf.
             beta, alpha = baf * self.overdisp_tau, (1.0 - baf) * self.overdisp_tau
@@ -181,7 +225,6 @@ class CNA_Sim:
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.nbinom.html
         """
-
         # TODO
         # initialize random CNA state parameters + overdispersions
         #
@@ -189,13 +232,48 @@ class CNA_Sim:
         #     assign state posteriors given current parameters
         #     update paramaters given state posteriors.
 
-        # NB assumes BAF and RDR are independent.
-        # logpmf = betabinom.logpmf(k, n, a, b, loc=0) + nbinom.logpmf()
+        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
+        init_mixture_params = CNA_mixture_params()
+
+        # NB initial responsibilites are categorial prior on probability of each state,
+        #    i.e. no emission probabilities.
+        init_responsibilities = np.random.rand(5)
+        init_responsibilities /= np.sum(init_responsibilities)
+
+        ln_state_posteriors = np.log(init_responsibilities)
+
+        state_baf_params = reparametize_beta_binom(
+            init_mixture_params.cna_states[:, 0],
+            init_mixture_params.overdisp_tau,
+        )
+
+        num_states = np.max(self.data[:, 0]).astype(int) + 1
+        states = self.data[:, 0].astype(int)
+
+        one_hot_states = np.eye(num_states)[states]
+
+        print(one_hot_states)
+
+        """
+        # NB increment with ln BAF prob. and ln RDR prob., assuming independent given state.
+        #
+        # NB ln_baf_prob == (n_segment x n_state)
+        ln_baf_prob = [[betabinom.logpmf(k, n, a, b, loc=0)]]
+        ln_rdr_prob = nbinom.logpmf()
+
+        ln_state_posteriors += ln_baf_prob + ln_rdr_prob
+        
+        # normalize 
+        
+        print(ln_state_posteriors)
+        """
 
 
 if __name__ == "__main__":
     cna_sim = CNA_Sim()
     cna_sim.realize()
 
-    cna_sim.plot_realization()
-    cna_sim.fit_gaussian_mixture()
+    # cna_sim.plot_realization()
+    # cna_sim.fit_gaussian_mixture()
+
+    cna_sim.fit_cna_mixture()
