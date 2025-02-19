@@ -124,7 +124,7 @@ class CNA_mixture_params:
         """
         Initialize an instance of the class with random values in
         the assumed bounds.
-        """        
+        """
         # NB BAF overdispersion.  Random between 25. and 55.
         self.overdisp_tau = 25.0 + 30.0 * np.random.rand()
 
@@ -146,7 +146,7 @@ class CNA_mixture_params:
         self.num_states = len(self.cna_states)
 
         self.lambdas = np.random.rand(self.num_states)
-	self.lambdas /= np.sum(self.lambdas)
+        self.lambdas /= np.sum(self.lambdas)
 
         self.__verify()
 
@@ -195,7 +195,9 @@ class CNA_Sim:
                 [0.33, 3.0],
             ],
             "normal_state": [0.5, 1.0],
-            "lambdas": 
+            "lambdas": np.array(
+                [0.27584543, 0.30778346, 0.05386917, 0.07099214, 0.2915098]
+            ),
         }
 
         for key, value in self.assumed_cna_mixture_params.items():
@@ -271,17 +273,12 @@ class CNA_Sim:
 
         return self.data[:, col]
 
-    def plot_realization(self):
-        realized_states = self.get_data_bykey("state")
+    def plot_rdr_baf(self, rdr, baf, state_posteriors=None, states=None):
+        plt.scatter(rdr, baf, c=state_posteriors, marker=".", lw=0.0, alpha=0.25)
 
-        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
-        rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
-            "normal_coverage"
-        )
-
-        plt.scatter(rdr, baf, c=realized_states, marker=".", lw=0.0, alpha=0.25)
-
-        pl.axhline(1.0, c="k", lw=0.75)
+        if states is not None:
+            for baf, rdr in states:
+                pl.scatter(baf, rdr, c="k", marker="*")
 
         pl.xlim(-0.05, 15.0)
         pl.ylim(-0.05, 1.05)
@@ -290,8 +287,17 @@ class CNA_Sim:
         pl.ylabel(r"$p_{\rm BAF}$")
 
         pl.title(r"CNA realization")
-
         pl.show()
+
+    def plot_realization(self):
+        states = self.get_data_bykey("state")
+
+        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
+        rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
+            "normal_coverage"
+        )
+
+        self.plot_rdr_baf(rdr, baf, states=states)
 
     def fit_gaussian_mixture(
         self,
@@ -380,14 +386,23 @@ class CNA_Sim:
             self.get_data_bykey("b_reads"),
             self.get_data_bykey("snp_coverage"),
         )
-
+        """
         ln_state_posteriors += nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
-
+        """
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
-        
-        print(ln_state_posteriors[0, :])
+
+        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
+        rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
+            "normal_coverage"
+        )
+
+        state_posteriors = np.exp(ln_state_posteriors[:, :3])
+
+        self.plot_rdr_baf(
+            rdr, baf, states=state_posteriors, states=init_mixture_params.cna_states
+        )
 
 
 if __name__ == "__main__":
