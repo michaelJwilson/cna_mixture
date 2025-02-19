@@ -56,7 +56,7 @@ def beta_binom_state_logprobs(state_alpha_betas, ks, ns):
     """
     Evaluate log prob. under BetaBinom model.
     Returns (# sample, # state) array.
-    
+
     TODO port from python
     """
     result = np.zeros((len(ks), len(state_alpha_betas)))
@@ -73,6 +73,7 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model with
     shared overdispersions.
     """
+
     def __init__(self):
         """
         Initialize an instance of the class with random values in
@@ -98,7 +99,7 @@ class CNA_mixture_params:
 
     def update(self, input_params_dict):
         """
-        Update an instance of the class to the input key: value dict. 
+        Update an instance of the class to the input key: value dict.
         """
         keys = self.__dict__.keys()
         params_dict = input_params_dict.copy()
@@ -145,46 +146,51 @@ class CNA_Sim:
         for key, value in self.assumed_cna_mixture_params.items():
             setattr(self, key, value)
 
+    def realize(self):
+        """
+        Generate a realization (one seed only) for given configuration settings.
+        """
         # NB SNP-covering reads per segment.
         self.snp_coverages = np.random.randint(
             self.min_coverage, self.max_coverage, self.num_segments
         )
 
-        # NB SNP-covering reads per segment.
+        # NB normal coverage per segment, i.e. for RDR=1.
         self.normal_coverages = self.snp_coverages.copy() + np.random.randint(
             self.min_coverage, self.max_coverage, self.num_segments
         )
 
-    def realize(self):
         result = []
 
+        # NB we loop over genomic segments, sampling a state and assigning appropriate
+        #    emission values.
         for ii in range(self.num_segments):
             # NB Equal-probability for categorical states: {0, .., K-1}.
-            kk = np.random.randint(0, len(self.cna_states))
-
-            baf, rdr = self.cna_states[kk]
+            state = np.random.randint(0, len(self.cna_states))
+            baf, rdr = self.cna_states[state]
 
             # NB overdisp_tau parameterizes the degree of deviations from the mean baf.
-            beta, alpha = baf * self.overdisp_tau, (1.0 - baf) * self.overdisp_tau
+            beta, alpha = reparameterize_beta_binom([baf], self.overdisp_tau)[0]
 
+            # NB assumes some slop in terms of deviates from mean baf.
             b_reads = betabinom.rvs(self.snp_coverages[ii], alpha, beta)
-            a_reads = self.snp_coverages[ii] - b_reads
 
-            baf = b_reads / self.snp_coverages[ii]
-
+            true_read_coverage = rdr * self.normal_coverages[ii]
             lost_reads, dropout_rate = reparameterize_nbinom(
-                [rdr * self.normal_coverages[ii]], self.overdisp_phi
+                [true_read_coverage], self.overdisp_phi
             )[0]
-            retained_reads = nbinom.rvs(lost_reads, dropout_rate, size=1)[0]
+
+            read_coverage = nbinom.rvs(lost_reads, dropout_rate, size=1)[0]
 
             # NB CNA state, obs. transcripts (NegBin), lost transcripts (NegBin), B-allele support transcripts, vis a vis A.
             result.append(
                 [
-                    kk,
-                    retained_reads,
-                    rdr * self.normal_coverages[ii],
+                    state,
+                    read_coverage,
+                    true_read_coverage,
                     b_reads,
                     self.snp_coverages[ii],
+                    self.normal_coverages[ii]
                 ]
             )
 
@@ -193,11 +199,13 @@ class CNA_Sim:
     def get_data_bykey(self, key):
         keys = {
             "state": 0,
-            "retained_reads": 1,
-            "exp_coverage": 2,
+            "read_coverage": 1,
+            "true_read_coverage": 2,
             "b_reads": 3,
             "snp_coverage": 4,
+            "normal_coverage": 5,
         }
+        
         col = keys[key]
 
         return self.data[:, col]
@@ -205,10 +213,10 @@ class CNA_Sim:
     def plot_realization(self):
         realized_states = self.get_data_bykey("state")
 
-        rdr = self.get_data_bykey("retained_reads") / self.get_data_bykey(
-            "exp_coverage"
-        )
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
+        rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
+            "normal_coverage"
+        )
 
         plt.scatter(rdr, baf, c=realized_states, marker=".", lw=0.0, alpha=0.25)
 
