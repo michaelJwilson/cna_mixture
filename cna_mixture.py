@@ -23,12 +23,13 @@ def reparameterize_nbinom(means, overdisp):
     to (num_successes, prob. of success).
     """
     # NB https://en.wikipedia.org/wiki/Negative_binomial_distribution.
+    means = np.array(means)
     variances = means + overdisp * means**2
 
     ps = means / variances
     ns = means * ps / (1.0 - ps)
 
-    return np.c_[n, p]
+    return np.c_[ns, ps]
 
 
 def reparameterize_beta_binom(input_bafs, overdispersion):
@@ -109,6 +110,9 @@ class CNA_mixture_params:
 
 class CNA_Sim:
     def __init__(self):
+        self.num_segments = 10_000
+        self.min_coverage, self.max_coverage = 100, 1_000
+        
         self.assumed_cna_mixture_params = {
             "overdisp_tau": 45.0,
             "overdisp_phi": 1.0e-2,
@@ -124,13 +128,11 @@ class CNA_Sim:
             setattr(self, key, value)
 
         # NB SNP-covering reads per segment.
-        self.num_segments = 10_000
-        self.min_coverage, self.max_coverage = 100, 1_000
-
         self.snp_coverages = np.random.randint(
             self.min_coverage, self.max_coverage, self.num_segments
         )
-        
+
+        # NB SNP-covering reads per segment.
         self.normal_coverages = self.snp_coverages.copy() + np.random.randint(
             self.min_coverage, self.max_coverage, self.num_segments
         )
@@ -153,8 +155,8 @@ class CNA_Sim:
             baf = b_reads / self.snp_coverages[ii]
 
             lost_reads, dropout_rate = reparameterize_nbinom(
-                rdr * self.normal_coverages[ii], self.overdisp_phi
-            )
+                [rdr * self.normal_coverages[ii]], self.overdisp_phi
+            )[0]
             retained_reads = nbinom.rvs(lost_reads, dropout_rate, size=1)[0]
 
             # NB CNA state, obs. transcripts (NegBin), lost transcripts (NegBin), B-allele support transcripts, vis a vis A.
@@ -164,17 +166,17 @@ class CNA_Sim:
 
         self.data = np.array(result)
 
-    def get_data_bykey(key):
+    def get_data_bykey(self, key):
         keys = {"state": 0, "retained_reads": 1, "exp_coverage": 2, "b_reads": 3, "snp_coverage": 4}
         col = keys[key]
         
         return self.data[:,col]
         
     def plot_realization(self):
-        realized_states = self.data[:, 0]
+        realized_states = self.get_data_bykey("state")
 
-        rdr = self.data[:, 1] / self.normal_coverages
-        baf = self.data[:, 3] / self.data[:, 4]
+        rdr = self.get_data_bykey("retained_reads") / self.get_data_bykey("exp_coverage")
+        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
 
         plt.scatter(rdr, baf, c=realized_states, marker=".", lw=0.0, alpha=0.25)
 
@@ -297,6 +299,6 @@ if __name__ == "__main__":
     cna_sim.realize()
 
     cna_sim.plot_realization()
-    cna_sim.fit_gaussian_mixture()
+    # cna_sim.fit_gaussian_mixture()
 
     # cna_sim.fit_cna_mixture()
