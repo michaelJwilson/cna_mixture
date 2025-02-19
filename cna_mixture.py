@@ -10,6 +10,13 @@ from sklearn.mixture import GaussianMixture
 np.random.seed(1234)
 
 
+def onehot_encode_states(state_array):
+    num_states = np.max(state_array).astype(int) + 1
+    states = state_array.astype(int)
+
+    return np.eye(num_states)[states]
+
+
 def reparameterize_nbinom(mean, overdisp):
     """
     Reparameterize negative binomial from (mean, overdispersion)
@@ -24,7 +31,7 @@ def reparameterize_nbinom(mean, overdisp):
     return (n, p)
 
 
-def reparametize_beta_binom(input_bafs, overdispersion):
+def reparameterize_beta_binom(input_bafs, overdispersion):
     """
     Given the array of BAFs for all states and a shared overdispersion,
     return the array of [beta, alpha] per state.
@@ -40,11 +47,16 @@ def reparametize_beta_binom(input_bafs, overdispersion):
     )
 
 
-def onehot_encode_states(state_array):
-    num_states = np.max(state_array).astype(int) + 1
-    states = state_array.astype(int)
+def beta_binom_state_logprobs(state_alpha_betas, ks, ns):
+    """
+    """
+    result = np.zeros((len(ks), len(state_alpha_betas)))
+    
+    for col, (beta, alpha) in enumerate(state_alpha_betas):
+        for row, (k, n) in enumerate(zip(ks, ns)):
+            result[row, col] = betabinom.logpmf(k, n, alpha, beta)
 
-    return np.eye(num_states)[states]
+    return result
 
 
 class CNA_mixture_params:
@@ -145,7 +157,7 @@ class CNA_Sim:
 
             # NB CNA state, obs. transcripts (NegBin), lost transcripts (NegBin), B-allele support transcripts, vis a vis A.
             result.append(
-                [kk, sim_retained_reads, sim_lost_reads, sim_b_reads, sim_a_reads]
+                [kk, sim_retained_reads, sim_lost_reads, sim_b_reads, self.snp_coverages[ii]]
             )
 
         self.data = np.array(result)
@@ -235,25 +247,25 @@ class CNA_Sim:
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
 
+        state_alpha_betas = reparameterize_beta_binom(
+            init_mixture_params.cna_states[:, 0],
+            init_mixture_params.overdisp_tau,
+        )
+
+        print(state_alpha_betas)
+        
         # NB initial responsibilites are categorial prior on probability of each state,
         #    i.e. no emission probabilities.
         init_responsibilities = np.random.rand(5)
         init_responsibilities /= np.sum(init_responsibilities)
 
         ln_state_posteriors = np.log(init_responsibilities)
-
-        state_baf_params = reparametize_beta_binom(
-            init_mixture_params.cna_states[:, 0],
-            init_mixture_params.overdisp_tau,
-        )
-
-        num_states = np.max(self.data[:, 0]).astype(int) + 1
-        states = self.data[:, 0].astype(int)
-
-        one_hot_states = np.eye(num_states)[states]
-
-        print(one_hot_states)
-
+            
+        result = beta_binom_state_logprobs(state_alpha_betas, self.data[:,3], self.data[:,4])
+        
+        # NB broadcast (# state, 1) to (# samples, # states)
+        result += ln_state_posteriors
+        
         """
         # NB increment with ln BAF prob. and ln RDR prob., assuming independent given state.
         #
