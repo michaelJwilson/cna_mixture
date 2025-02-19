@@ -432,7 +432,7 @@ class CNA_Sim:
             state_posteriors=state_posteriors,
             states=init_mixture_params.cna_states,
         )
-
+        
 
 if __name__ == "__main__":
     cna_sim = CNA_Sim()
