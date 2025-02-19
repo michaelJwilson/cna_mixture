@@ -68,6 +68,22 @@ def beta_binom_state_logprobs(state_alpha_betas, ks, ns):
     return result
 
 
+def nbinom_state_logprobs(state_rs_ps, ks):
+    """
+    Evaluate log prob. under NegativeBinom model.
+    Return (# sample, # state) array.
+
+    TODO port from python
+    """
+    result = np.zeros((len(ks), len(state_rs_ps)))
+
+    for col, (rr, pp) in enumerate(state_rs_ps):
+        for row, k in enumerate(ks):
+            result[row, col] = nbinom.logpmf(k, n, p)
+
+    return result
+
+
 class CNA_mixture_params:
     """
     Data class for parameters required by CNA mixture model with
@@ -97,6 +113,7 @@ class CNA_mixture_params:
         self.cna_states = np.array(self.cna_states)
         self.normal_state = np.array(self.normal_state)
 
+        self.num_states = len(self.cna_states)
         self.__verify()
 
     def update(self, input_params_dict):
@@ -117,6 +134,7 @@ class CNA_mixture_params:
         ), f"Input params dict must include all of {keys}. Found {input_params_dict.keys()}"
 
         self.cna_states = np.array(self.cna_states)
+        self.num_states = len(self.cna_states)
         self.__verify()
 
     def __verify(self):
@@ -152,6 +170,7 @@ class CNA_Sim:
 
         self.cna_states = np.array(self.cna_states)
         self.normal_state = np.array(self.normal_state)
+        self.num_states = len(self.cna_states)
 
     def realize(self):
         """
@@ -173,7 +192,7 @@ class CNA_Sim:
         #    emission values.
         for ii in range(self.num_segments):
             # NB Equal-probability for categorical states: {0, .., K-1}.
-            state = np.random.randint(0, len(self.cna_states))
+            state = np.random.randint(0, self.num_states)
             baf, rdr = self.cna_states[state]
 
             # NB overdisp_tau parameterizes the degree of deviations from the mean baf.
@@ -311,21 +330,33 @@ class CNA_Sim:
             init_mixture_params.overdisp_tau,
         )
 
+        state_rs_ps = reparameterize_nbinom(
+            init_mixture_params.cna_states[:, 1], init_mixture_params.overdisp_phi
+        )
+
         print(state_alpha_betas)
+        print(state_rs_ps)
 
         # NB initial responsibilites are categorial prior on probability of each state,
         #    i.e. no emission probabilities.
-        init_responsibilities = np.random.rand(5)
+        init_responsibilities = np.random.rand(init_mixture_params.num_states)
         init_responsibilities /= np.sum(init_responsibilities)
 
         init_ln_state_posteriors = np.log(init_responsibilities)
 
-        # NB fed with num b reads and total snp covering reads.
+        # NB - fed with num b reads and total snp covering reads.
+        #    - broadcast (# state, 1) to (# samples, # states)
         ln_state_posteriors = beta_binom_state_logprobs(
-            state_alpha_betas, self.data[:, 3], self.data[:, 4]
+            state_alpha_betas,
+            self.get_data_bykey(),
+            self.data[:, 3],
+            self.data[:, 4],
+            self.get_data_bykey(),
         )
 
-        # NB broadcast (# state, 1) to (# samples, # states)
+        ln_state_posteriors += nbinom_state_logprobs(
+            state_rs_ps, self.get_data_bykey("read_coverage")
+        )
         ln_state_posteriors += init_ln_state_posteriors
 
         print(ln_state_posteriors)
@@ -352,4 +383,4 @@ if __name__ == "__main__":
     cna_sim.plot_realization()
     cna_sim.fit_gaussian_mixture()
 
-    # cna_sim.fit_cna_mixture()
+    cna_sim.fit_cna_mixture()
