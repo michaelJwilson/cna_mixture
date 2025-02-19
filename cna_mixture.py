@@ -74,6 +74,10 @@ class CNA_mixture_params:
     shared overdispersions.
     """
     def __init__(self):
+        """
+        Initialize an instance of the class with random values in
+        the assumed bounds.
+        """
         # NB BAF overdispersion.  Random between 25. and 55.
         self.overdisp_tau = 25.0 + 30.0 * np.random.rand()
 
@@ -87,12 +91,15 @@ class CNA_mixture_params:
         ]
 
         self.normal_state = [[0.5, 1.0]]
-        self.cna_states = self.cna_states + self.normal_state
+        self.cna_states = self.normal_state + self.cna_states
         self.cna_states = np.array(self.cna_states)
 
         self.__verify()
 
     def update(self, input_params_dict):
+        """
+        Update an instance of the class to the input key: value dict. 
+        """
         keys = self.__dict__.keys()
         params_dict = input_params_dict.copy()
 
