@@ -87,14 +87,16 @@ class CNA_mixture_params:
 
         # NB list of (baf, rdr) for k=4 states.
         integer_samples = np.random.randint(1, 10, 4)
+
+        self.normal_state = [0.5, 1.0]
         self.cna_states = [
             [1.0 / int_sample, 1.0 * int_sample] for int_sample in integer_samples
         ]
 
-        self.normal_state = [[0.5, 1.0]]
-        self.cna_states = self.normal_state + self.cna_states
+        self.cna_states = [self.normal_state] + self.cna_states
         self.cna_states = np.array(self.cna_states)
-
+        self.normal_state = np.array(self.normal_state)
+        
         self.__verify()
 
     def update(self, input_params_dict):
@@ -146,6 +148,11 @@ class CNA_Sim:
         for key, value in self.assumed_cna_mixture_params.items():
             setattr(self, key, value)
 
+        self.cna_states = [self.normal_state] + self.cna_states
+
+        self.cna_states = np.array(self.cna_states)
+        self.normal_state = np.array(self.normal_state)
+            
     def realize(self):
         """
         Generate a realization (one seed only) for given configuration settings.
@@ -341,6 +348,6 @@ if __name__ == "__main__":
     cna_sim.realize()
 
     cna_sim.plot_realization()
-    # cna_sim.fit_gaussian_mixture()
+    cna_sim.fit_gaussian_mixture()
 
     # cna_sim.fit_cna_mixture()
