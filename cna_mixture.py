@@ -17,18 +17,18 @@ def onehot_encode_states(state_array):
     return np.eye(num_states)[states]
 
 
-def reparameterize_nbinom(mean, overdisp):
+def reparameterize_nbinom(means, overdisp):
     """
     Reparameterize negative binomial from (mean, overdispersion)
     to (num_successes, prob. of success).
     """
     # NB https://en.wikipedia.org/wiki/Negative_binomial_distribution.
-    var = mean + overdisp * mean**2
+    variances = means + overdisp * means**2
 
-    p = mean / var
-    n = mean * p / (1.0 - p)
+    ps = means / variances
+    ns = means * ps / (1.0 - ps)
 
-    return (n, p)
+    return np.c_[n, p]
 
 
 def reparameterize_beta_binom(input_bafs, overdispersion):
