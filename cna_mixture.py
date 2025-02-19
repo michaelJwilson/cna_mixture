@@ -23,21 +23,48 @@ def reparameterize_nbinom(mean, overdisp):
     return (n, p)
 
 
-class CNA_Sim:
+class CNA_mixture_params:
     def __init__(self):
-        # NB BAF overdispersion.
-        self.overdisp_tau = 45.0
+        # NB BAF overdispersion.  Random between 25. and 55.
+        self.overdisp_tau = 25.0 + 30.0 * np.random.rand()
 
-        # NB RDR overdispersion;
-        self.overdisp_phi = 1.0e-2
+        # NB RDR overdispersion.  Random between 1e-2 and 4e-2
+        self.overdisp_phi = 1.0e-2 * np.random.randint(1, 5)
 
         # NB list of (baf, rdr) for k=4 states.
-        self.sim_cna_states = [
-            [0.1, 10.0],
-            [0.25, 4.0],
-            [0.33, 3.0],
-            [0.5, 1.0],  # normal
+        integer_samples = np.random.randint(1, 10)
+        self.cna_states = [
+            [1.0 / int_sample, 1.0 * int_sample] for int_sample in integer_samples
         ]
+
+        self.normal_state = [0.5, 1.0]
+        self.cna_states = self.cna_states + self.normal_state
+
+    def update(input_params_dict):
+        keys = self.__dict__.keys()
+        params_dict = input_params_dict.copy()
+
+        for key in keys:
+            value = params_dict.copy()
+            setattr(self, key, value)
+
+        assert not params_dict, r"Input params dict must include all of {keys}"
+
+
+class CNA_Sim:
+    def __init__(self):
+        self.assumed_cna_mixture_params = {
+            "overdisp_tau": 45.0,
+            "overdisp_phi": 1.0e-2,
+            "cna_states": [
+                [0.1, 10.0],
+                [0.25, 4.0],
+                [0.33, 3.0],
+            ],
+        }
+
+        for key, value in self.assumed_cna_mixture_params.items():
+            setattr(self, key, value)
 
         # NB SNP-covering reads per segment.
         self.num_segments = 10_000
@@ -88,7 +115,7 @@ class CNA_Sim:
         plt.scatter(sim_rdr, sim_baf, c=realized_states, marker=".", lw=0.0, alpha=0.25)
 
         pl.axhline(1.0, c="k", lw=0.75)
-        
+
         pl.xlim(-0.05, 15.0)
         pl.ylim(-0.05, 1.05)
 
@@ -132,7 +159,7 @@ class CNA_Sim:
         )
 
         pl.axhline(1.0, c="k", lw=0.75)
-        
+
         pl.xlim(-0.05, 15.0)
         pl.ylim(-0.05, 1.05)
 
@@ -143,13 +170,24 @@ class CNA_Sim:
 
         pl.show()
 
-    def eval_log_prob():
+    def fit_cna_mixture(self):
         """
-        https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html
-        https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.nbinom.html
+        Fit CNA mixture model via Expectation Maximization.  Assumes RDR + BAF are independent
+        given CNA state.
+
+        See:
+            https://udlbook.github.io/cvbook/
+
+            https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html
+            https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.nbinom.html
         """
 
-        raise NotImplementedError()
+        # TODO
+        # initialize random CNA state parameters + overdispersions
+        #
+        # while not converged:
+        #     assign state posteriors given current parameters
+        #     update paramaters given state posteriors.
 
         # NB assumes BAF and RDR are independent.
         # logpmf = betabinom.logpmf(k, n, a, b, loc=0) + nbinom.logpmf()
@@ -158,8 +196,6 @@ class CNA_Sim:
 if __name__ == "__main__":
     cna_sim = CNA_Sim()
     cna_sim.realize()
-
-    print(cna_sim.data[:, :15])
 
     cna_sim.plot_realization()
     cna_sim.fit_gaussian_mixture()
