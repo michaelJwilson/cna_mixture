@@ -370,7 +370,7 @@ class CNA_Sim:
         )
 
         ln_state_posteriors = ln_state_posteriors + init_ln_state_posteriors
-        ln_state_posteriors = logsumexp(ln_state_posteriors, axis=1).reshape(self.num_segments, 1) + ln_state_posteriors
+        ln_state_posteriors = -logsumexp(ln_state_posteriors, axis=1).reshape(self.num_segments, 1) + ln_state_posteriors
         
         norm = logsumexp(ln_state_posteriors, axis=1)
 
