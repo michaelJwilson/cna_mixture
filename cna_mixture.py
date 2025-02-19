@@ -30,6 +30,7 @@ def reparameterize_nbinom(means, overdisp):
     means = np.array(means)
     variances = means + overdisp * means**2
 
+    # NB [0.0, 1.0] by definition.
     ps = means / variances
     ns = means * ps / (1.0 - ps)
 
@@ -78,8 +79,8 @@ def nbinom_state_logprobs(state_rs_ps, ks):
     result = np.zeros((len(ks), len(state_rs_ps)))
 
     for col, (rr, pp) in enumerate(state_rs_ps):
-        for row, k in enumerate(ks):
-            result[row, col] = nbinom.logpmf(k, n, p)
+        for row, kk in enumerate(ks):
+            result[row, col] = nbinom.logpmf(kk, rr, pp)
 
     return result
 
@@ -330,12 +331,13 @@ class CNA_Sim:
             init_mixture_params.overdisp_tau,
         )
 
+        # TODO first column values are all the same??
         state_rs_ps = reparameterize_nbinom(
             init_mixture_params.cna_states[:, 1], init_mixture_params.overdisp_phi
         )
 
-        print(state_alpha_betas)
-        print(state_rs_ps)
+        # print(state_alpha_betas)
+        # print(state_rs_ps)
 
         # NB initial responsibilites are categorial prior on probability of each state,
         #    i.e. no emission probabilities.
@@ -348,18 +350,15 @@ class CNA_Sim:
         #    - broadcast (# state, 1) to (# samples, # states)
         ln_state_posteriors = beta_binom_state_logprobs(
             state_alpha_betas,
-            self.get_data_bykey(),
-            self.data[:, 3],
-            self.data[:, 4],
-            self.get_data_bykey(),
+            self.get_data_bykey("b_reads"),
+            self.get_data_bykey("snp_coverage"),
         )
 
         ln_state_posteriors += nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
+        
         ln_state_posteriors += init_ln_state_posteriors
-
-        print(ln_state_posteriors)
 
         """
         # NB increment with ln BAF prob. and ln RDR prob., assuming independent given state.
@@ -380,7 +379,7 @@ if __name__ == "__main__":
     cna_sim = CNA_Sim()
     cna_sim.realize()
 
-    cna_sim.plot_realization()
-    cna_sim.fit_gaussian_mixture()
+    # cna_sim.plot_realization()
+    # cna_sim.fit_gaussian_mixture()
 
     cna_sim.fit_cna_mixture()
