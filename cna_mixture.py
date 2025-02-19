@@ -250,8 +250,10 @@ class CNA_Sim:
         """
         see:  https://github.com/raphael-group/CalicoST/blob/5e4a8a1230e71505667d51390dc9c035a69d60d9/src/calicost/utils_hmm.py#L163
         """
-        rdr = self.data[:, 1] / self.normal_coverages
-        baf = self.data[:, 3] / (self.data[:, 3] + self.data[:, 4])
+        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
+        rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
+            "normal_coverage"
+        )
 
         X = np.c_[rdr, baf]
 
