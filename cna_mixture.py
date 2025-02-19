@@ -62,6 +62,16 @@ def reparameterize_beta_binom(input_bafs, overdispersion):
     )
 
 
+def categorical_state_logprobs(lambdas, num_samples):
+    ls = lambdas.copy()
+    ls /= np.sum(ls)
+
+    ls = np.log(ls)
+    ls = np.broadcast_to(ls, (num_samples, len(ls))).copy()
+
+    return ls
+
+
 def beta_binom_state_logprobs(state_alpha_betas, ks, ns):
     """
     Evaluate log prob. under BetaBinom model.
@@ -92,6 +102,16 @@ def nbinom_state_logprobs(state_rs_ps, ks):
             result[row, col] = nbinom.logpmf(kk, rr, pp)
 
     return result
+
+
+def normalize_ln_posteriors(ln_posteriors):
+    num_samples, num_states = ln_posteriors.shape
+
+    # NB natural logarithm by definition;
+    norm = logsumexp(ln_posteriors, axis=1)
+    norm = np.broadcast_to(norm.reshape(num_samples, 1), (num_samples, num_states))
+
+    return ln_posteriors.copy() - norm
 
 
 class CNA_mixture_params:
@@ -316,8 +336,8 @@ class CNA_Sim:
 
     def fit_cna_mixture(self):
         """
-        Fit CNA mixture model via Expectation Maximization.  Assumes RDR + BAF are independent
-        given CNA state.
+        Fit CNA mixture model via Expectation Maximization.
+        Assumes RDR + BAF are independent given CNA state.
 
         See:
             https://udlbook.github.io/cvbook/
@@ -325,13 +345,6 @@ class CNA_Sim:
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.nbinom.html
         """
-        # TODO
-        # initialize random CNA state parameters + overdispersions
-        #
-        # while not converged:
-        #     assign state posteriors given current parameters
-        #     update paramaters given state posteriors.
-
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
 
@@ -345,25 +358,18 @@ class CNA_Sim:
             init_mixture_params.cna_states[:, 1], init_mixture_params.overdisp_phi
         )
 
-        # print(state_rs_ps)
-        # print(state_alpha_betas)
-        # print(state_rs_ps)
-
         num_states = init_mixture_params.num_states
 
         # NB initial responsibilites are categorial prior on probability of each state,
         #    i.e. no emission probabilities.
-        init_responsibilities = np.random.rand(init_mixture_params.num_states)
-        init_responsibilities /= np.sum(init_responsibilities)
+        state_lambdas = np.random.rand(init_mixture_params.num_states)
+        state_lambdas /= np.sum(state_lambdas)
 
-        init_ln_state_posteriors = np.log(init_responsibilities)
+        ln_state_posteriors = categorical_state_logprobs(
+            state_lambdas,
+            self.num_segments,
+        )
 
-        ln_state_posteriors = np.broadcast_to(
-            init_ln_state_posteriors, (self.num_segments, num_states)
-        ).copy()
-
-        # NB - fed with num b reads and total snp covering reads.
-        #    - broadcast (# state, 1) to (# samples, # states)
         ln_state_posteriors += beta_binom_state_logprobs(
             state_alpha_betas,
             self.get_data_bykey("b_reads"),
@@ -374,14 +380,8 @@ class CNA_Sim:
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
 
-        norm = logsumexp(ln_state_posteriors, axis=1)
-        norm = np.broadcast_to(
-            norm.reshape(self.num_segments, 1), (self.num_segments, num_states)
-        )
-
-        # NB normalize to unity across states.
-        ln_state_posteriors -= norm
-
+        ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
+        
         print(ln_state_posteriors[0, :])
 
 
