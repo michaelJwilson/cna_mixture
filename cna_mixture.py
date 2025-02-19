@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from scipy.stats import nbinom, betabinom
 from scipy.special import gamma
-from scipy.special import logsumexp as __logsumexp
+from scipy.special import logsumexp as logsumexp
 from sklearn.mixture import GaussianMixture
 
 np.random.seed(1234)
 
 
-def logsumexp(array):
+def __logsumexp(array):
     max_val = array.max()
     shifted_array = array.copy() - max_val
 
@@ -345,11 +345,11 @@ class CNA_Sim:
             init_mixture_params.cna_states[:, 1], init_mixture_params.overdisp_phi
         )
 
-        print(state_rs_ps)
+        # print(state_rs_ps)
 
         # print(state_alpha_betas)
         # print(state_rs_ps)
-
+        
         # NB initial responsibilites are categorial prior on probability of each state,
         #    i.e. no emission probabilities.
         init_responsibilities = np.random.rand(init_mixture_params.num_states)
@@ -369,8 +369,13 @@ class CNA_Sim:
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
 
-        ln_state_posteriors += init_ln_state_posteriors
+        ln_state_posteriors = ln_state_posteriors + init_ln_state_posteriors
+        ln_state_posteriors = logsumexp(ln_state_posteriors, axis=1).reshape(self.num_segments, 1) + ln_state_posteriors
+        
+        norm = logsumexp(ln_state_posteriors, axis=1)
 
+        print(norm)
+        
         """
         # NB increment with ln BAF prob. and ln RDR prob., assuming independent given state.
         #
@@ -389,4 +394,4 @@ if __name__ == "__main__":
     # cna_sim.plot_realization()
     # cna_sim.fit_gaussian_mixture()
 
-    # cna_sim.fit_cna_mixture()
+    cna_sim.fit_cna_mixture()
