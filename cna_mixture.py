@@ -11,6 +11,10 @@ np.random.seed(1234)
 
 
 def onehot_encode_states(state_array):
+    """
+    Given an array of categorical states, return the
+    (# samples, # states) one-hot encoding.
+    """
     num_states = np.max(state_array).astype(int) + 1
     states = state_array.astype(int)
 
@@ -19,8 +23,8 @@ def onehot_encode_states(state_array):
 
 def reparameterize_nbinom(means, overdisp):
     """
-    Reparameterize negative binomial from (mean, overdispersion)
-    to (num_successes, prob. of success).
+    Reparameterize negative binomial from per-state means
+    and shared overdispersion to (num_successes, prob. of success).
     """
     # NB https://en.wikipedia.org/wiki/Negative_binomial_distribution.
     means = np.array(means)
@@ -35,7 +39,7 @@ def reparameterize_nbinom(means, overdisp):
 def reparameterize_beta_binom(input_bafs, overdispersion):
     """
     Given the array of BAFs for all states and a shared overdispersion,
-    return the array of [beta, alpha] per state.
+    return the (# states, 2) array of [beta, alpha] for each state.
     """
     return np.array(
         [
@@ -50,10 +54,13 @@ def reparameterize_beta_binom(input_bafs, overdispersion):
 
 def beta_binom_state_logprobs(state_alpha_betas, ks, ns):
     """
+    Evaluate log prob. under BetaBinom model.
+    Returns (# sample, # state) array.
+    
     TODO port from python
     """
     result = np.zeros((len(ks), len(state_alpha_betas)))
-    
+
     for col, (beta, alpha) in enumerate(state_alpha_betas):
         for row, (k, n) in enumerate(zip(ks, ns)):
             result[row, col] = betabinom.logpmf(k, n, alpha, beta)
@@ -62,6 +69,10 @@ def beta_binom_state_logprobs(state_alpha_betas, ks, ns):
 
 
 class CNA_mixture_params:
+    """
+    Data class for parameters required by CNA mixture model with
+    shared overdispersions.
+    """
     def __init__(self):
         # NB BAF overdispersion.  Random between 25. and 55.
         self.overdisp_tau = 25.0 + 30.0 * np.random.rand()
@@ -112,7 +123,7 @@ class CNA_Sim:
     def __init__(self):
         self.num_segments = 10_000
         self.min_coverage, self.max_coverage = 100, 1_000
-        
+
         self.assumed_cna_mixture_params = {
             "overdisp_tau": 45.0,
             "overdisp_phi": 1.0e-2,
@@ -136,7 +147,7 @@ class CNA_Sim:
         self.normal_coverages = self.snp_coverages.copy() + np.random.randint(
             self.min_coverage, self.max_coverage, self.num_segments
         )
-        
+
     def realize(self):
         result = []
 
@@ -161,21 +172,35 @@ class CNA_Sim:
 
             # NB CNA state, obs. transcripts (NegBin), lost transcripts (NegBin), B-allele support transcripts, vis a vis A.
             result.append(
-                [kk, retained_reads, rdr * self.normal_coverages[ii], b_reads, self.snp_coverages[ii]]
+                [
+                    kk,
+                    retained_reads,
+                    rdr * self.normal_coverages[ii],
+                    b_reads,
+                    self.snp_coverages[ii],
+                ]
             )
 
         self.data = np.array(result)
 
     def get_data_bykey(self, key):
-        keys = {"state": 0, "retained_reads": 1, "exp_coverage": 2, "b_reads": 3, "snp_coverage": 4}
+        keys = {
+            "state": 0,
+            "retained_reads": 1,
+            "exp_coverage": 2,
+            "b_reads": 3,
+            "snp_coverage": 4,
+        }
         col = keys[key]
-        
-        return self.data[:,col]
-        
+
+        return self.data[:, col]
+
     def plot_realization(self):
         realized_states = self.get_data_bykey("state")
 
-        rdr = self.get_data_bykey("retained_reads") / self.get_data_bykey("exp_coverage")
+        rdr = self.get_data_bykey("retained_reads") / self.get_data_bykey(
+            "exp_coverage"
+        )
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
 
         plt.scatter(rdr, baf, c=realized_states, marker=".", lw=0.0, alpha=0.25)
@@ -263,7 +288,7 @@ class CNA_Sim:
         )
 
         print(state_alpha_betas)
-        
+
         # NB initial responsibilites are categorial prior on probability of each state,
         #    i.e. no emission probabilities.
         init_responsibilities = np.random.rand(5)
@@ -272,13 +297,15 @@ class CNA_Sim:
         init_ln_state_posteriors = np.log(init_responsibilities)
 
         # NB fed with num b reads and total snp covering reads.
-        ln_state_posteriors = beta_binom_state_logprobs(state_alpha_betas, self.data[:,3], self.data[:,4])
+        ln_state_posteriors = beta_binom_state_logprobs(
+            state_alpha_betas, self.data[:, 3], self.data[:, 4]
+        )
 
         # NB broadcast (# state, 1) to (# samples, # states)
         ln_state_posteriors += init_ln_state_posteriors
 
         print(ln_state_posteriors)
-        
+
         """
         # NB increment with ln BAF prob. and ln RDR prob., assuming independent given state.
         #
