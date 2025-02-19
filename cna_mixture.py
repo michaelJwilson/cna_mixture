@@ -346,10 +346,11 @@ class CNA_Sim:
         )
 
         # print(state_rs_ps)
-
         # print(state_alpha_betas)
         # print(state_rs_ps)
-        
+
+        num_states = init_mixture_params.num_states
+
         # NB initial responsibilites are categorial prior on probability of each state,
         #    i.e. no emission probabilities.
         init_responsibilities = np.random.rand(init_mixture_params.num_states)
@@ -357,9 +358,13 @@ class CNA_Sim:
 
         init_ln_state_posteriors = np.log(init_responsibilities)
 
+        ln_state_posteriors = np.broadcast_to(
+            init_ln_state_posteriors, (self.num_segments, num_states)
+        ).copy()
+
         # NB - fed with num b reads and total snp covering reads.
         #    - broadcast (# state, 1) to (# samples, # states)
-        ln_state_posteriors = beta_binom_state_logprobs(
+        ln_state_posteriors += beta_binom_state_logprobs(
             state_alpha_betas,
             self.get_data_bykey("b_reads"),
             self.get_data_bykey("snp_coverage"),
@@ -369,22 +374,15 @@ class CNA_Sim:
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
 
-        ln_state_posteriors = ln_state_posteriors + init_ln_state_posteriors
-        ln_state_posteriors = -logsumexp(ln_state_posteriors, axis=1).reshape(self.num_segments, 1) + ln_state_posteriors
-        
         norm = logsumexp(ln_state_posteriors, axis=1)
+        norm = np.broadcast_to(
+            norm.reshape(self.num_segments, 1), (self.num_segments, num_states)
+        )
 
-        print(norm)
-        
-        """
-        # NB increment with ln BAF prob. and ln RDR prob., assuming independent given state.
-        #
-        # NB ln_baf_prob == (n_segment x n_state)
-        
-        # normalize 
-        
-        print(ln_state_posteriors)
-        """
+        # NB normalize to unity across states.
+        ln_state_posteriors -= norm
+
+        print(ln_state_posteriors[0, :])
 
 
 if __name__ == "__main__":
