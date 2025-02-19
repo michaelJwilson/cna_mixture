@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import pylab as pl
 import matplotlib.pyplot as plt
@@ -10,6 +11,11 @@ from sklearn.mixture import GaussianMixture
 
 np.random.seed(1234)
 
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+
+logger = logging.getLogger(__name__)
 
 def __logsumexp(array):
     max_val = array.max()
@@ -54,8 +60,8 @@ def reparameterize_beta_binom(input_bafs, overdispersion):
     return np.array(
         [
             [
-                baf * overdispersion,
                 (1.0 - baf) * overdispersion,
+                baf * overdispersion,
             ]
             for baf in input_bafs
         ]
@@ -81,9 +87,9 @@ def beta_binom_state_logprobs(state_alpha_betas, ks, ns):
     """
     result = np.zeros((len(ks), len(state_alpha_betas)))
 
-    for col, (beta, alpha) in enumerate(state_alpha_betas):
+    for col, (alpha, beta) in enumerate(state_alpha_betas):
         for row, (k, n) in enumerate(zip(ks, ns)):
-            result[row, col] = betabinom.logpmf(k, n, alpha, beta)
+            result[row, col] = betabinom.logpmf(k, n, beta, alpha)
 
     return result
 
@@ -119,7 +125,6 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model with
     shared overdispersions.
     """
-
     def __init__(self):
         """
         Initialize an instance of the class with random values in
@@ -132,7 +137,7 @@ class CNA_mixture_params:
         self.overdisp_phi = 1.0e-2
 
         # NB list of (baf, rdr) for k=4 states.
-        integer_samples = np.random.randint(1, 10, 4)
+        integer_samples = np.random.randint(2, 10, 4)
 
         self.normal_state = [0.5, 1.0]
         self.cna_states = [
@@ -176,6 +181,8 @@ class CNA_mixture_params:
             self.cna_states, np.ndarray
         ), f"cna_states attribute must be a numpy array. Found {type(self.cna_states)}"
 
+        logging.info(f"Simulating CNA states:\n{self.cna_states}")
+        
     def __str__(self):
         printable = [f"{key}: {value}" for key, value in self.__dict__.items()]
         return ",  ".join(printable)
@@ -196,7 +203,7 @@ class CNA_Sim:
             ],
             "normal_state": [0.5, 1.0],
             "lambdas": np.array(
-                [0.27584543, 0.30778346, 0.05386917, 0.07099214, 0.2915098]
+                [0.27584543, 0.30778346, 0.05386917, 0.07099214, 0.2915098] # BUG 5, not 4, states?? 
             ),
         }
 
@@ -233,10 +240,10 @@ class CNA_Sim:
             baf, rdr = self.cna_states[state]
 
             # NB overdisp_tau parameterizes the degree of deviations from the mean baf.
-            beta, alpha = reparameterize_beta_binom([baf], self.overdisp_tau)[0]
+            alpha, beta = reparameterize_beta_binom([baf], self.overdisp_tau)[0]
 
             # NB assumes some slop in terms of deviates from mean baf.
-            b_reads = betabinom.rvs(self.snp_coverages[ii], alpha, beta)
+            b_reads = betabinom.rvs(self.snp_coverages[ii], beta, alpha)
 
             true_read_coverage = rdr * self.normal_coverages[ii]
             lost_reads, dropout_rate = reparameterize_nbinom(
@@ -278,7 +285,7 @@ class CNA_Sim:
 
         if states is not None:
             for baf, rdr in states:
-                pl.scatter(rdr, baf, c="k", marker="*")
+                pl.scatter(rdr, baf, c="gold", marker="*")
 
         pl.xlim(-0.05, 15.0)
         pl.ylim(-0.05, 1.05)
