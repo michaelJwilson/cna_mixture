@@ -5,9 +5,18 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from scipy.stats import nbinom, betabinom
 from scipy.special import gamma
+from scipy.special import logsumexp as __logsumexp
 from sklearn.mixture import GaussianMixture
 
 np.random.seed(1234)
+
+
+def logsumexp(array):
+    max_val = array.max()
+    shifted_array = array.copy() - max_val
+
+    # TODO test: array = -np.arange(100); assert logsumexp(array) == __logsumexp(array)
+    return max_val + np.log(np.exp(shifted_array).sum())
 
 
 def onehot_encode_states(state_array):
@@ -100,7 +109,7 @@ class CNA_mixture_params:
         self.overdisp_tau = 25.0 + 30.0 * np.random.rand()
 
         # NB RDR overdispersion.  Random between 1e-2 and 4e-2
-        self.overdisp_phi = 1.0e-2 * np.random.randint(1, 5)
+        self.overdisp_phi = 1.0e-2
 
         # NB list of (baf, rdr) for k=4 states.
         integer_samples = np.random.randint(1, 10, 4)
@@ -331,10 +340,12 @@ class CNA_Sim:
             init_mixture_params.overdisp_tau,
         )
 
-        # TODO first column values are all the same??
+        # TODO first column values are all the same??  overdisp_phi << 1?
         state_rs_ps = reparameterize_nbinom(
             init_mixture_params.cna_states[:, 1], init_mixture_params.overdisp_phi
         )
+
+        print(state_rs_ps)
 
         # print(state_alpha_betas)
         # print(state_rs_ps)
@@ -357,17 +368,13 @@ class CNA_Sim:
         ln_state_posteriors += nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
-        
+
         ln_state_posteriors += init_ln_state_posteriors
 
         """
         # NB increment with ln BAF prob. and ln RDR prob., assuming independent given state.
         #
         # NB ln_baf_prob == (n_segment x n_state)
-        ln_baf_prob = [[betabinom.logpmf(k, n, a, b, loc=0)]]
-        ln_rdr_prob = nbinom.logpmf()
-
-        ln_state_posteriors += ln_baf_prob + ln_rdr_prob
         
         # normalize 
         
@@ -382,4 +389,4 @@ if __name__ == "__main__":
     # cna_sim.plot_realization()
     # cna_sim.fit_gaussian_mixture()
 
-    cna_sim.fit_cna_mixture()
+    # cna_sim.fit_cna_mixture()
