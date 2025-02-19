@@ -124,7 +124,7 @@ class CNA_mixture_params:
         """
         Initialize an instance of the class with random values in
         the assumed bounds.
-        """
+        """        
         # NB BAF overdispersion.  Random between 25. and 55.
         self.overdisp_tau = 25.0 + 30.0 * np.random.rand()
 
@@ -144,6 +144,10 @@ class CNA_mixture_params:
         self.normal_state = np.array(self.normal_state)
 
         self.num_states = len(self.cna_states)
+
+        self.lambdas = np.random.rand(self.num_states)
+	self.lambdas /= np.sum(self.lambdas)
+
         self.__verify()
 
     def update(self, input_params_dict):
@@ -191,6 +195,7 @@ class CNA_Sim:
                 [0.33, 3.0],
             ],
             "normal_state": [0.5, 1.0],
+            "lambdas": 
         }
 
         for key, value in self.assumed_cna_mixture_params.items():
