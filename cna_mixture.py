@@ -462,23 +462,32 @@ class CNA_Sim:
             self.num_segments,
         )
 
-        ln_state_posterior_betabinom_update = beta_binom_state_logprobs(
+        ln_state_posterior_betabinom = beta_binom_state_logprobs(
             state_alpha_betas,
             self.get_data_bykey("b_reads"),
             self.get_data_bykey("snp_coverage"),
         )
 
-        ln_state_posterior_nbinom_update = nbinom_state_logprobs(
+        ln_state_posterior_nbinom = nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
 
-        ln_state_posteriors = ln_state_posterior_nbinom_update + ln_state_posterior_betabinom_update + ln_state_priors
-        ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
+        ln_state_posteriors = normalize_ln_posteriors(
+            ln_state_posterior_nbinom + ln_state_posterior_betabinom + ln_state_priors
+        )
+
+        state_posteriors = np.exp(ln_state_posteriors)
+
+        cost = state_posteriors * (
+            ln_state_posterior_nbinom + ln_state_posterior_betabinom + ln_state_priors
+        )
+
+        loss = cost.sum()
         
         self.plot_rdr_baf(
             rdr,
             baf,
-            state_posteriors=np.exp(ln_state_posteriors),
+            state_posteriors=state_posteriors,
             states=init_mixture_params.cna_states,
         )
 
