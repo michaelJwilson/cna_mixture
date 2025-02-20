@@ -427,25 +427,26 @@ class CNA_Sim:
             state_lambdas,
             self.num_segments,
         )
-        
+        """
         ln_state_posteriors += beta_binom_state_logprobs(
             state_alpha_betas,
             self.get_data_bykey("b_reads"),
             self.get_data_bykey("snp_coverage"),
         )
-
+        """
         ln_state_posteriors += nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
 
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
+        state_posteriors = np.exp(ln_state_posteriors)
         
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
         rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
             "normal_coverage"
         )
 
-        state_posteriors = np.exp(ln_state_posteriors)
+        # print(state_posteriors)
 
         self.plot_rdr_baf(
             rdr,
