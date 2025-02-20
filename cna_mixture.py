@@ -32,6 +32,8 @@ def onehot_encode_states(state_array):
     """
     Given an array of categorical states, return the
     (# samples, # states) one-hot encoding.
+
+    NB equivalent to the state posterior!
     """
     num_states = np.max(state_array).astype(int) + 1
     states = state_array.astype(int)
@@ -241,7 +243,7 @@ class CNA_Sim:
 
         self.cna_states = [self.normal_state] + self.cna_states
 
-        logger.info(f"Simulating copy number states: {self.cna_states}.")
+        # logger.info(f"Simulating copy number states: {self.cna_states}.")
         
         self.cna_states = np.array(self.cna_states)
         self.normal_state = np.array(self.normal_state)
@@ -446,11 +448,6 @@ class CNA_Sim:
             self.get_data_bykey("snp_coverage"),
         )
         """
-
-        print(state_rs_ps)
-
-        exit(0)
-        
         ln_state_posteriors += nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
@@ -463,7 +460,7 @@ class CNA_Sim:
             "normal_coverage"
         )
 
-        # print(state_posteriors)
+        print(state_posteriors)
 
         self.plot_rdr_baf(
             rdr,
