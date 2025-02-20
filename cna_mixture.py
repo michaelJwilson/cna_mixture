@@ -164,10 +164,6 @@ class CNA_mixture_params:
 
         self.lambdas = np.random.rand(self.num_states)
         self.lambdas /= np.sum(self.lambdas)
-
-        print(self.lambdas)
-
-        exit(0)
         
         self.__verify()
 
@@ -220,12 +216,11 @@ class CNA_Sim:
             "normal_state": [0.5, 1.0],
             "lambdas": np.array(
                 [
-                    0.27584543,
-                    0.30778346,
-                    0.05386917,
-                    0.07099214,
-                    0.2915098,
-                ]  # BUG 5, not 4, states??
+                    0.31807498,
+                    0.06162617,
+                    0.52047995,
+                    0.0998189
+                ]
             ),
         }
 
@@ -465,6 +460,6 @@ if __name__ == "__main__":
     cna_sim.realize()
 
     # cna_sim.plot_realization()
-    cna_sim.fit_gaussian_mixture()
+    # cna_sim.fit_gaussian_mixture()
 
-    # cna_sim.fit_cna_mixture()
+    cna_sim.fit_cna_mixture()
