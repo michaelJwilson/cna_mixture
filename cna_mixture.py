@@ -456,7 +456,7 @@ class CNA_Sim:
 
         # NB one-hot encoding of decoded state == ln. posterior.
         # ln_state_posteriors = onehot_encode_states(decoded_states)
-
+        
         ln_state_priors = categorical_state_logprobs(
             state_lambdas,
             self.num_segments,
