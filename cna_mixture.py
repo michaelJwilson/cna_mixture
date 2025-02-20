@@ -452,38 +452,40 @@ class CNA_Sim:
         # state_lambdas /= np.sum(state_lambdas)
 
         points = np.c_[rdr, baf]
+
+        # TODO kmeans++ like.
         decoded_states = assign_closest(points, init_mixture_params.cna_states)
-
-        print(decoded_states)
-
-        exit(0)
         
+	# NB one-hot encoding of decoded state == ln. posterior.                                                                                                                                                                                
+	ln_state_posteriors = onehot_encode_states(decoded_states)
+        
+        _, state_counts = np.unique(decoded_states, return_counts=True)
+        state_lambdas = np.log(state_counts / np.sum(state_counts))
+
         """
         ln_state_posteriors = categorical_state_logprobs(
             state_lambdas,
             self.num_segments,
         )
-       
+        """
         ln_state_posteriors += beta_binom_state_logprobs(
             state_alpha_betas,
             self.get_data_bykey("b_reads"),
             self.get_data_bykey("snp_coverage"),
         )
-        """
+
         """
         ln_state_posteriors += nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
-
+        """
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
         state_posteriors = np.exp(ln_state_posteriors)
 
-        print(state_posteriors)
-        """
         self.plot_rdr_baf(
             rdr,
             baf,
-            state_posteriors=decoded_states,
+            state_posteriors=state_posteriors,
             states=init_mixture_params.cna_states,
         )
 
@@ -493,6 +495,6 @@ if __name__ == "__main__":
     cna_sim.realize()
 
     # cna_sim.plot_realization()
-    cna_sim.fit_gaussian_mixture()
+    # cna_sim.fit_gaussian_mixture()
 
-    # cna_sim.fit_cna_mixture()
+    cna_sim.fit_cna_mixture()
