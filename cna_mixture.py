@@ -319,11 +319,11 @@ class CNA_Sim:
                 rgb = state_posteriors[:,1:4]
 
         pl.axhline(0.5, c="k", lw=0.5)
-        plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha)
+        plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap="YlGnBu")
 
         if states is not None:
             for baf, rdr in states:
-                pl.scatter(rdr, baf, c="k", marker="*")
+                pl.scatter(rdr, baf, marker="*", edgecolors='black', facecolors='white', s=45)
 
         pl.xlim(-0.05, 15.0)
         pl.ylim(-0.05, 1.05)
@@ -455,7 +455,7 @@ if __name__ == "__main__":
     cna_sim = CNA_Sim()
     cna_sim.realize()
 
-    # cna_sim.plot_realization()
-    cna_sim.fit_gaussian_mixture()
+    cna_sim.plot_realization()
+    # cna_sim.fit_gaussian_mixture()
 
     # cna_sim.fit_cna_mixture()
