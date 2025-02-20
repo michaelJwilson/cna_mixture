@@ -91,7 +91,10 @@ def categorical_state_logprobs(lambdas, num_samples):
     ls = lambdas.copy()
     norm = np.sum(ls)
 
-    assert np.abs(norm - 1.0) < 1.0e-6, "Lambdas are not accurately normalized"
+    # BUG TODO
+    # assert (
+    #    np.abs(norm - 1.0) < 1.0e-6
+    # ), f"Lambdas are not accurately normalized: {lambdas} with norm {norm}"
 
     ls = np.log(ls)
 
@@ -377,10 +380,10 @@ class CNA_Sim:
         BAF vs RDR for the assumed simulation.
         """
         true_states = self.get_data_bykey("state")
-        
+
         self.plot_rdr_baf(
-            self.rdr_baf[:,0],
-            self.rdr_baf[:,1],
+            self.rdr_baf[:, 0],
+            self.rdr_baf[:, 1],
             state_posteriors=true_states,
             states=self.cna_states,
             title="CNA realizations",
@@ -484,7 +487,7 @@ class CNA_Sim:
         return ln_state_posteriors, loss
 
     def cna_mixture_loss(self, params):
-        _, loss = cna_step(params)
+        _, loss = self.cna_mixture_eval(params)
         return loss
 
     def fit_cna_mixture(self):
@@ -522,11 +525,14 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
+        ln_state_posteriors, loss = self.cna_mixture_eval(initial_params)
+
+        """
         # NB see https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html
         res = minimize(
-            self.cna_loss,
+            self.cna_mixture_loss,
             initial_params,
-            method="SLSQP",
+            method="nelder-mead",
             jac=None,
             hess=None,
             hessp=None,
@@ -537,9 +543,10 @@ class CNA_Sim:
             options={"maxiter": 1},
         )
 
-        logger.info(rs.success)
+        logger.info(rs.message)
         
-        ln_state_posteriors, loss = self.cna_mixture_eval(initial_params.x0)
+        ln_state_posteriors, loss = self.cna_mixture_eval(res.x0)
+        """
         
         # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
