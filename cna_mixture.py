@@ -435,8 +435,8 @@ class CNA_Sim:
 
         num_states = init_mixture_params.num_states
 
-        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
         rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
+        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
         
         points = np.c_[rdr, baf]
 
