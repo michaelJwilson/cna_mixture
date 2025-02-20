@@ -434,6 +434,11 @@ class CNA_Sim:
             self.get_data_bykey("snp_coverage"),
         )
         """
+
+        print(state_rs_ps)
+
+        exit(0)
+        
         ln_state_posteriors += nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
