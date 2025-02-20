@@ -377,15 +377,10 @@ class CNA_Sim:
         BAF vs RDR for the assumed simulation.
         """
         true_states = self.get_data_bykey("state")
-
-        rdr, baf = self.rdr_baf
-
-        # baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
-        # rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
-
+        
         self.plot_rdr_baf(
-            rdr,
-            baf,
+            self.rdr_baf[:,0],
+            self.rdr_baf[:,1],
             state_posteriors=true_states,
             states=self.cna_states,
             title="CNA realizations",
@@ -531,7 +526,7 @@ class CNA_Sim:
         res = minimize(
             self.cna_loss,
             initial_params,
-            method="Nelder-Mead",
+            method="SLSQP",
             jac=None,
             hess=None,
             hessp=None,
@@ -549,11 +544,9 @@ class CNA_Sim:
         # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
 
-        rdr, baf = self.rdr_baf[:, 0], self.rdr_baf[:, 1]
-
         self.plot_rdr_baf(
-            rdr,
-            baf,
+            self.rdr_baf[:, 0],
+            self.rdr_baf[:, 1],
             state_posteriors=np.exp(ln_state_posteriors),
             states=init_mixture_params.cna_states,
         )
