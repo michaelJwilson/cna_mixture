@@ -525,56 +525,13 @@ class CNA_Sim:
 
         ln_state_posteriors, loss = self.cna_loss_eval(data, initial_params)
 
-        exit(0)
-
-        # >>>>>>>>>>>>>  LOSS START
-        initial_state_rs_ps = reparameterize_nbinom(
-            initial_read_depths,
-            init_mixture_params.overdisp_phi,
-        )
-
-        initial_state_alpha_betas = reparameterize_beta_binom(
-            initial_bafs,
-            init_mixture_params.overdisp_tau,
-        )
-
-        # NB one-hot encoding of decoded state == ln. posterior.
-        # ln_state_posteriors = onehot_encode_states(decoded_states)
-
-        ln_state_priors = categorical_state_logprobs(
-            state_lambdas,
-            self.num_segments,
-        )
-
-        ln_state_posterior_betabinom = beta_binom_state_logprobs(
-            state_alpha_betas,
-            self.get_data_bykey("b_reads"),
-            self.get_data_bykey("snp_coverage"),
-        )
-
-        ln_state_posterior_nbinom = nbinom_state_logprobs(
-            state_rs_ps, self.get_data_bykey("read_coverage")
-        )
-
-        ln_state_posteriors = normalize_ln_posteriors(
-            ln_state_posterior_nbinom + ln_state_posterior_betabinom + ln_state_priors
-        )
-
         # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
-
-        # NB this is *not* state-posterior weighted log-likelihood.
-        cost = state_posteriors * (
-            ln_state_posterior_nbinom + ln_state_posterior_betabinom + ln_state_priors
-        )
-
-        loss = cost.sum()
-        # <<<<<<<<<<<<<  LOSS END
 
         self.plot_rdr_baf(
             rdr,
             baf,
-            state_posteriors=state_posteriors,
+            state_posteriors=np.exp(ln_state_posteriors),
             states=init_mixture_params.cna_states,
         )
 
