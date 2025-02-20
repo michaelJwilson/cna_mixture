@@ -150,7 +150,8 @@ class CNA_mixture_params:
 
         # NB list of (baf, rdr) for k=4 states.
         integer_samples = np.random.choice(np.arange(2, 10), size=self.num_cna_states, replace=False)
-
+        integer_samples = np.sort(integer_samples)
+        
         self.normal_state = [0.5, 1.0]
         self.cna_states = [
             [1.0 / int_sample, 1.0 * int_sample] for int_sample in integer_samples
@@ -164,6 +165,10 @@ class CNA_mixture_params:
         self.lambdas = np.random.rand(self.num_states)
         self.lambdas /= np.sum(self.lambdas)
 
+        print(self.lambdas)
+
+        exit(0)
+        
         self.__verify()
 
     def update(self, input_params_dict):
@@ -208,9 +213,9 @@ class CNA_Sim:
             "overdisp_tau": 45.0,
             "overdisp_phi": 1.0e-2,
             "cna_states": [
-                [0.1, 10.0],
-                [0.25, 4.0],
                 [0.33, 3.0],
+                [0.25, 4.0],
+                [0.1, 10.0],
             ],
             "normal_state": [0.5, 1.0],
             "lambdas": np.array(
@@ -229,6 +234,8 @@ class CNA_Sim:
 
         self.cna_states = [self.normal_state] + self.cna_states
 
+        logger.info(f"Simulating copy number states: {self.cna_states}.")
+        
         self.cna_states = np.array(self.cna_states)
         self.normal_state = np.array(self.normal_state)
         self.num_states = len(self.cna_states)
@@ -321,7 +328,7 @@ class CNA_Sim:
                 rgb = state_posteriors[:,1:4]
 
         pl.axhline(0.5, c="k", lw=0.5)
-        plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap="YlGnBu")
+        plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap="viridis")
 
         if states is not None:
             for baf, rdr in states:
