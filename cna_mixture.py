@@ -491,7 +491,7 @@ if __name__ == "__main__":
     cna_sim = CNA_Sim()
     cna_sim.realize()
 
-    cna_sim.plot_realization()
-    # cna_sim.fit_gaussian_mixture()
+    # cna_sim.plot_realization()
+    cna_sim.fit_gaussian_mixture()
 
     # cna_sim.fit_cna_mixture()
