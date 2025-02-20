@@ -319,7 +319,7 @@ class CNA_Sim:
                 assert state_posteriors.shape[1] == 4
 
                 # NB assumed to be normal probability.
-                alpha  = state_posteriors[:,0]
+                alpha  = 0.5 + state_posteriors[:,0] / 2.
                 rgb = state_posteriors[:,1:4]
 
         pl.axhline(0.5, c="k", lw=0.5)
@@ -405,9 +405,9 @@ class CNA_Sim:
         """
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
-
+        
         state_alpha_betas = reparameterize_beta_binom(
-            init_mixture_params.cna_states[:, 0],
+            init_mixture_params.cna_states,
             init_mixture_params.overdisp_tau,
         )
 
@@ -417,7 +417,7 @@ class CNA_Sim:
         )
 
         num_states = init_mixture_params.num_states
-
+        
         # NB initial responsibilites are categorial prior on probability of each state,
         #    i.e. no emission probabilities.
         state_lambdas = np.random.rand(init_mixture_params.num_states)
@@ -427,25 +427,25 @@ class CNA_Sim:
             state_lambdas,
             self.num_segments,
         )
-        """
+        
         ln_state_posteriors += beta_binom_state_logprobs(
             state_alpha_betas,
             self.get_data_bykey("b_reads"),
             self.get_data_bykey("snp_coverage"),
         )
-        
+
         ln_state_posteriors += nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
-        """
-        ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
 
+        ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
+        
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
         rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
             "normal_coverage"
         )
 
-        state_posteriors = np.exp(ln_state_posteriors[:, :3])
+        state_posteriors = np.exp(ln_state_posteriors)
 
         self.plot_rdr_baf(
             rdr,
