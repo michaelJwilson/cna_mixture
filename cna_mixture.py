@@ -20,7 +20,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def __logsumexp(array):
+def simple_logsumexp(array):
     max_val = array.max()
     shifted_array = array.copy() - max_val
 
@@ -58,9 +58,8 @@ def reparameterize_nbinom(means, overdisp):
 def reparameterize_beta_binom(input_bafs, overdispersion):
     """
     Given the array of BAFs for all states and a shared overdispersion,
-    return the (# states, 2) array of [alpha, beta] for each state.
-
-    NB
+    return the (# states, 2) array of [alpha, beta] for each state,
+    where beta is associated to the BAF probability.
     """
     return np.array(
         [
@@ -74,8 +73,13 @@ def reparameterize_beta_binom(input_bafs, overdispersion):
 
 
 def categorical_state_logprobs(lambdas, num_samples):
+    """
+    
+    """
     ls = lambdas.copy()
-    ls /= np.sum(ls)
+    norm = np.sum(ls)
+
+    assert np.abs(norm - 1.0) < 1.0e-6, "Lambdas are not accurately normalized"
 
     ls = np.log(ls)
     ls = np.broadcast_to(ls, (num_samples, len(ls))).copy()
@@ -130,7 +134,6 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model with
     shared overdispersions.
     """
-
     def __init__(self):
         """
         Initialize an instance of the class with random values in
@@ -163,7 +166,7 @@ class CNA_mixture_params:
 
     def update(self, input_params_dict):
         """
-        Update an instance of the class to the input key: value dict.
+        Update an instance of CNA_mixture_params to the input key: value dict.
         """
         keys = self.__dict__.keys()
         params_dict = input_params_dict.copy()
@@ -257,10 +260,13 @@ class CNA_Sim:
             # NB assumes some slop in terms of deviates from mean baf.
             b_reads = betabinom.rvs(self.snp_coverages[ii], beta, alpha)
             baf = b_reads / self.snp_coverages[ii]
-            
-            assert baf <= 0.5, f"{b_reads}\t{self.snp_coverages[ii]}\t{baf}"
+
+            # NB we expect for baf ~0.5, some baf estimate to NOT be the minor allele,
+            #    i.e. to occur at a rate > 0.5;
 
             true_read_coverage = rdr * self.normal_coverages[ii]
+
+            # NB equivalent to r and prob. for a bernoulli trial of r.
             lost_reads, dropout_rate = reparameterize_nbinom(
                 [true_read_coverage], self.overdisp_phi
             )[0]
@@ -272,7 +278,7 @@ class CNA_Sim:
                 [
                     state,
                     read_coverage,
-                    true_read_coverage,
+                    true_read_coverage, # NB not an observable, to be inferrred.
                     b_reads,
                     self.snp_coverages[ii],
                     self.normal_coverages[ii],
@@ -296,11 +302,28 @@ class CNA_Sim:
         return self.data[:, col]
 
     def plot_rdr_baf(self, rdr, baf, state_posteriors=None, states=None, title=None):
-        plt.scatter(rdr, baf, c=state_posteriors, marker=".", lw=0.0, alpha=0.25)
+        """
+        NB state_posteriors may be an integer, corresponding to a decoded state, or
+           the posterior probs. for up to four states, which are mapped to RGB +
+           alpha transparency.
+        """
+        if state_posteriors is not None:
+            if state_posteriors.ndim == 1:
+                rgb = state_posteriors
+                alpha = 0.25
+            else:
+                assert state_posteriors.shape[1] == 4
+
+                # NB assumed to be normal probability.
+                alpha  = state_posteriors[:,0]
+                rgb = state_posteriors[:,1:4]
+
+        pl.axhline(0.5, c="k", lw=0.5)
+        plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha)
 
         if states is not None:
             for baf, rdr in states:
-                pl.scatter(rdr, baf, c="gold", marker="*")
+                pl.scatter(rdr, baf, c="k", marker="*")
 
         pl.xlim(-0.05, 15.0)
         pl.ylim(-0.05, 1.05)
@@ -314,7 +337,10 @@ class CNA_Sim:
         pl.show()
 
     def plot_realization(self):
-        decoded_states = self.get_data_bykey("state")
+        """
+        BAF vs RDR for the assumed simulation.
+        """
+        true_states = self.get_data_bykey("state")
 
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
         rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
@@ -322,7 +348,7 @@ class CNA_Sim:
         )
 
         self.plot_rdr_baf(
-            rdr, baf, state_posteriors=decoded_states, title="CNA realization"
+            rdr, baf, state_posteriors=true_states, states=self.cna_states, title="CNA realizations"
         )
 
     def fit_gaussian_mixture(
@@ -334,7 +360,7 @@ class CNA_Sim:
         covariance_type="diag",
     ):
         """
-        see:  https://github.com/raphael-group/CalicoST/blob/5e4a8a1230e71505667d51390dc9c035a69d60d9/src/calicost/utils_hmm.py#L163
+        See:  https://github.com/raphael-group/CalicoST/blob/5e4a8a1230e71505667d51390dc9c035a69d60d9/src/calicost/utils_hmm.py#L163
         """
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
         rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
@@ -353,23 +379,14 @@ class CNA_Sim:
             covariance_type=covariance_type,
         ).fit(X)
 
-        obs_data, states = gmm.sample(n_samples=num_samples)
+        means = np.c_[gmm.means_[:,1], gmm.means_[:,0]]
+        samples, decoded_states = gmm.sample(n_samples=num_samples)
 
-        plt.scatter(
-            obs_data[:, 0], obs_data[:, 1], c=states, marker=".", lw=0.0, alpha=0.25
+        logger.info(f"Fit Gaussian mixture means:\n{means}")
+        
+        self.plot_rdr_baf(
+            samples[:, 0], samples[:, 1], state_posteriors=decoded_states, states=means, title=r"Gaussian Mixture Model samples",
         )
-
-        pl.axhline(1.0, c="k", lw=0.75)
-
-        pl.xlim(-0.05, 15.0)
-        pl.ylim(-0.05, 1.05)
-
-        pl.title(r"Gaussian Mixture Model samples")
-
-        pl.xlabel(r"$\mu_{\rm RDR}$")
-        pl.ylabel(r"$p_{\rm BAF}$")
-
-        pl.show()
 
     def fit_cna_mixture(self):
         """
@@ -432,13 +449,13 @@ class CNA_Sim:
             state_posteriors=state_posteriors,
             states=init_mixture_params.cna_states,
         )
-        
+
 
 if __name__ == "__main__":
     cna_sim = CNA_Sim()
     cna_sim.realize()
 
     # cna_sim.plot_realization()
-    # cna_sim.fit_gaussian_mixture()
+    cna_sim.fit_gaussian_mixture()
 
     # cna_sim.fit_cna_mixture()
