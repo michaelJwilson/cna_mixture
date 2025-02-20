@@ -226,7 +226,9 @@ class CNA_mixture_params:
 class CNA_Sim:
     def __init__(self):
         self.num_segments = 10_000
-        self.min_coverage, self.max_coverage = 100, 1_000
+
+        # NB normal coverage per segment, i.e. for RDR=1.
+        self.min_snp_coverage, self.max_snp_coverage, self.normal_genome_coverage = 100, 1_000, 500
 
         self.assumed_cna_mixture_params = {
             "overdisp_tau": 45.0,
@@ -264,12 +266,7 @@ class CNA_Sim:
         """
         # NB SNP-covering reads per segment.
         self.snp_coverages = np.random.randint(
-            self.min_coverage, self.max_coverage, self.num_segments
-        )
-
-        # NB normal coverage per segment, i.e. for RDR=1.
-        self.normal_coverages = self.snp_coverages.copy() + np.random.randint(
-            self.min_coverage, self.max_coverage, self.num_segments
+            self.min_snp_coverage, self.max_snp_coverage, self.num_segments
         )
 
         result = []
@@ -291,7 +288,7 @@ class CNA_Sim:
             # NB we expect for baf ~0.5, some baf estimate to NOT be the minor allele,
             #    i.e. to occur at a rate > 0.5;
 
-            true_read_coverage = rdr * self.normal_coverages[ii]
+            true_read_coverage = rdr * self.normal_genome_coverage
 
             # NB equivalent to r and prob. for a bernoulli trial of r.
             lost_reads, dropout_rate = reparameterize_nbinom(
@@ -308,7 +305,6 @@ class CNA_Sim:
                     true_read_coverage, # NB not an observable, to be inferrred.
                     b_reads,
                     self.snp_coverages[ii],
-                    self.normal_coverages[ii],
                 ]
             )
 
@@ -321,7 +317,6 @@ class CNA_Sim:
             "true_read_coverage": 2,
             "b_reads": 3,
             "snp_coverage": 4,
-            "normal_coverage": 5,
         }
 
         col = keys[key]
@@ -373,9 +368,7 @@ class CNA_Sim:
         true_states = self.get_data_bykey("state")
 
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
-        rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
-            "normal_coverage"
-        )
+        rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
 
         self.plot_rdr_baf(
             rdr, baf, state_posteriors=true_states, states=self.cna_states, title="CNA realizations"
@@ -393,9 +386,7 @@ class CNA_Sim:
         See:  https://github.com/raphael-group/CalicoST/blob/5e4a8a1230e71505667d51390dc9c035a69d60d9/src/calicost/utils_hmm.py#L163
         """
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
-        rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
-            "normal_coverage"
-        )
+        rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
 
         X = np.c_[rdr, baf]
 
@@ -445,9 +436,7 @@ class CNA_Sim:
         num_states = init_mixture_params.num_states
 
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
-        rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
-            "normal_coverage"
-        )
+        rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
         
         # NB initial responsibilites are categorial prior on probability of each state,
         #    i.e. no emission probabilities.
@@ -478,6 +467,9 @@ class CNA_Sim:
             self.get_data_bykey("snp_coverage"),
         )
 
+        print(state_rs_ps)
+        print(self.get_data_bykey("read_coverage"))
+        
         ln_state_posteriors = nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
@@ -499,7 +491,7 @@ if __name__ == "__main__":
     cna_sim = CNA_Sim()
     cna_sim.realize()
 
-    # cna_sim.plot_realization()
+    cna_sim.plot_realization()
     # cna_sim.fit_gaussian_mixture()
 
-    cna_sim.fit_cna_mixture()
+    # cna_sim.fit_cna_mixture()
