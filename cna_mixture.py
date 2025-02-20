@@ -442,14 +442,14 @@ class CNA_Sim:
 
         # NB categorical prior on state fractions
         _, state_counts = np.unique(decoded_states, return_counts=True)
-        state_lambdas = state_counts / np.sum(state_counts)
+        initial_state_lambdas = state_counts / np.sum(state_counts)
 
-        state_rs_ps = reparameterize_nbinom(
+        initial_state_rs_ps = reparameterize_nbinom(
             self.normal_genome_coverage * init_mixture_params.cna_states[:, 0],
             init_mixture_params.overdisp_phi,
         )
 
-        state_alpha_betas = reparameterize_beta_binom(
+        initial_state_alpha_betas = reparameterize_beta_binom(
             init_mixture_params.cna_states[:, 1],
             init_mixture_params.overdisp_tau,
         )
@@ -457,28 +457,28 @@ class CNA_Sim:
         # NB one-hot encoding of decoded state == ln. posterior.
         # ln_state_posteriors = onehot_encode_states(decoded_states)
 
-        ln_state_posteriors = categorical_state_logprobs(
+        ln_state_priors = categorical_state_logprobs(
             state_lambdas,
             self.num_segments,
         )
 
-        ln_state_posteriors += beta_binom_state_logprobs(
+        ln_state_posterior_betabinom_update = beta_binom_state_logprobs(
             state_alpha_betas,
             self.get_data_bykey("b_reads"),
             self.get_data_bykey("snp_coverage"),
         )
 
-        ln_state_posteriors += nbinom_state_logprobs(
+        ln_state_posterior_nbinom_update = nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
 
+        ln_state_posteriors = ln_state_posterior_nbinom_update + ln_state_posterior_betabinom_update + ln_state_priors
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
-        state_posteriors = np.exp(ln_state_posteriors)
-
+        
         self.plot_rdr_baf(
             rdr,
             baf,
-            state_posteriors=state_posteriors,
+            state_posteriors=np.exp(ln_state_posteriors),
             states=init_mixture_params.cna_states,
         )
 
