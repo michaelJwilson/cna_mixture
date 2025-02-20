@@ -430,7 +430,7 @@ class CNA_Sim:
         
         # TODO first column values are all the same??  overdisp_phi << 1?
         state_rs_ps = reparameterize_nbinom(
-            init_mixture_params.cna_states[:,0], init_mixture_params.overdisp_phi
+            self.normal_genome_coverage * init_mixture_params.cna_states[:,0], init_mixture_params.overdisp_phi
         )
 
         num_states = init_mixture_params.num_states
@@ -461,20 +461,15 @@ class CNA_Sim:
         )
         """
 
-        ln_state_posteriors = beta_binom_state_logprobs(
+        ln_state_posteriors += beta_binom_state_logprobs(
             state_alpha_betas,
             self.get_data_bykey("b_reads"),
             self.get_data_bykey("snp_coverage"),
         )
-
-        print(state_rs_ps)
-        print(self.get_data_bykey("read_coverage"))
         
-        ln_state_posteriors = nbinom_state_logprobs(
+        ln_state_posteriors += nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
-
-        print(ln_state_posteriors)
         
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
         state_posteriors = np.exp(ln_state_posteriors)
@@ -492,6 +487,6 @@ if __name__ == "__main__":
     cna_sim.realize()
 
     # cna_sim.plot_realization()
-    cna_sim.fit_gaussian_mixture()
+    # cna_sim.fit_gaussian_mixture()
 
-    # cna_sim.fit_cna_mixture()
+    cna_sim.fit_cna_mixture()
