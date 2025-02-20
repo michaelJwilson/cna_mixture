@@ -122,6 +122,7 @@ def nbinom_state_logprobs(state_rs_ps, ks):
     """
     result = np.zeros((len(ks), len(state_rs_ps)))
 
+    # TODO Poisson limit for (phi * mu) << 1.
     for col, (rr, pp) in enumerate(state_rs_ps):
         for row, kk in enumerate(ks):
             result[row, col] = nbinom.logpmf(kk, rr, pp)
