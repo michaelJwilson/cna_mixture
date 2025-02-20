@@ -93,9 +93,8 @@ def categorical_state_logprobs(lambdas, num_samples):
     assert np.abs(norm - 1.0) < 1.0e-6, "Lambdas are not accurately normalized"
 
     ls = np.log(ls)
-    ls = np.broadcast_to(ls, (num_samples, len(ls))).copy()
 
-    return ls
+    return np.broadcast_to(ls, (num_samples, len(ls))).copy()
 
 
 def beta_binom_state_logprobs(state_alpha_betas, ks, ns):
@@ -420,41 +419,37 @@ class CNA_Sim:
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.nbinom.html
         """
-        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
+        rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
+        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
+
+        points = np.c_[rdr, baf]
+
+        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                             
         init_mixture_params = CNA_mixture_params()
+        
+        # TODO kmeans++ like.                                                                                                                        
+        decoded_states = assign_closest(points, init_mixture_params.cna_states)
+
+        # NB categorical prior on state fractions
+        _, state_counts = np.unique(decoded_states, return_counts=True)
+        state_lambdas = state_counts / np.sum(state_counts)
+
+        state_rs_ps = reparameterize_nbinom(
+            self.normal_genome_coverage * init_mixture_params.cna_states[:,0], init_mixture_params.overdisp_phi
+        )
         
         state_alpha_betas = reparameterize_beta_binom(
             init_mixture_params.cna_states[:,1],
             init_mixture_params.overdisp_tau,
         )
         
-        # TODO first column values are all the same??  overdisp_phi << 1?
-        state_rs_ps = reparameterize_nbinom(
-            self.normal_genome_coverage * init_mixture_params.cna_states[:,0], init_mixture_params.overdisp_phi
-        )
-
-        num_states = init_mixture_params.num_states
-
-        rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
-        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
-        
-        points = np.c_[rdr, baf]
-
-        # TODO kmeans++ like.
-        decoded_states = assign_closest(points, init_mixture_params.cna_states)
-
-        _, state_counts = np.unique(decoded_states, return_counts=True)
-        state_lambdas = np.log(state_counts / np.sum(state_counts))
-        
 	# NB one-hot encoding of decoded state == ln. posterior.
-        ln_state_posteriors = onehot_encode_states(decoded_states)
+        # ln_state_posteriors = onehot_encode_states(decoded_states)
 
-        """
         ln_state_posteriors = categorical_state_logprobs(
             state_lambdas,
             self.num_segments,
         )
-        """
 
         ln_state_posteriors += beta_binom_state_logprobs(
             state_alpha_betas,
@@ -465,7 +460,7 @@ class CNA_Sim:
         ln_state_posteriors += nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
-        
+
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
         state_posteriors = np.exp(ln_state_posteriors)
 
