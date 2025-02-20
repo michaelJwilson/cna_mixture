@@ -418,6 +418,71 @@ class CNA_Sim:
             title=r"Gaussian Mixture Model samples",
         )
 
+    def cna_loss_eval(self, data, params):
+        num_states = self.num_states
+
+        # NB lambdas + read_depths + overdispersion + bafs + overdispersion
+        assert len(params) == num_states + num_states + 1 + num_states + 1
+
+        lambdas = params[:num_states]
+
+        read_depths = params[num_states : 2 * num_states]
+        rdr_overdispersion = params[2 * num_states]
+
+        bafs = params[2 * num_states + 1 : 3 * num_states + 1]
+        baf_overdispersion = params[3 * num_states + 1]
+
+        # TODO does a non-linear transform in the cost trip the optimizer?
+        # print(lambdas, read_depths, rdr_overdispersion, bafs, baf_overdispersion)
+
+        state_rs_ps = reparameterize_nbinom(
+            read_depths,
+            rdr_overdispersion,
+        )
+
+        state_alpha_betas = reparameterize_beta_binom(
+            bafs,
+            baf_overdispersion,
+        )
+
+        # NB one-hot encoding of decoded state == ln. posterior.
+        # ln_state_posteriors = onehot_encode_states(decoded_states)
+        ln_state_priors = categorical_state_logprobs(
+            lambdas,
+            self.num_segments,
+        )
+
+        ln_state_posterior_betabinom = beta_binom_state_logprobs(
+            state_alpha_betas,
+            self.get_data_bykey("b_reads"),
+            self.get_data_bykey("snp_coverage"),
+        )
+
+        ln_state_posterior_nbinom = nbinom_state_logprobs(
+            state_rs_ps, self.get_data_bykey("read_coverage")
+        )
+
+        ln_state_posteriors = normalize_ln_posteriors(
+            ln_state_posterior_nbinom + ln_state_posterior_betabinom + ln_state_priors
+        )
+
+        # NB responsibilites rik, where i is the sample and k is the state.
+        state_posteriors = np.exp(ln_state_posteriors)
+
+        # NB this is *not* state-posterior weighted log-likelihood.
+        cost = state_posteriors * (
+            ln_state_posterior_nbinom + ln_state_posterior_betabinom + ln_state_priors
+        )
+
+        loss = cost.sum()
+
+        return ln_state_posteriors, loss
+
+    def cna_loss(self, data, params):
+        _, loss = cna_step(data, params)
+
+        return loss
+
     def fit_cna_mixture(self):
         """
         Fit CNA mixture model via Expectation Maximization.
@@ -432,31 +497,50 @@ class CNA_Sim:
         rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
 
-        points = np.c_[rdr, baf]
+        data = np.c_[rdr, baf]
 
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
 
         # TODO kmeans++ like.
-        decoded_states = assign_closest(points, init_mixture_params.cna_states)
+        decoded_states = assign_closest(data, init_mixture_params.cna_states)
 
         # NB categorical prior on state fractions
         _, state_counts = np.unique(decoded_states, return_counts=True)
         initial_state_lambdas = state_counts / np.sum(state_counts)
 
+        initial_read_depths = (
+            self.normal_genome_coverage * init_mixture_params.cna_states[:, 0]
+        )
+        initial_bafs = init_mixture_params.cna_states[:, 1]
+
+        # NB e.g. [0.2443, 0.3857, 0.1247, 0.2453, ... 500.0, 1500.0, 2500.0, 3500.0, 0.01, ... 0.5, 0.3333333333333333, 0.2, 0.14285714285714285, 47.075625069001084]
+        initial_params = (
+            initial_state_lambdas.tolist()
+            + initial_read_depths.tolist()
+            + [init_mixture_params.overdisp_phi]
+            + initial_bafs.tolist()
+            + [init_mixture_params.overdisp_tau]
+        )
+
+        ln_state_posteriors, loss = self.cna_loss_eval(data, initial_params)
+
+        exit(0)
+
+        # >>>>>>>>>>>>>  LOSS START
         initial_state_rs_ps = reparameterize_nbinom(
-            self.normal_genome_coverage * init_mixture_params.cna_states[:, 0],
+            initial_read_depths,
             init_mixture_params.overdisp_phi,
         )
 
         initial_state_alpha_betas = reparameterize_beta_binom(
-            init_mixture_params.cna_states[:, 1],
+            initial_bafs,
             init_mixture_params.overdisp_tau,
         )
 
         # NB one-hot encoding of decoded state == ln. posterior.
         # ln_state_posteriors = onehot_encode_states(decoded_states)
-        
+
         ln_state_priors = categorical_state_logprobs(
             state_lambdas,
             self.num_segments,
@@ -476,14 +560,17 @@ class CNA_Sim:
             ln_state_posterior_nbinom + ln_state_posterior_betabinom + ln_state_priors
         )
 
+        # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
 
+        # NB this is *not* state-posterior weighted log-likelihood.
         cost = state_posteriors * (
             ln_state_posterior_nbinom + ln_state_posterior_betabinom + ln_state_priors
         )
 
         loss = cost.sum()
-        
+        # <<<<<<<<<<<<<  LOSS END
+
         self.plot_rdr_baf(
             rdr,
             baf,
