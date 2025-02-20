@@ -7,6 +7,7 @@ from matplotlib.colors import LogNorm
 from scipy.stats import nbinom, betabinom, poisson
 from scipy.special import gamma
 from scipy.special import logsumexp as logsumexp
+from scipy.spatial import KDTree
 from sklearn.mixture import GaussianMixture
 
 np.random.seed(1234)
@@ -27,6 +28,14 @@ def simple_logsumexp(array):
     # TODO test: array = -np.arange(100); assert logsumexp(array) == __logsumexp(array)
     return max_val + np.log(np.exp(shifted_array).sum())
 
+def assign_closest(points, centers):
+    assert len(points) > len(centers)
+    
+    tree = KDTree(centers)
+    distances, idx = tree.query(points)
+
+    return idx
+    
 
 def onehot_encode_states(state_array):
     """
@@ -166,9 +175,9 @@ class CNA_mixture_params:
         integer_samples = np.random.choice(np.arange(2, 10), size=self.num_cna_states, replace=False)
         integer_samples = np.sort(integer_samples)
         
-        self.normal_state = [0.5, 1.0]
+        self.normal_state = [1.0, 0.5]
         self.cna_states = [
-            [1.0 / int_sample, 1.0 * int_sample] for int_sample in integer_samples
+            [1.0 * int_sample, 1.0 / int_sample] for int_sample in integer_samples
         ]
 
         self.cna_states = [self.normal_state] + self.cna_states
@@ -223,11 +232,11 @@ class CNA_Sim:
             "overdisp_tau": 45.0,
             "overdisp_phi": 1.0e-2,
             "cna_states": [
-                [0.33, 3.0],
-                [0.25, 4.0],
-                [0.1, 10.0],
+                [3.0, 0.33],
+                [4.0, 0.25],
+                [10.0, 0.1],
             ],
-            "normal_state": [0.5, 1.0],
+            "normal_state": [1.0, 0.5],
             "lambdas": np.array(
                 [
                     0.31807498,
@@ -270,7 +279,7 @@ class CNA_Sim:
         for ii in range(self.num_segments):
             # NB Equal-probability for categorical states: {0, .., K-1}.
             state = np.random.randint(0, self.num_states)
-            baf, rdr = self.cna_states[state]
+            rdr, baf = self.cna_states[state]
 
             # NB overdisp_tau parameterizes the degree of deviations from the mean baf.
             alpha, beta = reparameterize_beta_binom([baf], self.overdisp_tau)[0]
@@ -340,7 +349,7 @@ class CNA_Sim:
         plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap="viridis")
 
         if states is not None:
-            for baf, rdr in states:
+            for rdr, baf in states:
                 pl.scatter(rdr, baf, marker="*", edgecolors='black', facecolors='white', s=45)
 
         pl.xlim(-0.05, 15.0)
@@ -397,7 +406,7 @@ class CNA_Sim:
             covariance_type=covariance_type,
         ).fit(X)
 
-        means = np.c_[gmm.means_[:,1], gmm.means_[:,0]]
+        means = np.c_[gmm.means_[:,0], gmm.means_[:,1]]
         samples, decoded_states = gmm.sample(n_samples=num_samples)
 
         logger.info(f"Fit Gaussian mixture means:\n{means}")
@@ -431,22 +440,36 @@ class CNA_Sim:
         )
 
         num_states = init_mixture_params.num_states
+
+        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
+        rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
+            "normal_coverage"
+        )
         
         # NB initial responsibilites are categorial prior on probability of each state,
         #    i.e. no emission probabilities.
-        state_lambdas = np.random.rand(init_mixture_params.num_states)
-        state_lambdas /= np.sum(state_lambdas)
+        # state_lambdas = np.random.rand(init_mixture_params.num_states)
+        # state_lambdas /= np.sum(state_lambdas)
 
+        points = np.c_[rdr, baf]
+        decoded_states = assign_closest(points, init_mixture_params.cna_states)
+
+        print(decoded_states)
+
+        exit(0)
+        
+        """
         ln_state_posteriors = categorical_state_logprobs(
             state_lambdas,
             self.num_segments,
         )
-        """
+       
         ln_state_posteriors += beta_binom_state_logprobs(
             state_alpha_betas,
             self.get_data_bykey("b_reads"),
             self.get_data_bykey("snp_coverage"),
         )
+        """
         """
         ln_state_posteriors += nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
@@ -454,18 +477,13 @@ class CNA_Sim:
 
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
         state_posteriors = np.exp(ln_state_posteriors)
-        
-        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
-        rdr = self.get_data_bykey("read_coverage") / self.get_data_bykey(
-            "normal_coverage"
-        )
 
         print(state_posteriors)
-
+        """
         self.plot_rdr_baf(
             rdr,
             baf,
-            state_posteriors=state_posteriors,
+            state_posteriors=decoded_states,
             states=init_mixture_params.cna_states,
         )
 
@@ -475,6 +493,6 @@ if __name__ == "__main__":
     cna_sim.realize()
 
     # cna_sim.plot_realization()
-    # cna_sim.fit_gaussian_mixture()
+    cna_sim.fit_gaussian_mixture()
 
-    cna_sim.fit_cna_mixture()
+    # cna_sim.fit_cna_mixture()
