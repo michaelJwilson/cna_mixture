@@ -28,14 +28,15 @@ def simple_logsumexp(array):
     # TODO test: array = -np.arange(100); assert logsumexp(array) == __logsumexp(array)
     return max_val + np.log(np.exp(shifted_array).sum())
 
+
 def assign_closest(points, centers):
     assert len(points) > len(centers)
-    
+
     tree = KDTree(centers)
     distances, idx = tree.query(points)
 
     return idx
-    
+
 
 def onehot_encode_states(state_array):
     """
@@ -59,7 +60,7 @@ def reparameterize_nbinom(means, overdisp):
     means = np.array(means)
 
     # NB [0.0, 1.0] by definition.
-    ps = 1. / (1. + overdisp * means)
+    ps = 1.0 / (1.0 + overdisp * means)
 
     # NB for overdisp << 1, r >> 1, Gamma(r) -> Stirling's / overflow.
     rs = np.ones_like(means) / overdisp
@@ -85,8 +86,7 @@ def reparameterize_beta_binom(input_bafs, overdispersion):
 
 
 def categorical_state_logprobs(lambdas, num_samples):
-    """    
-    """
+    """ """
     ls = lambdas.copy()
     norm = np.sum(ls)
 
@@ -155,6 +155,7 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model with
     shared overdispersions.
     """
+
     def __init__(self):
         """
         Initialize an instance of the class with random values in
@@ -163,7 +164,7 @@ class CNA_mixture_params:
         # NB normal is treated independently
         self.num_cna_states = 3
         self.num_states = 1 + self.num_cna_states
-        
+
         # NB BAF overdispersion.  Random between 25. and 55.
         self.overdisp_tau = 25.0 + 30.0 * np.random.rand()
 
@@ -171,22 +172,24 @@ class CNA_mixture_params:
         self.overdisp_phi = 1.0e-2
 
         # NB list of (baf, rdr) for k=4 states.
-        integer_samples = np.random.choice(np.arange(2, 10), size=self.num_cna_states, replace=False)
+        integer_samples = np.random.choice(
+            np.arange(2, 10), size=self.num_cna_states, replace=False
+        )
         integer_samples = np.sort(integer_samples)
-        
+
         self.normal_state = [1.0, 0.5]
         self.cna_states = [
             [1.0 * int_sample, 1.0 / int_sample] for int_sample in integer_samples
         ]
 
         self.cna_states = [self.normal_state] + self.cna_states
-        
+
         self.cna_states = np.array(self.cna_states)
         self.normal_state = np.array(self.normal_state)
-        
+
         self.lambdas = np.random.rand(self.num_states)
         self.lambdas /= np.sum(self.lambdas)
-        
+
         self.__verify()
 
     def update(self, input_params_dict):
@@ -227,7 +230,11 @@ class CNA_Sim:
         self.num_segments = 10_000
 
         # NB normal coverage per segment, i.e. for RDR=1.
-        self.min_snp_coverage, self.max_snp_coverage, self.normal_genome_coverage = 100, 1_000, 500
+        self.min_snp_coverage, self.max_snp_coverage, self.normal_genome_coverage = (
+            100,
+            1_000,
+            500,
+        )
 
         self.assumed_cna_mixture_params = {
             "overdisp_tau": 45.0,
@@ -238,14 +245,7 @@ class CNA_Sim:
                 [10.0, 0.1],
             ],
             "normal_state": [1.0, 0.5],
-            "lambdas": np.array(
-                [
-                    0.31807498,
-                    0.06162617,
-                    0.52047995,
-                    0.0998189
-                ]
-            ),
+            "lambdas": np.array([0.31807498, 0.06162617, 0.52047995, 0.0998189]),
         }
 
         for key, value in self.assumed_cna_mixture_params.items():
@@ -254,7 +254,7 @@ class CNA_Sim:
         self.cna_states = [self.normal_state] + self.cna_states
 
         # logger.info(f"Simulating copy number states: {self.cna_states}.")
-        
+
         self.cna_states = np.array(self.cna_states)
         self.normal_state = np.array(self.normal_state)
         self.num_states = len(self.cna_states)
@@ -301,7 +301,7 @@ class CNA_Sim:
                 [
                     state,
                     read_coverage,
-                    true_read_coverage, # NB not an observable, to be inferrred.
+                    true_read_coverage,  # NB not an observable, to be inferrred.
                     b_reads,
                     self.snp_coverages[ii],
                 ]
@@ -333,21 +333,23 @@ class CNA_Sim:
                 rgb = state_posteriors
                 alpha = 0.25
                 cmap = "viridis"
-                
+
             else:
                 assert state_posteriors.shape[1] == 4
 
                 # NB assumed to be normal probability.
-                alpha  = 0.25 + 3. * (1. - state_posteriors[:,0]) / 4.
-                rgb = state_posteriors[:,1:4]
+                alpha = 0.25 + 3.0 * (1.0 - state_posteriors[:, 0]) / 4.0
+                rgb = state_posteriors[:, 1:4]
                 cmap = None
-                
+
         pl.axhline(0.5, c="k", lw=0.5)
         plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
 
         if states is not None:
             for rdr, baf in states:
-                pl.scatter(rdr, baf, marker="*", edgecolors='black', facecolors='white', s=45)
+                pl.scatter(
+                    rdr, baf, marker="*", edgecolors="black", facecolors="white", s=45
+                )
 
         pl.xlim(-0.05, 15.0)
         pl.ylim(-0.05, 1.05)
@@ -370,7 +372,11 @@ class CNA_Sim:
         rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
 
         self.plot_rdr_baf(
-            rdr, baf, state_posteriors=true_states, states=self.cna_states, title="CNA realizations"
+            rdr,
+            baf,
+            state_posteriors=true_states,
+            states=self.cna_states,
+            title="CNA realizations",
         )
 
     def fit_gaussian_mixture(
@@ -399,13 +405,17 @@ class CNA_Sim:
             covariance_type=covariance_type,
         ).fit(X)
 
-        means = np.c_[gmm.means_[:,0], gmm.means_[:,1]]
+        means = np.c_[gmm.means_[:, 0], gmm.means_[:, 1]]
         samples, decoded_states = gmm.sample(n_samples=num_samples)
 
         logger.info(f"Fit Gaussian mixture means:\n{means}")
-        
+
         self.plot_rdr_baf(
-            samples[:, 0], samples[:, 1], state_posteriors=decoded_states, states=means, title=r"Gaussian Mixture Model samples",
+            samples[:, 0],
+            samples[:, 1],
+            state_posteriors=decoded_states,
+            states=means,
+            title=r"Gaussian Mixture Model samples",
         )
 
     def fit_cna_mixture(self):
@@ -424,10 +434,10 @@ class CNA_Sim:
 
         points = np.c_[rdr, baf]
 
-        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                             
+        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
-        
-        # TODO kmeans++ like.                                                                                                                        
+
+        # TODO kmeans++ like.
         decoded_states = assign_closest(points, init_mixture_params.cna_states)
 
         # NB categorical prior on state fractions
@@ -435,15 +445,16 @@ class CNA_Sim:
         state_lambdas = state_counts / np.sum(state_counts)
 
         state_rs_ps = reparameterize_nbinom(
-            self.normal_genome_coverage * init_mixture_params.cna_states[:,0], init_mixture_params.overdisp_phi
+            self.normal_genome_coverage * init_mixture_params.cna_states[:, 0],
+            init_mixture_params.overdisp_phi,
         )
-        
+
         state_alpha_betas = reparameterize_beta_binom(
-            init_mixture_params.cna_states[:,1],
+            init_mixture_params.cna_states[:, 1],
             init_mixture_params.overdisp_tau,
         )
-        
-	# NB one-hot encoding of decoded state == ln. posterior.
+
+        # NB one-hot encoding of decoded state == ln. posterior.
         # ln_state_posteriors = onehot_encode_states(decoded_states)
 
         ln_state_posteriors = categorical_state_logprobs(
@@ -456,7 +467,7 @@ class CNA_Sim:
             self.get_data_bykey("b_reads"),
             self.get_data_bykey("snp_coverage"),
         )
-        
+
         ln_state_posteriors += nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
