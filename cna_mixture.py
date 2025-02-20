@@ -438,11 +438,6 @@ class CNA_Sim:
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
         rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
         
-        # NB initial responsibilites are categorial prior on probability of each state,
-        #    i.e. no emission probabilities.
-        # state_lambdas = np.random.rand(init_mixture_params.num_states)
-        # state_lambdas /= np.sum(state_lambdas)
-
         points = np.c_[rdr, baf]
 
         # TODO kmeans++ like.
