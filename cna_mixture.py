@@ -155,7 +155,6 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model with
     shared overdispersions.
     """
-
     def __init__(self):
         """
         Initialize an instance of the class with random values in
@@ -259,6 +258,8 @@ class CNA_Sim:
         self.normal_state = np.array(self.normal_state)
         self.num_states = len(self.cna_states)
 
+        self.realize()
+        
     def realize(self):
         """
         Generate a realization (one seed only) for given configuration settings.
@@ -322,6 +323,13 @@ class CNA_Sim:
 
         return self.data[:, col]
 
+    @property
+    def rdr_baf(self):
+        rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
+        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
+
+        return np.c_[rdr, baf]
+    
     def plot_rdr_baf(self, rdr, baf, state_posteriors=None, states=None, title=None):
         """
         NB state_posteriors may be an integer, corresponding to a decoded state, or
@@ -368,8 +376,10 @@ class CNA_Sim:
         """
         true_states = self.get_data_bykey("state")
 
-        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
-        rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
+        rdr, baf = self.rdr_baf
+        
+        # baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
+        # rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
 
         self.plot_rdr_baf(
             rdr,
@@ -390,10 +400,8 @@ class CNA_Sim:
         """
         See:  https://github.com/raphael-group/CalicoST/blob/5e4a8a1230e71505667d51390dc9c035a69d60d9/src/calicost/utils_hmm.py#L163
         """
-        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
-        rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
-
-        X = np.c_[rdr, baf]
+        # baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
+        # rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
 
         # NB covariance_type = {diag, full}
         #
@@ -403,7 +411,7 @@ class CNA_Sim:
             random_state=random_state,
             max_iter=max_iter,
             covariance_type=covariance_type,
-        ).fit(X)
+        ).fit(self.rdr_baf)
 
         means = np.c_[gmm.means_[:, 0], gmm.means_[:, 1]]
         samples, decoded_states = gmm.sample(n_samples=num_samples)
@@ -418,7 +426,7 @@ class CNA_Sim:
             title=r"Gaussian Mixture Model samples",
         )
 
-    def cna_loss_eval(self, data, params):
+    def cna_mixture_eval(self, params):
         num_states = self.num_states
 
         # NB lambdas + read_depths + overdispersion + bafs + overdispersion
@@ -444,7 +452,7 @@ class CNA_Sim:
             bafs,
             baf_overdispersion,
         )
-
+        
         # NB one-hot encoding of decoded state == ln. posterior.
         # ln_state_posteriors = onehot_encode_states(decoded_states)
         ln_state_priors = categorical_state_logprobs(
@@ -478,11 +486,10 @@ class CNA_Sim:
 
         return ln_state_posteriors, loss
 
-    def cna_loss(self, data, params):
-        _, loss = cna_step(data, params)
-
+    def cna_mixture_loss(self, params):
+        _, loss = cna_step(params)
         return loss
-
+    
     def fit_cna_mixture(self):
         """
         Fit CNA mixture model via Expectation Maximization.
@@ -494,16 +501,11 @@ class CNA_Sim:
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.nbinom.html
         """
-        rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
-        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
-
-        data = np.c_[rdr, baf]
-
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
 
         # TODO kmeans++ like.
-        decoded_states = assign_closest(data, init_mixture_params.cna_states)
+        decoded_states = assign_closest(self.rdr_baf, init_mixture_params.cna_states)
 
         # NB categorical prior on state fractions
         _, state_counts = np.unique(decoded_states, return_counts=True)
@@ -523,11 +525,13 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
-        ln_state_posteriors, loss = self.cna_loss_eval(data, initial_params)
+        ln_state_posteriors, loss = self.cna_mixture_eval(initial_params)
 
         # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
 
+        rdr, baf = self.rdr_baf[:,0], self.rdr_baf[:,1]
+        
         self.plot_rdr_baf(
             rdr,
             baf,
@@ -538,7 +542,6 @@ class CNA_Sim:
 
 if __name__ == "__main__":
     cna_sim = CNA_Sim()
-    cna_sim.realize()
 
     # cna_sim.plot_realization()
     # cna_sim.fit_gaussian_mixture()
