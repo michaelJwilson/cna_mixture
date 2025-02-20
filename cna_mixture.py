@@ -8,6 +8,7 @@ from scipy.stats import nbinom, betabinom, poisson
 from scipy.special import gamma
 from scipy.special import logsumexp as logsumexp
 from scipy.spatial import KDTree
+from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
 
 np.random.seed(1234)
@@ -155,6 +156,7 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model with
     shared overdispersions.
     """
+
     def __init__(self):
         """
         Initialize an instance of the class with random values in
@@ -259,7 +261,7 @@ class CNA_Sim:
         self.num_states = len(self.cna_states)
 
         self.realize()
-        
+
     def realize(self):
         """
         Generate a realization (one seed only) for given configuration settings.
@@ -329,7 +331,7 @@ class CNA_Sim:
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
 
         return np.c_[rdr, baf]
-    
+
     def plot_rdr_baf(self, rdr, baf, state_posteriors=None, states=None, title=None):
         """
         NB state_posteriors may be an integer, corresponding to a decoded state, or
@@ -377,7 +379,7 @@ class CNA_Sim:
         true_states = self.get_data_bykey("state")
 
         rdr, baf = self.rdr_baf
-        
+
         # baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
         # rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
 
@@ -452,7 +454,7 @@ class CNA_Sim:
             bafs,
             baf_overdispersion,
         )
-        
+
         # NB one-hot encoding of decoded state == ln. posterior.
         # ln_state_posteriors = onehot_encode_states(decoded_states)
         ln_state_priors = categorical_state_logprobs(
@@ -482,14 +484,14 @@ class CNA_Sim:
             ln_state_posterior_nbinom + ln_state_posterior_betabinom + ln_state_priors
         )
 
-        loss = cost.sum()
+        loss = -cost.sum()
 
         return ln_state_posteriors, loss
 
     def cna_mixture_loss(self, params):
         _, loss = cna_step(params)
         return loss
-    
+
     def fit_cna_mixture(self):
         """
         Fit CNA mixture model via Expectation Maximization.
@@ -525,13 +527,30 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
-        ln_state_posteriors, loss = self.cna_mixture_eval(initial_params)
+        # NB see https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html
+        res = minimize(
+            self.cna_loss,
+            initial_params,
+            method="Nelder-Mead",
+            jac=None,
+            hess=None,
+            hessp=None,
+            bounds=None,
+            constraints=(),
+            tol=None,
+            callback=None,
+            options={"maxiter": 1},
+        )
 
+        logger.info(rs.success)
+        
+        ln_state_posteriors, loss = self.cna_mixture_eval(initial_params.x0)
+        
         # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
 
-        rdr, baf = self.rdr_baf[:,0], self.rdr_baf[:,1]
-        
+        rdr, baf = self.rdr_baf[:, 0], self.rdr_baf[:, 1]
+
         self.plot_rdr_baf(
             rdr,
             baf,
