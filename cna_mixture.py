@@ -62,7 +62,7 @@ def reparameterize_nbinom(means, overdisp):
     ps = 1. / (1. + overdisp * means)
 
     # NB for overdisp << 1, r >> 1, Gamma(r) -> Stirling's / overflow.
-    rs = (1. / overdisp) * np.ones_like(means)
+    rs = np.ones_like(means) / overdisp
 
     return np.c_[rs, ps]
 
@@ -184,7 +184,7 @@ class CNA_mixture_params:
         
         self.cna_states = np.array(self.cna_states)
         self.normal_state = np.array(self.normal_state)
-
+        
         self.lambdas = np.random.rand(self.num_states)
         self.lambdas /= np.sum(self.lambdas)
         
@@ -430,13 +430,13 @@ class CNA_Sim:
         init_mixture_params = CNA_mixture_params()
         
         state_alpha_betas = reparameterize_beta_binom(
-            init_mixture_params.cna_states,
+            init_mixture_params.cna_states[:,1],
             init_mixture_params.overdisp_tau,
         )
-
+        
         # TODO first column values are all the same??  overdisp_phi << 1?
         state_rs_ps = reparameterize_nbinom(
-            init_mixture_params.cna_states[:, 1], init_mixture_params.overdisp_phi
+            init_mixture_params.cna_states[:,0], init_mixture_params.overdisp_phi
         )
 
         num_states = init_mixture_params.num_states
@@ -455,12 +455,12 @@ class CNA_Sim:
 
         # TODO kmeans++ like.
         decoded_states = assign_closest(points, init_mixture_params.cna_states)
-        
-	# NB one-hot encoding of decoded state == ln. posterior.                                                                                                                                                                                
-	ln_state_posteriors = onehot_encode_states(decoded_states)
-        
+
         _, state_counts = np.unique(decoded_states, return_counts=True)
         state_lambdas = np.log(state_counts / np.sum(state_counts))
+        
+	# NB one-hot encoding of decoded state == ln. posterior.
+        ln_state_posteriors = onehot_encode_states(decoded_states)
 
         """
         ln_state_posteriors = categorical_state_logprobs(
@@ -468,6 +468,7 @@ class CNA_Sim:
             self.num_segments,
         )
         """
+
         ln_state_posteriors += beta_binom_state_logprobs(
             state_alpha_betas,
             self.get_data_bykey("b_reads"),
