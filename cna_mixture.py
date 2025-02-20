@@ -4,7 +4,7 @@ import pylab as pl
 import matplotlib.pyplot as plt
 
 from matplotlib.colors import LogNorm
-from scipy.stats import nbinom, betabinom
+from scipy.stats import nbinom, betabinom, poisson
 from scipy.special import gamma
 from scipy.special import logsumexp as logsumexp
 from sklearn.mixture import GaussianMixture
@@ -46,13 +46,14 @@ def reparameterize_nbinom(means, overdisp):
     """
     # NB https://en.wikipedia.org/wiki/Negative_binomial_distribution.
     means = np.array(means)
-    variances = means + overdisp * means**2
 
     # NB [0.0, 1.0] by definition.
-    ps = means / variances
-    ns = means * ps / (1.0 - ps)
+    ps = 1. / (1. + overdisp * means)
 
-    return np.c_[ns, ps]
+    # NB for overdisp << 1, r >> 1, Gamma(r) -> Stirling's / overflow.
+    rs = (1. / overdisp) * np.ones_like(means)
+
+    return np.c_[rs, ps]
 
 
 def reparameterize_beta_binom(input_bafs, overdispersion):
@@ -98,6 +99,16 @@ def beta_binom_state_logprobs(state_alpha_betas, ks, ns):
     for col, (alpha, beta) in enumerate(state_alpha_betas):
         for row, (k, n) in enumerate(zip(ks, ns)):
             result[row, col] = betabinom.logpmf(k, n, beta, alpha)
+
+    return result
+
+
+def poisson_state_logprobs(state_mus, ks):
+    result = np.zeros((len(ks), len(state_mus)))
+
+    for col, mu in enumerate(state_mus):
+        for row, kk in enumerate(ks):
+            result[row, col] = poisson.logpmf(kk, mu)
 
     return result
 
