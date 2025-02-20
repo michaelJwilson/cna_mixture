@@ -338,15 +338,18 @@ class CNA_Sim:
             if state_posteriors.ndim == 1:
                 rgb = state_posteriors
                 alpha = 0.25
+                cmap = "viridis"
+                
             else:
                 assert state_posteriors.shape[1] == 4
 
                 # NB assumed to be normal probability.
-                alpha  = 0.5 + state_posteriors[:,0] / 2.
+                alpha  = 0.25 + 3. * (1. - state_posteriors[:,0]) / 4.
                 rgb = state_posteriors[:,1:4]
-
+                cmap = None
+                
         pl.axhline(0.5, c="k", lw=0.5)
-        plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap="viridis")
+        plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
 
         if states is not None:
             for rdr, baf in states:
@@ -469,17 +472,18 @@ class CNA_Sim:
         )
         """
 
-        ln_state_posteriors += beta_binom_state_logprobs(
+        ln_state_posteriors = beta_binom_state_logprobs(
             state_alpha_betas,
             self.get_data_bykey("b_reads"),
             self.get_data_bykey("snp_coverage"),
         )
 
-        """
-        ln_state_posteriors += nbinom_state_logprobs(
+        ln_state_posteriors = nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
-        """
+
+        print(ln_state_posteriors)
+        
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
         state_posteriors = np.exp(ln_state_posteriors)
 
