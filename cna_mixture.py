@@ -437,10 +437,6 @@ class CNA_Sim:
         return state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
 
     def cna_mixture_eval(self, params, lambdas):
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-            self.unpack_params(params)
-        )
-
         # NB one-hot encoding of decoded state == ln. posterior.
         # ln_state_posteriors = onehot_encode_states(decoded_states)
         ln_state_posterior_categorical, ln_lambdas = self.cna_mixture_categorical_update(params, lambdas)
@@ -454,11 +450,11 @@ class CNA_Sim:
         state_posteriors = np.exp(ln_state_posteriors)
 
         # NB this is *not* state-posterior weighted log-likelihood.
-        cost = state_posteriors * (
+        em_cost = state_posteriors * (
             ln_state_posterior_nbinom + ln_state_posterior_betabinom + ln_state_priors
         )
 
-        loss = -cost.sum()
+        loss = -em_cost.sum()
 
         return ln_state_posteriors, loss
 
