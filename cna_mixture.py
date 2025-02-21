@@ -486,8 +486,7 @@ class CNA_Sim:
         return ln_state_posteriors, loss
 
     def cna_mixture_loss(self, params, lambdas):
-        _, loss = self.cna_mixture_eval(params, lambdas)
-        return loss
+        return self.cna_mixture_eval(params, lambdas)[1]
 
     def fit_cna_mixture(self):
         """
@@ -524,16 +523,12 @@ class CNA_Sim:
             + initial_bafs.tolist()
             + [init_mixture_params.overdisp_tau]
         )
-
-        print(
-            f"{initial_state_lambdas}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}"
-        )
-
+        
         ln_state_posteriors, loss = self.cna_mixture_eval(
             initial_params, initial_state_lambdas
         )
 
-        logger.info(f"Minimizing loss with SLSQP with initial value: {loss}")
+        logger.info(f"Minimizing loss with SLSQP with initial value: {loss} for:\n{initial_state_lambdas}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}")
 
         # NB categorical state prior should sum to unity.                                                                                                                                       
         # {
@@ -553,13 +548,10 @@ class CNA_Sim:
 
         # NB all parameters are constained to be positive. bafs. max of unity.
         bounds = [(1.0e-6, None) for _ in range(self.num_states)]  # exp_read_depths
-        bounds += [(1.0e-6, 1.0e-1)]  # RDR overdispersion
+        bounds += [(1.0e-6, None)]  # RDR overdispersion
         bounds += [(1.0e-6, 1.0) for _ in range(self.num_states)]  # bafs - not limited to 0.5
         bounds += [(1.0e-6, None)]  # baf overdispersion
         bounds = tuple(bounds)
-
-        # print(constraints)
-        # print(bounds)
         
         # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         res = minimize(
@@ -587,6 +579,7 @@ class CNA_Sim:
         print(
             f"{lambdas}\n{state_read_depths}\n{rdr_overdispersion}\n{bafs}\n{baf_overdispersion}"
         )
+        
         # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
 
