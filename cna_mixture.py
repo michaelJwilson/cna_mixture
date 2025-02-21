@@ -495,15 +495,21 @@ class CNA_Sim:
             + ln_state_posterior_nbinom
         )
 
-    def cna_mixture_cost(self, params, lambdas):
+    def cna_mixture_cost(self, params, lambdas, state_posteriors=None):
+        """
+        if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
+        the current params values and the assumed state_posteriors.
+        """
         # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi) as required by EM cost.
         ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(
             params, lambdas
         )
-        ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
 
-        # NB responsibilites rik, where i is the sample and k is the state.
-        state_posteriors = np.exp(ln_state_posteriors)
+        if state_posteriors is None:
+            ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
+            
+            # NB responsibilites rik, where i is the sample and k is the state.
+            state_posteriors = np.exp(ln_state_posteriors)
 
         # NB this is *not* state-posterior weighted log-likelihood.
         em_cost = state_posteriors * ln_state_posteriors_nonorm
@@ -521,7 +527,6 @@ class CNA_Sim:
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.nbinom.html
         """
-
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
 
@@ -551,6 +556,10 @@ class CNA_Sim:
         ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(
             initial_params, np.exp(initial_ln_lambdas)
         )
+
+        exit(0)
+
+        
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
 
         cost = self.cna_mixture_cost(initial_params, np.exp(initial_ln_lambdas))
