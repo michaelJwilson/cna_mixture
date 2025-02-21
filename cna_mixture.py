@@ -295,7 +295,7 @@ class CNA_Sim:
 
             true_read_coverage = rdr * self.normal_genome_coverage
             self.realized_genome_coverage = np.sum(true_read_coverage)
-            
+
             # NB equivalent to r and prob. for a bernoulli trial of r.
             lost_reads, dropout_rate = reparameterize_nbinom(
                 [true_read_coverage], self.overdisp_phi
@@ -537,17 +537,24 @@ class CNA_Sim:
 
         logger.info(f"Minimizing loss with SLSQP with initial value: {loss}")
 
-        # TODO sum of RDRs is unity.
         # TODO regularizer for state overlap?
+        # NB equality constaints to be zero.
         constraints = [
+            # NB categorical state prior should sum to unity.
             {
                 "type": "eq",
                 "fun": lambda x: np.sum(x[: self.num_states]) - 1.0,
-            }
+            },
+            # NB sum of RDRs should explain realized genome-wide coverage.
+            {
+                "type": "eq",
+                "fun": lambda x: np.sum(x[self.num_states : 2 * self.num_states])
+                - self.realized_genome_coverage,
+            },
         ]
 
-        # NB constained to be positive.
-        bounds = tuple([(0.0, None) for _ in range(len(initial_params))])
+        # NB all parameters are constained to be positive.
+        bounds = tuple([(1.0e-6, None) for _ in range(len(initial_params))])
 
         # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         res = minimize(
@@ -556,7 +563,7 @@ class CNA_Sim:
             method="SLSQP",
             bounds=bounds,
             constraints=constraints,
-            options={"maxiter": 3},
+            options={"maxiter": 10, "disp": True},
         )
 
         logger.info(res.message)
