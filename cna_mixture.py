@@ -86,19 +86,13 @@ def reparameterize_beta_binom(input_bafs, overdispersion):
     )
 
 
-def categorical_state_logprobs(lambdas, num_samples):
-    """ """
-    ls = lambdas.copy()
-    norm = np.sum(ls)
-
-    # BUG TODO
-    # assert (
-    #    np.abs(norm - 1.0) < 1.0e-6
-    # ), f"Lambdas are not accurately normalized: {lambdas} with norm {norm}"
-
-    ls = np.log(ls)
-
-    return np.broadcast_to(ls, (num_samples, len(ls))).copy()
+def categorical_state_logprobs(ln_lambdas, num_samples):
+    """
+    Broadcast per-state categorical probabilities to samples x state array.
+    """
+    ln_norm = logsumexp(ln_lambdas)
+    
+    return np.broadcast_to(ln_lambdas - ln_norm, (num_samples, len(ln_lambdas))).copy()
 
 
 def beta_binom_state_logprobs(state_alpha_betas, ks, ns):
@@ -329,26 +323,26 @@ class CNA_Sim:
 
         return np.c_[rdr, baf]
 
-    def plot_rdr_baf(self, rdr, baf, state_posteriors=None, states=None, title=None):
+    def plot_rdr_baf(self, rdr, baf, ln_state_posteriors=None, states=None, title=None):
         """
         NB state_posteriors may be an integer, corresponding to a decoded state, or
            the posterior probs. for up to four states, which are mapped to RGB +
            alpha transparency.
         """
-        if state_posteriors is not None:
-            if state_posteriors.ndim == 1:
-                rgb = state_posteriors
+        if ln_state_posteriors is not None:
+            if ln_state_posteriors.ndim == 1:
+                rgb = np.exp(ln_state_posteriors)
                 alpha = 0.25
                 cmap = "viridis"
 
             else:
-                assert state_posteriors.shape[1] == 4
+                assert ln_state_posteriors.shape[1] == 4
 
                 # NB assumed to be normal probability.
                 # alpha = 0.25 + 3.0 * (1.0 - state_posteriors[:, 0]) / 4.0
                 alpha = 0.25
 
-                rgb = state_posteriors[:, 1:4]
+                rgb = np.exp(ln_state_posteriors[:, 1:4])
                 cmap = None
 
         pl.axhline(0.5, c="k", lw=0.5)
@@ -380,7 +374,7 @@ class CNA_Sim:
         self.plot_rdr_baf(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
-            state_posteriors=true_states,
+            ln_state_posteriors=np.log(onehot_encode_states(true_states)),
             states=self.cna_states,
             title="CNA realizations",
         )
@@ -417,7 +411,7 @@ class CNA_Sim:
         self.plot_rdr_baf(
             samples[:, 0],
             samples[:, 1],
-            state_posteriors=decoded_states,
+            ln_state_posteriors=np.log(onehot_encode_states(decoded_states)),
             states=means,
             title=r"Gaussian Mixture Model samples",
         )
@@ -436,19 +430,19 @@ class CNA_Sim:
 
         return state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
 
-    def cna_mixture_categorical_update(self, lambdas):
+    def cna_mixture_categorical_update(self, ln_lambdas):
+        """
+        """
         ln_state_posteriors = categorical_state_logprobs(
-            lambdas,
+            ln_lambdas,
             self.num_segments,
         )
 
-        ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
-            ln_state_posteriors
-        )
-
-        return ln_state_posteriors, ln_lambdas
+        return ln_state_posteriors
 
     def cna_mixture_betabinom_update(self, params):
+        """
+        """
         _, _, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
@@ -467,6 +461,8 @@ class CNA_Sim:
         return ln_state_posterior_betabinom, state_alpha_betas
 
     def cna_mixture_nbinom_update(self, params):
+        """
+        """
         state_read_depths, rdr_overdispersion, _, _ = (
             self.unpack_cna_mixture_params(params)
         )
@@ -483,8 +479,10 @@ class CNA_Sim:
 
         return ln_state_posterior_nbinom, state_rs_ps
 
-    def cna_mixture_ln_state_posterior_update(self, params, lambdas):
-        ln_state_posterior_categorical, _ = self.cna_mixture_categorical_update(lambdas)
+    def cna_mixture_ln_state_posterior_update(self, params, ln_lambdas):
+        """
+        """
+        ln_state_posterior_categorical, _ = self.cna_mixture_categorical_update(ln_lambdas)
         ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
 
@@ -495,22 +493,35 @@ class CNA_Sim:
             + ln_state_posterior_nbinom
         )
 
-    def cna_mixture_cost(self, params, lambdas, state_posteriors=None):
+    def cna_mixture_ln_lambdas_update(self, params, ln_lambdas):
+        """
+        
+        """
+        ln_state_posteriors = cna_mixture_ln_state_posterior_update(self, params, ln_lambdas)        
+        ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
+            ln_state_posteriors
+        )
+
+        return ln_lambdas
+    
+    def cna_mixture_cost(self, params, ln_lambdas, approx_state_posteriors=None):
         """
         if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
         the current params values and the assumed state_posteriors.
         """
         # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi) as required by EM cost.
         ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(
-            params, lambdas
+            params, ln_lambdas
         )
 
-        if state_posteriors is None:
+        if approx_state_posteriors is None:
             ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
             
             # NB responsibilites rik, where i is the sample and k is the state.
             state_posteriors = np.exp(ln_state_posteriors)
-
+        else:
+            state_posteriors = approx_state_posteriors
+            
         # NB this is *not* state-posterior weighted log-likelihood.
         em_cost = state_posteriors * ln_state_posteriors_nonorm
 
@@ -537,7 +548,7 @@ class CNA_Sim:
 
         # NB categorical prior on state fractions
         _, counts = np.unique(decoded_states, return_counts=True)
-        initial_ln_lambdas = np.log(state_counts) - np.log(np.sum(state_counts))
+        initial_ln_lambdas = np.log(counts) - np.log(np.sum(counts))
 
         initial_state_read_depths = (
             self.realized_genome_coverage * init_mixture_params.cna_states[:, 0]
@@ -552,17 +563,13 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
-        # TODO exp.
         ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(
-            initial_params, np.exp(initial_ln_lambdas)
+            initial_params, initial_ln_lambdas
         )
-
-        exit(0)
-
         
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
 
-        cost = self.cna_mixture_cost(initial_params, np.exp(initial_ln_lambdas))
+        cost = self.cna_mixture_cost(initial_params, initial_ln_lambdas)
 
         logger.info(
             f"Minimizing cost with SLSQP with initial value: {cost} for:\n{np.exp(initial_ln_lambdas)}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}"
@@ -571,10 +578,10 @@ class CNA_Sim:
         self.plot_rdr_baf(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
-            state_posteriors=np.exp(ln_state_posteriors),
+            ln_state_posteriors=ln_state_posteriors,
             states=init_mixture_params.cna_states,
         )
-
+        
         # NB equality constaints to be zero.
         # TODO regularizer for state overlap?
         constraints = [
@@ -599,7 +606,7 @@ class CNA_Sim:
         res = minimize(
             self.cna_mixture_cost,
             initial_params,
-            args=(np.exp(initial_ln_lambdas)),
+            args=(initial_ln_lambdas),
             method="nelder-mead",
             bounds=bounds,
             constraints=constraints,
@@ -608,9 +615,10 @@ class CNA_Sim:
 
         logger.info(res.message)
 
+        # TODO BUG circular?
         # NB responsibilites rik, where i is the sample and k is the state.
         ln_state_posteriors, ln_lambdas = self.cna_mixture_categorical_update(
-            np.exp(initial_ln_lambdas),
+            initial_ln_lambdas,
         )
         
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_cna_mixture_params(res.x)
@@ -622,7 +630,7 @@ class CNA_Sim:
         self.plot_rdr_baf(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
-            state_posteriors=state_posteriors,
+            ln_state_posteriors=ln_state_posteriors,
             states=np.c_[state_read_depths / self.realized_genome_coverage, bafs],
         )
 
