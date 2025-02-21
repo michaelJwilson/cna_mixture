@@ -294,7 +294,8 @@ class CNA_Sim:
             #    i.e. to occur at a rate > 0.5;
 
             true_read_coverage = rdr * self.normal_genome_coverage
-
+            self.realized_genome_coverage = np.sum(true_read_coverage)
+            
             # NB equivalent to r and prob. for a bernoulli trial of r.
             lost_reads, dropout_rate = reparameterize_nbinom(
                 [true_read_coverage], self.overdisp_phi
@@ -330,7 +331,7 @@ class CNA_Sim:
 
     @property
     def rdr_baf(self):
-        rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
+        rdr = self.get_data_bykey("read_coverage") / self.realized_genome_coverage
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
 
         return np.c_[rdr, baf]
@@ -401,7 +402,7 @@ class CNA_Sim:
         See:  https://github.com/raphael-group/CalicoST/blob/5e4a8a1230e71505667d51390dc9c035a69d60d9/src/calicost/utils_hmm.py#L163
         """
         # baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
-        # rdr = self.get_data_bykey("read_coverage") / self.normal_genome_coverage
+        # rdr = self.get_data_bykey("read_coverage") / self.realized_genome_coverage
 
         # NB covariance_type = {diag, full}
         #
@@ -449,7 +450,7 @@ class CNA_Sim:
 
         # TODO does a non-linear transform in the cost trip the optimizer?
         state_rs_ps = reparameterize_nbinom(
-            read_depths,
+            state_read_depths,
             rdr_overdispersion,
         )
 
@@ -475,9 +476,11 @@ class CNA_Sim:
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
 
-        ln_state_posteriors = normalize_ln_posteriors(
-            ln_state_posterior_nbinom + ln_state_posterior_betabinom + ln_state_priors
-        )
+        ln_state_posteriors = ln_state_priors
+        ln_state_posteriors += ln_state_posterior_betabinom
+        # ln_state_posteriors += ln_state_posterior_nbinom
+
+        ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
 
         # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
@@ -516,15 +519,15 @@ class CNA_Sim:
         _, state_counts = np.unique(decoded_states, return_counts=True)
         initial_state_lambdas = state_counts / np.sum(state_counts)
 
-        initial_read_depths = (
-            self.normal_genome_coverage * init_mixture_params.cna_states[:, 0]
+        initial_state_read_depths = (
+            self.realized_genome_coverage * init_mixture_params.cna_states[:, 0]
         )
         initial_bafs = init_mixture_params.cna_states[:, 1]
 
         # NB e.g. [0.2443, 0.3857, 0.1247, 0.2453, ... 500.0, 1500.0, 2500.0, 3500.0, 0.01, ... 0.5, 0.3333333333333333, 0.2, 0.14285714285714285, 47.075625069001084]
         initial_params = (
             initial_state_lambdas.tolist()
-            + initial_read_depths.tolist()
+            + initial_state_read_depths.tolist()
             + [init_mixture_params.overdisp_phi]
             + initial_bafs.tolist()
             + [init_mixture_params.overdisp_tau]
@@ -553,15 +556,26 @@ class CNA_Sim:
             method="SLSQP",
             bounds=bounds,
             constraints=constraints,
-            options={"maxiter": 1},
+            options={"maxiter": 3},
         )
+
+        logger.info(res.message)
 
         lambdas, state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_params(res.x)
         )
-        ln_state_posteriors, loss = self.cna_mixture_eval(res.x0)
+        ln_state_posteriors, loss = self.cna_mixture_eval(res.x)
 
         logger.info(f"Minimized loss with SLSQP with value: {loss}")
+
+        print(
+            lambdas,
+            state_read_depths,
+            rdr_overdispersion,
+            bafs,
+            baf_overdispersion,
+            ln_state_posteriors,
+        )
 
         # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
