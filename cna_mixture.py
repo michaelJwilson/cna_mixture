@@ -491,7 +491,7 @@ class CNA_Sim:
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
 
         # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi) as required by EM cost.                                                                                                                                                 
-        return ln_state_priors_categorical + ln_state_posterior_betabinom + ln_state_posterior_nbinom
+        return ln_state_posterior_categorical + ln_state_posterior_betabinom + ln_state_posterior_nbinom
 
     def cna_mixture_cost(self, params, lambdas):
         ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(params, lambdas)
@@ -542,14 +542,12 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
-        ln_state_posteriors_nonorm = cna_mixture_ln_state_posterior_update(initial_params, initial_state_lambdas)
+        ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(initial_params, initial_state_lambdas)
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
-        
-        ln_state_posteriors, loss = self.cna_mixture_eval(
-            initial_params, initial_state_lambdas
-        )
 
-        logger.info(f"Minimizing loss with SLSQP with initial value: {loss} for:\n{initial_state_lambdas}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}")
+        cost = self.cna_mixture_cost(initial_params, initial_state_lambdas)
+
+        logger.info(f"Minimizing cost with SLSQP with initial value: {cost} for:\n{initial_state_lambdas}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}")
 
         self.plot_rdr_baf(
             self.rdr_baf[:, 0],
@@ -580,6 +578,8 @@ class CNA_Sim:
         bounds += [(1.0e-6, 1.0) for _ in range(self.num_states)]  # bafs - not limited to 0.5
         bounds += [(1.0e-6, None)]  # baf overdispersion
         bounds = tuple(bounds)
+
+        exit(0)
         
         # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         res = minimize(
@@ -589,7 +589,7 @@ class CNA_Sim:
             method="nelder-mead",
             bounds=bounds,
             constraints=constraints,
-            options={"disp": True, "maxiter": 5}
+            options={"disp": True, "maxiter": 1}
         )
 
         logger.info(res.message)
