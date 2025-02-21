@@ -159,6 +159,7 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model with
     shared overdispersions.
     """
+
     def __init__(self):
         """
         Initialize an instance of the class with random values in
@@ -169,7 +170,7 @@ class CNA_mixture_params:
         self.num_states = 1 + self.num_cna_states
 
         # NB BAF overdispersion.  Random between 25. and 55.
-        self.overdisp_tau = 45.
+        self.overdisp_tau = 45.0
 
         # NB RDR overdispersion.  Random between 1e-2 and 4e-2
         self.overdisp_phi = 1.0e-2
@@ -503,7 +504,7 @@ class CNA_Sim:
         init_mixture_params = CNA_mixture_params()
 
         logging.info(f"Initializing CNA states:\n{init_mixture_params.cna_states}\n")
-        
+
         # TODO kmeans++ like.
         decoded_states = assign_closest(self.rdr_baf, init_mixture_params.cna_states)
 
@@ -518,8 +519,7 @@ class CNA_Sim:
 
         # NB e.g. [0.2443, 0.3857, 0.1247, 0.2453, ... 500.0, 1500.0, 2500.0, 3500.0, 0.01, ... 0.5, 0.3333333333333333, 0.2, 0.14285714285714285, 47.075625069001084]
         initial_params = (
-            initial_state_lambdas.tolist()
-            + initial_state_read_depths.tolist()
+            initial_state_read_depths.tolist()
             + [init_mixture_params.overdisp_phi]
             + initial_bafs.tolist()
             + [init_mixture_params.overdisp_tau]
@@ -529,41 +529,45 @@ class CNA_Sim:
             f"{initial_state_lambdas}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}"
         )
 
-        ln_state_posteriors, loss = self.cna_mixture_eval(initial_params)
+        ln_state_posteriors, loss = self.cna_mixture_eval(
+            initial_params, initial_state_lambdas
+        )
 
         logger.info(f"Minimizing loss with SLSQP with initial value: {loss}")
 
+        # NB categorical state prior should sum to unity.                                                                                                                                       
+        # {
+        #   "type": "eq",
+        #   "fun": lambda x: np.sum(x[: self.num_states]) - 1.0,
+        # }
+
+        # NB equality constaints to be zero.  
         # TODO regularizer for state overlap?
-        # NB equality constaints to be zero.
         constraints = [
-            # NB categorical state prior should sum to unity.
-            {
-                "type": "eq",
-                "fun": lambda x: np.sum(x[: self.num_states]) - 1.0,
-            },
             # NB sum of RDRs should explain realized genome-wide coverage.
             {
                 "type": "eq",
-                "fun": lambda x: np.sum(x[self.num_states : 2 * self.num_states])
-                - self.realized_genome_coverage,
+                "fun": lambda x: np.sum(x[:self.num_states]) - self.realized_genome_coverage,
             },
         ]
 
-        # NB all parameters are constained to be positive. lambdas max. of unity. bafs. max of unity.
-        bounds = [(1.0e-6, 1.0) for _ in range(self.num_states)] # lambdas
-        bounds += [(1.0e-6, None) for _ in range(self.num_states)] # exp_read_depths
-        bounds += [(1.0e-6, 1.e-1)] # RDR overdispersion 
-        bounds += [(1.0e-6, 1.0) for _ in range(self.num_states)] # bafs 
-        bounds += [(1.0e-6, None)] # baf overdispersion 
+        # NB all parameters are constained to be positive. bafs. max of unity.
+        bounds = [(1.0e-6, None) for _ in range(self.num_states)]  # exp_read_depths
+        bounds += [(1.0e-6, 1.0e-1)]  # RDR overdispersion
+        bounds += [(1.0e-6, 1.0) for _ in range(self.num_states)]  # bafs - not limited to 0.5
+        bounds += [(1.0e-6, None)]  # baf overdispersion
         bounds = tuple(bounds)
 
+        # print(constraints)
+        # print(bounds)
+        
         # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         res = minimize(
             self.cna_mixture_loss,
             initial_params,
             method="SLSQP",
             bounds=bounds,
-            constraints=constraints,
+            constraints=None, # TODO BUG
             options={"maxiter": 10, "disp": True},
         )
 
@@ -577,8 +581,8 @@ class CNA_Sim:
         logger.info(f"Minimized loss with SLSQP with value: {loss}")
 
         print(
-            f"{lambdas}\n{state_read_depths}\n{rdr_overdispersion}\n{bafs}\n{baf_overdispersion}"                          
-        )                                                                                                                                                                                    
+            f"{lambdas}\n{state_read_depths}\n{rdr_overdispersion}\n{bafs}\n{baf_overdispersion}"
+        )
         # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
 
