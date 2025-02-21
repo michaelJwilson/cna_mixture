@@ -444,10 +444,10 @@ class CNA_Sim:
 
     def cna_mixture_eval(self, params):
         lambdas, state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-            unpack_params(params)
+            self.unpack_params(params)
         )
 
-        # TODO does a non-linear transform in the cost trip the optimizer? 
+        # TODO does a non-linear transform in the cost trip the optimizer?
         state_rs_ps = reparameterize_nbinom(
             read_depths,
             rdr_overdispersion,
@@ -534,11 +534,14 @@ class CNA_Sim:
 
         logger.info(f"Minimizing loss with SLSQP with initial value: {loss}")
 
+        # TODO sum of RDRs is unity.
         # TODO regularizer for state overlap?
-        constraints = {
-            "type": "eq",
-            "fun": lambda x: np.sum(x[: self.num_states]) - 1.0,
-        }
+        constraints = [
+            {
+                "type": "eq",
+                "fun": lambda x: np.sum(x[: self.num_states]) - 1.0,
+            }
+        ]
 
         # NB constained to be positive.
         bounds = tuple([(0.0, None) for _ in range(len(initial_params))])
@@ -553,6 +556,9 @@ class CNA_Sim:
             options={"maxiter": 1},
         )
 
+        lambdas, state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+            self.unpack_params(res.x)
+        )
         ln_state_posteriors, loss = self.cna_mixture_eval(res.x0)
 
         logger.info(f"Minimized loss with SLSQP with value: {loss}")
@@ -564,7 +570,7 @@ class CNA_Sim:
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             state_posteriors=np.exp(ln_state_posteriors),
-            states=init_mixture_params.cna_states,
+            states=np.c_[state_read_depths, bafs],
         )
 
 
