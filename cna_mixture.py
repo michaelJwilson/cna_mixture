@@ -426,7 +426,7 @@ class CNA_Sim:
             title=r"Gaussian Mixture Model samples",
         )
 
-    def cna_mixture_eval(self, params):
+    def unpack_params(self, params):
         num_states = self.num_states
 
         # NB lambdas + read_depths + overdispersion + bafs + overdispersion
@@ -434,15 +434,20 @@ class CNA_Sim:
 
         lambdas = params[:num_states]
 
-        read_depths = params[num_states : 2 * num_states]
+        state_read_depths = params[num_states : 2 * num_states]
         rdr_overdispersion = params[2 * num_states]
 
         bafs = params[2 * num_states + 1 : 3 * num_states + 1]
         baf_overdispersion = params[3 * num_states + 1]
 
-        # TODO does a non-linear transform in the cost trip the optimizer?
-        # print(lambdas, read_depths, rdr_overdispersion, bafs, baf_overdispersion)
+        return lambdas, state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
 
+    def cna_mixture_eval(self, params):
+        lambdas, state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+            unpack_params(params)
+        )
+
+        # TODO does a non-linear transform in the cost trip the optimizer? 
         state_rs_ps = reparameterize_nbinom(
             read_depths,
             rdr_overdispersion,
@@ -527,27 +532,31 @@ class CNA_Sim:
 
         ln_state_posteriors, loss = self.cna_mixture_eval(initial_params)
 
-        """
-        # NB see https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html
+        logger.info(f"Minimizing loss with SLSQP with initial value: {loss}")
+
+        # TODO regularizer for state overlap?
+        constraints = {
+            "type": "eq",
+            "fun": lambda x: np.sum(x[: self.num_states]) - 1.0,
+        }
+
+        # NB constained to be positive.
+        bounds = tuple([(0.0, None) for _ in range(len(initial_params))])
+
+        # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         res = minimize(
             self.cna_mixture_loss,
             initial_params,
-            method="nelder-mead",
-            jac=None,
-            hess=None,
-            hessp=None,
-            bounds=None,
-            constraints=(),
-            tol=None,
-            callback=None,
+            method="SLSQP",
+            bounds=bounds,
+            constraints=constraints,
             options={"maxiter": 1},
         )
 
-        logger.info(rs.message)
-        
         ln_state_posteriors, loss = self.cna_mixture_eval(res.x0)
-        """
-        
+
+        logger.info(f"Minimized loss with SLSQP with value: {loss}")
+
         # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
 
