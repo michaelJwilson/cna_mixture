@@ -441,38 +441,13 @@ class CNA_Sim:
             self.unpack_params(params)
         )
 
-        # TODO does a non-linear transform in the cost trip the optimizer?
-        state_rs_ps = reparameterize_nbinom(
-            state_read_depths,
-            rdr_overdispersion,
-        )
-
-        state_alpha_betas = reparameterize_beta_binom(
-            bafs,
-            baf_overdispersion,
-        )
-
         # NB one-hot encoding of decoded state == ln. posterior.
         # ln_state_posteriors = onehot_encode_states(decoded_states)
-        ln_state_priors = categorical_state_logprobs(
-            lambdas,
-            self.num_segments,
-        )
+        ln_state_posterior_categorical, ln_lambdas = self.cna_mixture_categorical_update(params, lambdas)
+        ln_state_posterior_betabinom, state_alpha_betas = self.cna_mixture_betabinom_update(params)
+        ln_state_posterior_nbinom, state_rs_ps = self.cna_mixture_nbinom_update(params)
 
-        ln_state_posterior_betabinom = beta_binom_state_logprobs(
-            state_alpha_betas,
-            self.get_data_bykey("b_reads"),
-            self.get_data_bykey("snp_coverage"),
-        )
-
-        ln_state_posterior_nbinom = nbinom_state_logprobs(
-            state_rs_ps, self.get_data_bykey("read_coverage")
-        )
-
-        ln_state_posteriors = ln_state_priors
-        ln_state_posteriors += ln_state_posterior_betabinom
-        ln_state_posteriors += ln_state_posterior_nbinom
-
+        ln_state_posteriors = ln_state_priors_categorical + ln_state_posterior_betabinom + ln_state_posterior_nbinom
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
 
         # NB responsibilites rik, where i is the sample and k is the state.
@@ -490,11 +465,52 @@ class CNA_Sim:
     def cna_mixture_loss(self, params, lambdas):
         return self.cna_mixture_eval(params, lambdas)[1]
 
-    def cna_mixture_lambdas_update(self, params, lambdas):
-        ln_state_posteriors, loss = self.cna_mixture_eval(params, lambdas)
+    def cna_mixture_categorical_update(self, params, lambdas):
+        # NB one-hot encoding of decoded state == ln. posterior.                                                                                                                                                                             
+        # ln_state_posteriors = onehot_encode_states(decoded_states)                                                                                                                                                                         
+        ln_state_posteriors = categorical_state_logprobs(
+            lambdas,
+            self.num_segments,
+        )
+    
         ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
         
-        return np.exp(ln_lambdas), np.exp(ln_state_posteriors)
+        return ln_state_posteriors, ln_lambdas
+
+    def cna_mixture_betabinom_update(self, params):
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+            self.unpack_params(params)
+        )
+
+        state_alpha_betas = reparameterize_beta_binom(
+            bafs,
+            baf_overdispersion,
+        )
+
+        ln_state_posterior_betabinom = beta_binom_state_logprobs(
+            state_alpha_betas,
+            self.get_data_bykey("b_reads"),
+            self.get_data_bykey("snp_coverage"),
+        )
+        
+        return ln_state_posterior_betabinom, state_alpha_betas
+
+    def cna_mixture_nbinom_update(self, params):
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+            self.unpack_params(params)
+        )
+
+        # TODO does a non-linear transform in the cost trip the optimizer?                                                                                                                                                                   
+        state_rs_ps = reparameterize_nbinom(
+            state_read_depths,
+            rdr_overdispersion,
+        )
+
+        ln_state_posterior_nbinom = nbinom_state_logprobs(
+            state_rs_ps, self.get_data_bykey("read_coverage")
+        )
+
+        return ln_state_posterior_nbinom, state_rs_ps
     
     def fit_cna_mixture(self):
         """
@@ -507,6 +523,7 @@ class CNA_Sim:
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.nbinom.html
         """
+        
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
 
@@ -575,8 +592,8 @@ class CNA_Sim:
             args=(initial_state_lambdas),
             method="nelder-mead",
             bounds=bounds,
-            constraints=None, # TODO BUG
-            options={"disp": True}, # "maxiter": 5
+            constraints=constraints,
+            options={"disp": True, "maxiter": 5}
         )
 
         logger.info(res.message)
@@ -588,8 +605,6 @@ class CNA_Sim:
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_params(params)
         )
-        
-        # logger.info(f"Minimized loss with SLSQP with value: {loss}")
 
         print(
             f"{lambdas}\n{state_read_depths}\n{rdr_overdispersion}\n{bafs}\n{baf_overdispersion}"
