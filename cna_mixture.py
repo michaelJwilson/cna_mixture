@@ -85,32 +85,6 @@ def reparameterize_beta_binom(input_bafs, overdispersion):
         ]
     )
 
-
-def categorical_state_logprobs(ln_lambdas, num_samples):
-    """
-    Broadcast per-state categorical probabilities to samples x state array.
-    """
-    ln_norm = logsumexp(ln_lambdas)
-    
-    return np.broadcast_to(ln_lambdas - ln_norm, (num_samples, len(ln_lambdas))).copy()
-
-
-def beta_binom_state_logprobs(state_alpha_betas, ks, ns):
-    """
-    Evaluate log prob. under BetaBinom model.
-    Returns (# sample, # state) array.
-
-    TODO port from python
-    """
-    result = np.zeros((len(ks), len(state_alpha_betas)))
-
-    for col, (alpha, beta) in enumerate(state_alpha_betas):
-        for row, (k, n) in enumerate(zip(ks, ns)):
-            result[row, col] = betabinom.logpmf(k, n, beta, alpha)
-
-    return result
-
-
 def poisson_state_logprobs(state_mus, ks):
     result = np.zeros((len(ks), len(state_mus)))
 
@@ -432,16 +406,18 @@ class CNA_Sim:
 
     def cna_mixture_categorical_update(self, ln_lambdas):
         """
+        Broadcast per-state categorical probabilities to samples x state array.
         """
-        ln_state_posteriors = categorical_state_logprobs(
-            ln_lambdas,
-            self.num_segments,
-        )
+        ln_norm = logsumexp(ln_lambdas)
 
-        return ln_state_posteriors
+        return np.broadcast_to(ln_lambdas - ln_norm, (self.num_segments, len(ln_lambdas))).copy()
 
     def cna_mixture_betabinom_update(self, params):
         """
+        Evaluate log prob. under BetaBinom model.
+        Returns (# sample, # state) array.
+
+        TODO port from python
         """
         _, _, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
@@ -452,13 +428,14 @@ class CNA_Sim:
             baf_overdispersion,
         )
 
-        ln_state_posterior_betabinom = beta_binom_state_logprobs(
-            state_alpha_betas,
-            self.get_data_bykey("b_reads"),
-            self.get_data_bykey("snp_coverage"),
-        )
+        ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
+        result = np.zeros((len(ks), len(state_alpha_betas)))
 
-        return ln_state_posterior_betabinom, state_alpha_betas
+        for col, (alpha, beta) in enumerate(state_alpha_betas):
+            for row, (k, n) in enumerate(zip(ks, ns)):
+                result[row, col] = betabinom.logpmf(k, n, beta, alpha)
+
+        return result, state_alpha_betas
 
     def cna_mixture_nbinom_update(self, params):
         """
@@ -473,6 +450,7 @@ class CNA_Sim:
             rdr_overdispersion,
         )
 
+        # TODO merge with nbinom_state_logprobs
         ln_state_posterior_nbinom = nbinom_state_logprobs(
             state_rs_ps, self.get_data_bykey("read_coverage")
         )
@@ -494,8 +472,7 @@ class CNA_Sim:
         )
 
     def cna_mixture_ln_lambdas_update(self, params, ln_lambdas):
-        """
-        
+        """        
         """
         ln_state_posteriors = cna_mixture_ln_state_posterior_update(self, params, ln_lambdas)        
         ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
