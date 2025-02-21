@@ -556,12 +556,12 @@ class CNA_Sim:
             },
         ]
 
-        # NB pre-pend => reversed to param order.  all parameters are constained to be positive. lambdas max. of unity. bafs. max of unity.
-        bounds = [(1.0e-6, 1.0) for _ in range(self.num_states)]
-        bounds += [(1.0e-6, None) for _ in range(self.num_states)]
-        bounds += [(1.0e-6, None)]
-        bounds += [(1.0e-6, 1.0) for _ in range(self.num_states)]
-        bounds += [(1.0e-6, None)]
+        # NB all parameters are constained to be positive. lambdas max. of unity. bafs. max of unity.
+        bounds = [(1.0e-6, 1.0) for _ in range(self.num_states)] # lambdas
+        bounds += [(1.0e-6, None) for _ in range(self.num_states)] # exp_read_depths
+        bounds += [(1.0e-6, 1.e-1)] # RDR overdispersion 
+        bounds += [(1.0e-6, 1.0) for _ in range(self.num_states)] # bafs 
+        bounds += [(1.0e-6, None)] # baf overdispersion 
         bounds = tuple(bounds)
 
         # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
@@ -571,7 +571,7 @@ class CNA_Sim:
             method="SLSQP",
             bounds=bounds,
             constraints=constraints,
-            options={"maxiter": 2, "disp": True},
+            options={"maxiter": 10, "disp": True},
         )
 
         logger.info(res.message)
