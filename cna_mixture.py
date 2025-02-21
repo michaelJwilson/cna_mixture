@@ -548,9 +548,10 @@ class CNA_Sim:
 
         cost = self.cna_mixture_cost(initial_params, initial_ln_lambdas)
 
-        logger.info(
-            f"Minimizing cost with SLSQP with initial value: {cost} for:\n{np.exp(initial_ln_lambdas)}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}"
-        )
+        msg = f"Minimizing cost with SLSQP with initial value: {cost} for:\n"
+        msg += "{np.exp(initial_ln_lambdas)}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}"
+        
+        logger.info(msg)
 
         self.plot_rdr_baf(
             self.rdr_baf[:, 0],
