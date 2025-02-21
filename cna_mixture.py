@@ -496,6 +496,7 @@ class CNA_Sim:
         )
 
     def cna_mixture_cost(self, params, lambdas):
+        # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi) as required by EM cost.
         ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(
             params, lambdas
         )
@@ -530,8 +531,8 @@ class CNA_Sim:
         decoded_states = assign_closest(self.rdr_baf, init_mixture_params.cna_states)
 
         # NB categorical prior on state fractions
-        _, state_counts = np.unique(decoded_states, return_counts=True)
-        initial_state_lambdas = state_counts / np.sum(state_counts)
+        _, counts = np.unique(decoded_states, return_counts=True)
+        initial_ln_lambdas = np.log(state_counts) - np.log(np.sum(state_counts))
 
         initial_state_read_depths = (
             self.realized_genome_coverage * init_mixture_params.cna_states[:, 0]
@@ -546,15 +547,16 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
+        # TODO exp.
         ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(
-            initial_params, initial_state_lambdas
+            initial_params, np.exp(initial_ln_lambdas)
         )
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
 
-        cost = self.cna_mixture_cost(initial_params, initial_state_lambdas)
+        cost = self.cna_mixture_cost(initial_params, np.exp(initial_ln_lambdas))
 
         logger.info(
-            f"Minimizing cost with SLSQP with initial value: {cost} for:\n{initial_state_lambdas}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}"
+            f"Minimizing cost with SLSQP with initial value: {cost} for:\n{np.exp(initial_ln_lambdas)}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}"
         )
 
         self.plot_rdr_baf(
@@ -584,13 +586,11 @@ class CNA_Sim:
         bounds += [(1.0e-6, None)]  # baf overdispersion
         bounds = tuple(bounds)
 
-        exit(0)
-
         # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         res = minimize(
             self.cna_mixture_cost,
             initial_params,
-            args=(initial_state_lambdas),
+            args=(np.exp(initial_ln_lambdas)),
             method="nelder-mead",
             bounds=bounds,
             constraints=constraints,
@@ -599,15 +599,12 @@ class CNA_Sim:
 
         logger.info(res.message)
 
-        params = res.x
-
         # NB responsibilites rik, where i is the sample and k is the state.
-        lambdas, state_posteriors = self.cna_mixture_lambdas_update(
-            params, initial_state_lambdas
+        ln_state_posteriors, ln_lambdas = self.cna_mixture_categorical_update(
+            np.exp(initial_ln_lambdas),
         )
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-            self.unpack_cna_mixture_params(params)
-        )
+        
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_cna_mixture_params(res.x)
 
         print(
             f"{lambdas}\n{state_read_depths}\n{rdr_overdispersion}\n{bafs}\n{baf_overdispersion}"
