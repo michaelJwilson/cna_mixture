@@ -170,7 +170,7 @@ class CNA_mixture_params:
         self.num_states = 1 + self.num_cna_states
 
         # NB BAF overdispersion.  Random between 25. and 55.
-        self.overdisp_tau = 40.0 + 10.0 * np.random.rand()
+        self.overdisp_tau = 45.
 
         # NB RDR overdispersion.  Random between 1e-2 and 4e-2
         self.overdisp_phi = 1.0e-2
@@ -225,8 +225,7 @@ class CNA_mixture_params:
         logging.info(f"Simulating CNA states:\n{self.cna_states}\n")
 
     def __str__(self):
-        printable = [f"{key}: {value}" for key, value in self.__dict__.items()]
-        return ",  ".join(printable)
+        return ",  ".join([f"{key}: {value}" for key, value in self.__dict__.items()])
 
 
 class CNA_Sim:
@@ -532,13 +531,12 @@ class CNA_Sim:
             + initial_bafs.tolist()
             + [init_mixture_params.overdisp_tau]
         )
-
+        """
         print(
             f"{initial_state_lambdas}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}"
         )
-
-        exit(0)
-
+        """
+        
         ln_state_posteriors, loss = self.cna_mixture_eval(initial_params)
 
         logger.info(f"Minimizing loss with SLSQP with initial value: {loss}")
