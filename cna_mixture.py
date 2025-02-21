@@ -345,7 +345,9 @@ class CNA_Sim:
                 assert state_posteriors.shape[1] == 4
 
                 # NB assumed to be normal probability.
-                alpha = 0.25 + 3.0 * (1.0 - state_posteriors[:, 0]) / 4.0
+                # alpha = 0.25 + 3.0 * (1.0 - state_posteriors[:, 0]) / 4.0
+                alpha = 0.25
+                
                 rgb = state_posteriors[:, 1:4]
                 cmap = None
 
@@ -488,6 +490,12 @@ class CNA_Sim:
     def cna_mixture_loss(self, params, lambdas):
         return self.cna_mixture_eval(params, lambdas)[1]
 
+    def cna_mixture_lambdas_update(self, params, lambdas):
+        ln_state_posteriors, loss = self.cna_mixture_eval(params, lambdas)
+        ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
+        
+        return np.exp(ln_lambdas), np.exp(ln_state_posteriors)
+    
     def fit_cna_mixture(self):
         """
         Fit CNA mixture model via Expectation Maximization.
@@ -530,12 +538,19 @@ class CNA_Sim:
 
         logger.info(f"Minimizing loss with SLSQP with initial value: {loss} for:\n{initial_state_lambdas}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}")
 
+        self.plot_rdr_baf(
+            self.rdr_baf[:, 0],
+            self.rdr_baf[:, 1],
+            state_posteriors=np.exp(ln_state_posteriors),
+            states=init_mixture_params.cna_states,
+        )
+        
         # NB categorical state prior should sum to unity.                                                                                                                                       
         # {
         #   "type": "eq",
         #   "fun": lambda x: np.sum(x[: self.num_states]) - 1.0,
         # }
-
+        
         # NB equality constaints to be zero.  
         # TODO regularizer for state overlap?
         constraints = [
@@ -558,35 +573,32 @@ class CNA_Sim:
             self.cna_mixture_loss,
             initial_params,
             args=(initial_state_lambdas),
-            method="SLSQP",
+            method="nelder-mead",
             bounds=bounds,
             constraints=None, # TODO BUG
-            options={"maxiter": 10, "disp": True},
+            options={"disp": True}, # "maxiter": 5
         )
 
         logger.info(res.message)
 
+        params = res.x
+
+        # NB responsibilites rik, where i is the sample and k is the state.
+        lambdas, state_posteriors = self.cna_mixture_lambdas_update(params, initial_state_lambdas)
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-            self.unpack_params(res.x)
+            self.unpack_params(params)
         )
         
-        ln_state_posteriors, loss = self.cna_mixture_eval(res.x, initial_state_lambdas)
-        ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
-        lambdas = np.exp(ln_lambdas)
-        
-        logger.info(f"Minimized loss with SLSQP with value: {loss}")
+        # logger.info(f"Minimized loss with SLSQP with value: {loss}")
 
         print(
             f"{lambdas}\n{state_read_depths}\n{rdr_overdispersion}\n{bafs}\n{baf_overdispersion}"
         )
         
-        # NB responsibilites rik, where i is the sample and k is the state.
-        state_posteriors = np.exp(ln_state_posteriors)
-
         self.plot_rdr_baf(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
-            state_posteriors=np.exp(ln_state_posteriors),
+            state_posteriors=state_posteriors,
             states=np.c_[state_read_depths / self.realized_genome_coverage, bafs],
         )
 
