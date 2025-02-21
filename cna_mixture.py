@@ -44,7 +44,7 @@ def onehot_encode_states(state_array):
     Given an array of categorical states, return the
     (# samples, # states) one-hot encoding.
 
-    NB equivalent to the state posterior!
+    NB equivalent to a state posterior!
     """
     num_states = np.max(state_array).astype(int) + 1
     states = state_array.astype(int)
@@ -347,7 +347,7 @@ class CNA_Sim:
                 # NB assumed to be normal probability.
                 # alpha = 0.25 + 3.0 * (1.0 - state_posteriors[:, 0]) / 4.0
                 alpha = 0.25
-                
+
                 rgb = state_posteriors[:, 1:4]
                 cmap = None
 
@@ -435,21 +435,21 @@ class CNA_Sim:
         baf_overdispersion = params[2 * num_states + 1]
 
         return state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
-        
-    def cna_mixture_categorical_update(self, params, lambdas):
-        # NB one-hot encoding of decoded state == ln. posterior.                                                                                                                                                                             
-        # ln_state_posteriors = onehot_encode_states(decoded_states)                                                                                                                                                                         
+
+    def cna_mixture_categorical_update(self, lambdas):
         ln_state_posteriors = categorical_state_logprobs(
             lambdas,
             self.num_segments,
         )
-    
-        ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
-        
+
+        ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
+            ln_state_posteriors
+        )
+
         return ln_state_posteriors, ln_lambdas
 
     def cna_mixture_betabinom_update(self, params):
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+        _, _, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
 
@@ -463,15 +463,15 @@ class CNA_Sim:
             self.get_data_bykey("b_reads"),
             self.get_data_bykey("snp_coverage"),
         )
-        
+
         return ln_state_posterior_betabinom, state_alpha_betas
 
     def cna_mixture_nbinom_update(self, params):
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+        state_read_depths, rdr_overdispersion, _, _ = (
             self.unpack_cna_mixture_params(params)
         )
 
-        # TODO does a non-linear transform in the cost trip the optimizer?                                                                                                                                                                   
+        # TODO does a non-linear transform in the cost trip the optimizer?
         state_rs_ps = reparameterize_nbinom(
             state_read_depths,
             rdr_overdispersion,
@@ -484,27 +484,31 @@ class CNA_Sim:
         return ln_state_posterior_nbinom, state_rs_ps
 
     def cna_mixture_ln_state_posterior_update(self, params, lambdas):
-        # NB one-hot encoding of decoded state == ln. posterior.                                                                                                                                                                 
-        # ln_state_posteriors = onehot_encode_states(decoded_states)                                                                                                                                                             
-        ln_state_posterior_categorical, _ = self.cna_mixture_categorical_update(params, lambdas)
+        ln_state_posterior_categorical, _ = self.cna_mixture_categorical_update(lambdas)
         ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
 
-        # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi) as required by EM cost.                                                                                                                                                 
-        return ln_state_posterior_categorical + ln_state_posterior_betabinom + ln_state_posterior_nbinom
+        # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi) as required by EM cost.
+        return (
+            ln_state_posterior_categorical
+            + ln_state_posterior_betabinom
+            + ln_state_posterior_nbinom
+        )
 
     def cna_mixture_cost(self, params, lambdas):
-        ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(params, lambdas)
+        ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(
+            params, lambdas
+        )
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
 
-        # NB responsibilites rik, where i is the sample and k is the state.                                                                                                                                                      
+        # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
 
-	# NB this is *not* state-posterior weighted log-likelihood.                                                                                                                                                              
+        # NB this is *not* state-posterior weighted log-likelihood.
         em_cost = state_posteriors * ln_state_posteriors_nonorm
 
         return -em_cost.sum()
-    
+
     def fit_cna_mixture(self):
         """
         Fit CNA mixture model via Expectation Maximization.
@@ -516,7 +520,7 @@ class CNA_Sim:
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.nbinom.html
         """
-        
+
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
 
@@ -542,12 +546,16 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
-        ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(initial_params, initial_state_lambdas)
+        ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(
+            initial_params, initial_state_lambdas
+        )
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
 
         cost = self.cna_mixture_cost(initial_params, initial_state_lambdas)
 
-        logger.info(f"Minimizing cost with SLSQP with initial value: {cost} for:\n{initial_state_lambdas}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}")
+        logger.info(
+            f"Minimizing cost with SLSQP with initial value: {cost} for:\n{initial_state_lambdas}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}"
+        )
 
         self.plot_rdr_baf(
             self.rdr_baf[:, 0],
@@ -555,32 +563,29 @@ class CNA_Sim:
             state_posteriors=np.exp(ln_state_posteriors),
             states=init_mixture_params.cna_states,
         )
-        
-        # NB categorical state prior should sum to unity.                                                                                                                                       
-        # {
-        #   "type": "eq",
-        #   "fun": lambda x: np.sum(x[: self.num_states]) - 1.0,
-        # }
-        
-        # NB equality constaints to be zero.  
+
+        # NB equality constaints to be zero.
         # TODO regularizer for state overlap?
         constraints = [
             # NB sum of RDRs should explain realized genome-wide coverage.
             {
                 "type": "eq",
-                "fun": lambda x: np.sum(x[:self.num_states]) - self.realized_genome_coverage,
+                "fun": lambda x: np.sum(x[: self.num_states])
+                - self.realized_genome_coverage,
             },
         ]
 
         # NB all parameters are constained to be positive. bafs. max of unity.
         bounds = [(1.0e-6, None) for _ in range(self.num_states)]  # exp_read_depths
         bounds += [(1.0e-6, None)]  # RDR overdispersion
-        bounds += [(1.0e-6, 1.0) for _ in range(self.num_states)]  # bafs - not limited to 0.5
+        bounds += [
+            (1.0e-6, 1.0) for _ in range(self.num_states)
+        ]  # bafs - not limited to 0.5
         bounds += [(1.0e-6, None)]  # baf overdispersion
         bounds = tuple(bounds)
 
         exit(0)
-        
+
         # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         res = minimize(
             self.cna_mixture_cost,
@@ -589,7 +594,7 @@ class CNA_Sim:
             method="nelder-mead",
             bounds=bounds,
             constraints=constraints,
-            options={"disp": True, "maxiter": 1}
+            options={"disp": True, "maxiter": 1},
         )
 
         logger.info(res.message)
@@ -597,7 +602,9 @@ class CNA_Sim:
         params = res.x
 
         # NB responsibilites rik, where i is the sample and k is the state.
-        lambdas, state_posteriors = self.cna_mixture_lambdas_update(params, initial_state_lambdas)
+        lambdas, state_posteriors = self.cna_mixture_lambdas_update(
+            params, initial_state_lambdas
+        )
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
@@ -605,7 +612,7 @@ class CNA_Sim:
         print(
             f"{lambdas}\n{state_read_depths}\n{rdr_overdispersion}\n{bafs}\n{baf_overdispersion}"
         )
-        
+
         self.plot_rdr_baf(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
