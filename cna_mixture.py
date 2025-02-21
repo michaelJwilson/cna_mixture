@@ -159,7 +159,6 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model with
     shared overdispersions.
     """
-
     def __init__(self):
         """
         Initialize an instance of the class with random values in
@@ -190,9 +189,6 @@ class CNA_mixture_params:
 
         self.cna_states = np.array(self.cna_states)
         self.normal_state = np.array(self.normal_state)
-
-        self.lambdas = np.random.rand(self.num_states)
-        self.lambdas /= np.sum(self.lambdas)
 
         self.__verify()
 
@@ -246,7 +242,6 @@ class CNA_Sim:
                 [10.0, 0.1],
             ],
             "normal_state": [1.0, 0.5],
-            "lambdas": np.array([0.31807498, 0.06162617, 0.52047995, 0.0998189]),
         }
 
         for key, value in self.assumed_cna_mixture_params.items():
@@ -427,21 +422,19 @@ class CNA_Sim:
     def unpack_params(self, params):
         num_states = self.num_states
 
-        # NB lambdas + read_depths + overdispersion + bafs + overdispersion
-        assert len(params) == num_states + num_states + 1 + num_states + 1
+        # NB read_depths + overdispersion + bafs + overdispersion
+        assert len(params) == num_states + 1 + num_states + 1
 
-        lambdas = params[:num_states]
+        state_read_depths = params[:num_states]
+        rdr_overdispersion = params[num_states]
 
-        state_read_depths = params[num_states : 2 * num_states]
-        rdr_overdispersion = params[2 * num_states]
+        bafs = params[num_states + 1 : 2 * num_states + 1]
+        baf_overdispersion = params[2 * num_states + 1]
 
-        bafs = params[2 * num_states + 1 : 3 * num_states + 1]
-        baf_overdispersion = params[3 * num_states + 1]
+        return state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
 
-        return lambdas, state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
-
-    def cna_mixture_eval(self, params):
-        lambdas, state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+    def cna_mixture_eval(self, params, lambdas):
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_params(params)
         )
 
@@ -491,8 +484,8 @@ class CNA_Sim:
 
         return ln_state_posteriors, loss
 
-    def cna_mixture_loss(self, params):
-        _, loss = self.cna_mixture_eval(params)
+    def cna_mixture_loss(self, params, lambdas):
+        _, loss = self.cna_mixture_eval(params, lambdas)
         return loss
 
     def fit_cna_mixture(self):
