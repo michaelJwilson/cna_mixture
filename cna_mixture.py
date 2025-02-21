@@ -170,7 +170,7 @@ class CNA_mixture_params:
         self.num_states = 1 + self.num_cna_states
 
         # NB BAF overdispersion.  Random between 25. and 55.
-        self.overdisp_tau = 25.0 + 30.0 * np.random.rand()
+        self.overdisp_tau = 40.0 + 10.0 * np.random.rand()
 
         # NB RDR overdispersion.  Random between 1e-2 and 4e-2
         self.overdisp_phi = 1.0e-2
@@ -222,7 +222,7 @@ class CNA_mixture_params:
             self.cna_states, np.ndarray
         ), f"cna_states attribute must be a numpy array. Found {type(self.cna_states)}"
 
-        logging.info(f"Simulating CNA states:\n{self.cna_states}")
+        logging.info(f"Simulating CNA states:\n{self.cna_states}\n")
 
     def __str__(self):
         printable = [f"{key}: {value}" for key, value in self.__dict__.items()]
@@ -533,6 +533,12 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
+        print(
+            f"{initial_state_lambdas}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}"
+        )
+
+        exit(0)
+
         ln_state_posteriors, loss = self.cna_mixture_eval(initial_params)
 
         logger.info(f"Minimizing loss with SLSQP with initial value: {loss}")
@@ -563,7 +569,7 @@ class CNA_Sim:
             method="SLSQP",
             bounds=bounds,
             constraints=constraints,
-            options={"maxiter": 10, "disp": True},
+            options={"maxiter": 1, "disp": True},
         )
 
         logger.info(res.message)
@@ -575,15 +581,6 @@ class CNA_Sim:
 
         logger.info(f"Minimized loss with SLSQP with value: {loss}")
 
-        print(
-            lambdas,
-            state_read_depths,
-            rdr_overdispersion,
-            bafs,
-            baf_overdispersion,
-            ln_state_posteriors,
-        )
-
         # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
 
@@ -591,7 +588,7 @@ class CNA_Sim:
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             state_posteriors=np.exp(ln_state_posteriors),
-            states=np.c_[state_read_depths, bafs],
+            states=np.c_[state_read_depths / self.realized_genome_coverage, bafs],
         )
 
 
