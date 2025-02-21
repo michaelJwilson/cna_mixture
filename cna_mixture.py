@@ -565,6 +565,7 @@ class CNA_Sim:
         res = minimize(
             self.cna_mixture_loss,
             initial_params,
+            args=(initial_state_lambdas),
             method="SLSQP",
             bounds=bounds,
             constraints=None, # TODO BUG
@@ -573,11 +574,14 @@ class CNA_Sim:
 
         logger.info(res.message)
 
-        lambdas, state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_params(res.x)
         )
-        ln_state_posteriors, loss = self.cna_mixture_eval(res.x)
-
+        
+        ln_state_posteriors, loss = self.cna_mixture_eval(res.x, initial_state_lambdas)
+        ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
+        lambdas = np.exp(ln_lambdas)
+        
         logger.info(f"Minimized loss with SLSQP with value: {loss}")
 
         print(
