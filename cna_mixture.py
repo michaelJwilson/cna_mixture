@@ -222,8 +222,6 @@ class CNA_mixture_params:
             self.cna_states, np.ndarray
         ), f"cna_states attribute must be a numpy array. Found {type(self.cna_states)}"
 
-        logging.info(f"Simulating CNA states:\n{self.cna_states}\n")
-
     def __str__(self):
         return ",  ".join([f"{key}: {value}" for key, value in self.__dict__.items()])
 
@@ -256,7 +254,7 @@ class CNA_Sim:
 
         self.cna_states = [self.normal_state] + self.cna_states
 
-        # logger.info(f"Simulating copy number states: {self.cna_states}.")
+        logger.info(f"Simulating copy number states: {self.cna_states}.")
 
         self.cna_states = np.array(self.cna_states)
         self.normal_state = np.array(self.normal_state)
@@ -477,7 +475,7 @@ class CNA_Sim:
 
         ln_state_posteriors = ln_state_priors
         ln_state_posteriors += ln_state_posterior_betabinom
-        # ln_state_posteriors += ln_state_posterior_nbinom
+        ln_state_posteriors += ln_state_posterior_nbinom
 
         ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
 
@@ -511,6 +509,8 @@ class CNA_Sim:
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
 
+        logging.info(f"Initializing CNA states:\n{init_mixture_params.cna_states}\n")
+        
         # TODO kmeans++ like.
         decoded_states = assign_closest(self.rdr_baf, init_mixture_params.cna_states)
 
@@ -531,12 +531,11 @@ class CNA_Sim:
             + initial_bafs.tolist()
             + [init_mixture_params.overdisp_tau]
         )
-        """
+
         print(
             f"{initial_state_lambdas}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}"
         )
-        """
-        
+
         ln_state_posteriors, loss = self.cna_mixture_eval(initial_params)
 
         logger.info(f"Minimizing loss with SLSQP with initial value: {loss}")
@@ -557,8 +556,13 @@ class CNA_Sim:
             },
         ]
 
-        # NB all parameters are constained to be positive.
-        bounds = tuple([(1.0e-6, None) for _ in range(len(initial_params))])
+        # NB pre-pend => reversed to param order.  all parameters are constained to be positive. lambdas max. of unity. bafs. max of unity.
+        bounds = [(1.0e-6, 1.0) for _ in range(self.num_states)]
+        bounds += [(1.0e-6, None) for _ in range(self.num_states)]
+        bounds += [(1.0e-6, None)]
+        bounds += [(1.0e-6, 1.0) for _ in range(self.num_states)]
+        bounds += [(1.0e-6, None)]
+        bounds = tuple(bounds)
 
         # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         res = minimize(
@@ -567,7 +571,7 @@ class CNA_Sim:
             method="SLSQP",
             bounds=bounds,
             constraints=constraints,
-            options={"maxiter": 1, "disp": True},
+            options={"maxiter": 2, "disp": True},
         )
 
         logger.info(res.message)
@@ -579,6 +583,9 @@ class CNA_Sim:
 
         logger.info(f"Minimized loss with SLSQP with value: {loss}")
 
+        print(
+            f"{lambdas}\n{state_read_depths}\n{rdr_overdispersion}\n{bafs}\n{baf_overdispersion}"                          
+        )                                                                                                                                                                                    
         # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
 
@@ -597,3 +604,5 @@ if __name__ == "__main__":
     # cna_sim.fit_gaussian_mixture()
 
     cna_sim.fit_cna_mixture()
+
+    print("\n\nDone.\n\n")
