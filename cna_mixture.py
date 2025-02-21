@@ -435,32 +435,7 @@ class CNA_Sim:
         baf_overdispersion = params[2 * num_states + 1]
 
         return state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
-
-    def cna_mixture_eval(self, params, lambdas):
-        # NB one-hot encoding of decoded state == ln. posterior.
-        # ln_state_posteriors = onehot_encode_states(decoded_states)
-        ln_state_posterior_categorical, ln_lambdas = self.cna_mixture_categorical_update(params, lambdas)
-        ln_state_posterior_betabinom, state_alpha_betas = self.cna_mixture_betabinom_update(params)
-        ln_state_posterior_nbinom, state_rs_ps = self.cna_mixture_nbinom_update(params)
-
-        ln_state_posteriors = ln_state_priors_categorical + ln_state_posterior_betabinom + ln_state_posterior_nbinom
-        ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors)
-
-        # NB responsibilites rik, where i is the sample and k is the state.
-        state_posteriors = np.exp(ln_state_posteriors)
-
-        # NB this is *not* state-posterior weighted log-likelihood.
-        em_cost = state_posteriors * (
-            ln_state_posterior_nbinom + ln_state_posterior_betabinom + ln_state_priors
-        )
-
-        loss = -em_cost.sum()
-
-        return ln_state_posteriors, loss
-
-    def cna_mixture_loss(self, params, lambdas):
-        return self.cna_mixture_eval(params, lambdas)[1]
-
+        
     def cna_mixture_categorical_update(self, params, lambdas):
         # NB one-hot encoding of decoded state == ln. posterior.                                                                                                                                                                             
         # ln_state_posteriors = onehot_encode_states(decoded_states)                                                                                                                                                                         
@@ -507,6 +482,29 @@ class CNA_Sim:
         )
 
         return ln_state_posterior_nbinom, state_rs_ps
+
+    def cna_mixture_ln_state_posterior_update(self, params, lambdas):
+        # NB one-hot encoding of decoded state == ln. posterior.                                                                                                                                                                 
+        # ln_state_posteriors = onehot_encode_states(decoded_states)                                                                                                                                                             
+        ln_state_posterior_categorical, ln_lambdas = self.cna_mixture_categorical_update(params, lambdas)
+        ln_state_posterior_betabinom, state_alpha_betas = self.cna_mixture_betabinom_update(params)
+        ln_state_posterior_nbinom, state_rs_ps = self.cna_mixture_nbinom_update(params)
+
+        # NB WARNING state posteriors are *not* normalized here.                                                                                                                                                                 
+        return ln_state_priors_categorical + ln_state_posterior_betabinom + ln_state_posterior_nbinom
+
+    def cna_mixture_loss(self, params, lambdas):
+	ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(params, lambdas)
+        ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
+	
+        # NB responsibilites rik, where i is the sample and k is the state.                                                                                                                                                      
+        state_posteriors = np.exp(ln_state_posteriors)
+
+	# NB this is *not* state-posterior weighted log-likelihood.                                                                                                                                                              
+        em_cost = state_posteriors * ln_state_posteriors_nonorm
+        loss = -em_cost.sum()
+
+	return loss
     
     def fit_cna_mixture(self):
         """
