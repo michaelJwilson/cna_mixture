@@ -95,23 +95,6 @@ def poisson_state_logprobs(state_mus, ks):
     return result
 
 
-def nbinom_state_logprobs(state_rs_ps, ks):
-    """
-    Evaluate log prob. under NegativeBinom model.
-    Return (# sample, # state) array.
-
-    TODO port from python
-    """
-    result = np.zeros((len(ks), len(state_rs_ps)))
-
-    # TODO Poisson limit for (phi * mu) << 1.
-    for col, (rr, pp) in enumerate(state_rs_ps):
-        for row, kk in enumerate(ks):
-            result[row, col] = nbinom.logpmf(kk, rr, pp)
-
-    return result
-
-
 def normalize_ln_posteriors(ln_posteriors):
     num_samples, num_states = ln_posteriors.shape
 
@@ -439,6 +422,10 @@ class CNA_Sim:
 
     def cna_mixture_nbinom_update(self, params):
         """
+        Evaluate log prob. under NegativeBinom model.
+        Return (# sample, # state) array.
+
+        TODO port from python
         """
         state_read_depths, rdr_overdispersion, _, _ = (
             self.unpack_cna_mixture_params(params)
@@ -450,17 +437,20 @@ class CNA_Sim:
             rdr_overdispersion,
         )
 
-        # TODO merge with nbinom_state_logprobs
-        ln_state_posterior_nbinom = nbinom_state_logprobs(
-            state_rs_ps, self.get_data_bykey("read_coverage")
-        )
+        ks = self.get_data_bykey("read_coverage")        
+        result = np.zeros((len(ks), len(state_rs_ps)))
 
-        return ln_state_posterior_nbinom, state_rs_ps
+        # TODO Poisson limit for (phi * mu) << 1.
+        for col, (rr, pp) in enumerate(state_rs_ps):
+            for row, kk in enumerate(ks):
+                result[row, col] = nbinom.logpmf(kk, rr, pp)
+
+        return result, state_rs_ps
 
     def cna_mixture_ln_state_posterior_update(self, params, ln_lambdas):
         """
         """
-        ln_state_posterior_categorical, _ = self.cna_mixture_categorical_update(ln_lambdas)
+        ln_state_posterior_categorical = self.cna_mixture_categorical_update(ln_lambdas)
         ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
 
@@ -474,7 +464,7 @@ class CNA_Sim:
     def cna_mixture_ln_lambdas_update(self, params, ln_lambdas):
         """        
         """
-        ln_state_posteriors = cna_mixture_ln_state_posterior_update(self, params, ln_lambdas)        
+        ln_state_posteriors = self.cna_mixture_ln_state_posterior_update(params, ln_lambdas)        
         ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
             ln_state_posteriors
         )
@@ -504,6 +494,24 @@ class CNA_Sim:
 
         return -em_cost.sum()
 
+    def estep(self, params, ln_lambdas):
+        ln_state_posteriors = normalize_ln_posteriors(
+            self.cna_mixture_ln_state_posterior_update(
+                params, ln_lambdas
+            )
+        )
+
+        cost = self.cna_mixture_cost(params, ln_lambdas)
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
+        
+        msg = f"Minimizing cost with SLSQP with initial value: {cost} for:\n"
+        msg += f"lambdas={np.exp(ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
+        msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
+
+        logger.info(msg)
+
+        return ln_state_posteriors
+
     def fit_cna_mixture(self):
         """
         Fit CNA mixture model via Expectation Maximization.
@@ -526,7 +534,7 @@ class CNA_Sim:
         # NB categorical prior on state fractions
         _, counts = np.unique(decoded_states, return_counts=True)
         initial_ln_lambdas = np.log(counts) - np.log(np.sum(counts))
-
+        
         initial_state_read_depths = (
             self.realized_genome_coverage * init_mixture_params.cna_states[:, 0]
         )
@@ -540,24 +548,21 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
-        ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(
-            initial_params, initial_ln_lambdas
-        )
+        ln_state_posteriors = self.estep(initial_params, initial_ln_lambdas)
         
-        ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
-
-        cost = self.cna_mixture_cost(initial_params, initial_ln_lambdas)
-
-        msg = f"Minimizing cost with SLSQP with initial value: {cost} for:\n"
-        msg += "{np.exp(initial_ln_lambdas)}\n{initial_state_read_depths}\n{init_mixture_params.overdisp_phi}\n{initial_bafs}\n{init_mixture_params.overdisp_tau}"
-        
-        logger.info(msg)
-
         self.plot_rdr_baf(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=ln_state_posteriors,
             states=init_mixture_params.cna_states,
+        )
+
+        # NB e.g. [0.2443, 0.3857, 0.1247, 0.2453, ... 500.0, 1500.0, 2500.0, 3500.0, 0.01, ... 0.5, 0.3333333333333333, 0.2, 0.14285714285714285, 47.075625069001084]                                                
+        initial_params = (
+            initial_state_read_depths.tolist()
+            + [init_mixture_params.overdisp_phi]
+            + initial_bafs.tolist()
+            + [init_mixture_params.overdisp_tau]
         )
         
         # NB equality constaints to be zero.
@@ -593,17 +598,18 @@ class CNA_Sim:
 
         logger.info(res.message)
 
-        # TODO BUG circular?
-        # NB responsibilites rik, where i is the sample and k is the state.
-        ln_state_posteriors, ln_lambdas = self.cna_mixture_categorical_update(
-            initial_ln_lambdas,
-        )
-        
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_cna_mixture_params(res.x)
-
-        print(
-            f"{lambdas}\n{state_read_depths}\n{rdr_overdispersion}\n{bafs}\n{baf_overdispersion}"
+        
+        # NB responsibilites rik, where i is the sample and k is the state.
+        ln_state_posteriors = normalize_ln_posteriors(
+            self.cna_mixture_ln_state_posterior_update(
+                initial_params, initial_ln_lambdas
+            )
         )
+
+        ln_lambdas = self.cna_mixture_ln_lambdas_update(res.x, initial_ln_lambdas)
+
+        self.estep(res.x, ln_lambdas)
 
         self.plot_rdr_baf(
             self.rdr_baf[:, 0],
