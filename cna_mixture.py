@@ -540,48 +540,38 @@ class CNA_Sim:
             ln_state_posteriors
         )
 
-    def cna_mixture_cost(self, params, ln_lambdas, approx_state_posteriors=None):
+    def cna_mixture_cost(self, params, ln_lambdas, approx_ln_state_posteriors=None, verbose=False):
         """
         if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
         the current params values and the assumed state_posteriors.
         """
         # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi) as required by EM cost.
-        ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(
-            params, ln_lambdas
-        )
+        ln_state_posteriors_nonorm = cna_mixture_ln_state_posterior_update(params, ln_lambdas)
 
         if approx_state_posteriors is None:
             ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
-
-            # NB responsibilites rik, where i is the sample and k is the state.
-            state_posteriors = np.exp(ln_state_posteriors)
         else:
-            state_posteriors = approx_state_posteriors
+            ln_state_posteriors = approx_ln_state_posteriors
 
-        # NB this is *not* state-posterior weighted log-likelihood.
+        # NB responsibilites rik, where i is the sample and k is the state.                                                                                                                                                    
+        state_posteriors = np.exp(ln_state_posteriors)
+             
+        # NB this is *not* state-posterior weighted log-likelihood. 
         em_cost = state_posteriors * ln_state_posteriors_nonorm
+        em_cost = -em_cost.sum()
 
-        return -em_cost.sum()
+        if verbose:
+            state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+                self.unpack_cna_mixture_params(params)
+            )
 
-    # DEPRECATE
-    # def estep(self, params, ln_lambdas):
-    #    ln_state_posteriors = normalize_ln_posteriors(
-    #        self.cna_mixture_ln_state_posterior_update(params, ln_lambdas)
-    #    )
-    #
-    #    cost = self.cna_mixture_cost(params, ln_lambdas)
-    #    state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-    #        self.unpack_cna_mixture_params(params)
-    #    )
-    #
-    #    msg = f"Minimizing cost with SLSQP with initial value: {cost} for:\n"
-    #    msg += f"lambdas={np.exp(ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
-    #    msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
-    #
-    #
-    #    logger.info(msg)
-    #
-    #    return ln_state_posteriors
+            msg = f"Minimizing cost with SLSQP with initial value: {cost} for:\n"
+            msg += f"lambdas={np.exp(ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
+            msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
+
+            logger.info(msg)
+            
+        return em_cost
 
     def initialize_ln_lambdas(self, init_mixture_params):
         # TODO kmeans++ like.
