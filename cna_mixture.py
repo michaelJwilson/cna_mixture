@@ -546,9 +546,9 @@ class CNA_Sim:
         the current params values and the assumed state_posteriors.
         """
         # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi) as required by EM cost.
-        ln_state_posteriors_nonorm = cna_mixture_ln_state_posterior_update(params, ln_lambdas)
+        ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(params, ln_lambdas)
 
-        if approx_state_posteriors is None:
+        if approx_ln_state_posteriors is None:
             # NB set ln_state_posteriors based on current parameters.
             ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
         else:
@@ -570,7 +570,7 @@ class CNA_Sim:
                 self.unpack_cna_mixture_params(params)
             )
 
-            msg = f"Minimizing cost with SLSQP with initial value: {cost} for:\n"
+            msg = f"Minimizing cost with SLSQP with initial value: {em_cost} for:\n"
             msg += f"lambdas={np.exp(ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
             msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
 
