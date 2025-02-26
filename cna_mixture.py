@@ -622,7 +622,7 @@ class CNA_Sim:
         initial_cost = self.cna_mixture_em_cost(initial_params, initial_ln_lambdas, verbose=True)
 
         ln_state_posteriors = self.estep(initial_params, initial_ln_lambdas)
-        
+        """
         self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
@@ -630,6 +630,7 @@ class CNA_Sim:
             states_bag=init_mixture_params.cna_states,
             title="Initial state posteriors (based on closest state lambdas)."
         )
+        """
         
         # NB equality constaints to be zero.
         # TODO regularizer for state overlap?
@@ -659,7 +660,7 @@ class CNA_Sim:
             method="nelder-mead",
             bounds=bounds,
             constraints=None,
-            options={"disp": True, "maxiter": 1},
+            options={"disp": True, "maxiter": 15},
         )
 
         logger.info(res.message)
@@ -677,7 +678,7 @@ class CNA_Sim:
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=ln_state_posteriors,
-            states=np.c_[state_read_depths / self.realized_genome_coverage, bafs],
+            states_bag=np.c_[state_read_depths / self.realized_genome_coverage, bafs],
         )
 
 
