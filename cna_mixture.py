@@ -374,7 +374,7 @@ class CNA_Sim:
     ):
         bases = np.arange(self.num_segments)
 
-        figsize = (20, 10)
+        figsize = (15, 10)
         fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=figsize)
 
         rdr, baf = self.rdr_baf[:,0], self.rdr_baf[:,1]
