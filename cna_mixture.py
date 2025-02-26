@@ -434,7 +434,7 @@ class CNA_Sim:
     def unpack_cna_mixture_params(self, params):
         """
         Given a cost parameter vector, unpack into named cna mixture
-        parameters. 
+        parameters.
         """
         num_states = self.num_states
 
@@ -451,10 +451,12 @@ class CNA_Sim:
 
     def cna_mixture_categorical_update(self, ln_lambdas):
         """
-        Broadcast per-state categorical probabilities to samples x state array.
+        Broadcast per-state categorical priors to equivalent (samples x state)
+        array.
         """
         ln_norm = logsumexp(ln_lambdas)
 
+        # NB ensure normalized.
         return np.broadcast_to(
             ln_lambdas - ln_norm, (self.num_segments, len(ln_lambdas))
         ).copy()
@@ -463,8 +465,6 @@ class CNA_Sim:
         """
         Evaluate log prob. under BetaBinom model.
         Returns (# sample, # state) array.
-
-        TODO port from python
         """
         _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
 
@@ -476,6 +476,7 @@ class CNA_Sim:
         ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
         result = np.zeros((len(ks), len(state_alpha_betas)))
 
+        # TODO port from python.  broadcast gammas.
         for col, (alpha, beta) in enumerate(state_alpha_betas):
             for row, (k, n) in enumerate(zip(ks, ns)):
                 result[row, col] = betabinom.logpmf(k, n, beta, alpha)
@@ -486,8 +487,6 @@ class CNA_Sim:
         """
         Evaluate log prob. under NegativeBinom model.
         Return (# sample, # state) array.
-
-        TODO port from python
         """
         state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
             params
@@ -503,6 +502,7 @@ class CNA_Sim:
         result = np.zeros((len(ks), len(state_rs_ps)))
 
         # TODO Poisson limit for (phi * mu) << 1.
+        # TODO port from python.  broadcast gammas.
         for col, (rr, pp) in enumerate(state_rs_ps):
             for row, kk in enumerate(ks):
                 result[row, col] = nbinom.logpmf(kk, rr, pp)
@@ -510,16 +510,24 @@ class CNA_Sim:
         return result, state_rs_ps
 
     def cna_mixture_ln_state_posterior_update(self, params, ln_lambdas):
-        """ """
+        """
+        Calculate *un-normalized* state posteriors based on current parameter + lambda
+        settings.
+        """
         ln_state_posterior_categorical = self.cna_mixture_categorical_update(ln_lambdas)
         ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
 
-        # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi) as required by EM cost.
+        # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi), as required by EM cost.
         return (
             ln_state_posterior_categorical
             + ln_state_posterior_betabinom
             + ln_state_posterior_nbinom
+        )
+
+    def estep(self, params, ln_lambdas):
+        return normalize_ln_posteriors(
+            self.cna_mixture_ln_state_posterior_update(params, ln_lambdas)
         )
 
     def cna_mixture_ln_lambdas_update(self, params, ln_lambdas):
@@ -556,34 +564,36 @@ class CNA_Sim:
 
         return -em_cost.sum()
 
-    def estep(self, params, ln_lambdas):
-        ln_state_posteriors = normalize_ln_posteriors(
-            self.cna_mixture_ln_state_posterior_update(params, ln_lambdas)
-        )
-
-        cost = self.cna_mixture_cost(params, ln_lambdas)
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-            self.unpack_cna_mixture_params(params)
-        )
-
-        msg = f"Minimizing cost with SLSQP with initial value: {cost} for:\n"
-        msg += f"lambdas={np.exp(ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
-        msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
-
-        logger.info(msg)
-
-        return ln_state_posteriors
+    # DEPRECATE
+    # def estep(self, params, ln_lambdas):
+    #    ln_state_posteriors = normalize_ln_posteriors(
+    #        self.cna_mixture_ln_state_posterior_update(params, ln_lambdas)
+    #    )
+    #
+    #    cost = self.cna_mixture_cost(params, ln_lambdas)
+    #    state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+    #        self.unpack_cna_mixture_params(params)
+    #    )
+    #
+    #    msg = f"Minimizing cost with SLSQP with initial value: {cost} for:\n"
+    #    msg += f"lambdas={np.exp(ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
+    #    msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
+    #
+    #
+    #    logger.info(msg)
+    #
+    #    return ln_state_posteriors
 
     def initialize_ln_lambdas(self, init_mixture_params):
-        # TODO kmeans++ like.                                                                                                                                                                                             
+        # TODO kmeans++ like.
         decoded_states = assign_closest(self.rdr_baf, init_mixture_params.cna_states)
 
-        # NB categorical prior on state fractions                                                                                                                                                                          
+        # NB categorical prior on state fractions
         _, counts = np.unique(decoded_states, return_counts=True)
         initial_ln_lambdas = np.log(counts) - np.log(np.sum(counts))
 
         return initial_ln_lambdas
-        
+
     def fit_cna_mixture(self):
         """
         Fit CNA mixture model via Expectation Maximization.
@@ -602,6 +612,7 @@ class CNA_Sim:
 
         initial_ln_lambdas = self.initialize_ln_lambdas(init_mixture_params)
 
+        # NB self.realized_genome_coverage == normal_coverage currently.
         initial_state_read_depths = (
             self.realized_genome_coverage * init_mixture_params.cna_states[:, 0]
         )
