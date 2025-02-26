@@ -616,21 +616,17 @@ class CNA_Sim:
 
         ln_state_posteriors = self.estep(initial_params, initial_ln_lambdas)
 
-        self.plot_rdr_baf(
+        
+        self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=ln_state_posteriors,
-            states=init_mixture_params.cna_states,
+            states_bag=init_mixture_params.cna_states,
+            title="Initial state posteriors based on closest state lambdas."
         )
 
-        # NB e.g. [0.2443, 0.3857, 0.1247, 0.2453, ... 500.0, 1500.0, 2500.0, 3500.0, 0.01, ... 0.5, 0.3333333333333333, 0.2, 0.14285714285714285, 47.075625069001084]
-        initial_params = (
-            initial_state_read_depths.tolist()
-            + [init_mixture_params.overdisp_phi]
-            + initial_bafs.tolist()
-            + [init_mixture_params.overdisp_tau]
-        )
-
+        exit(0)
+        
         # NB equality constaints to be zero.
         # TODO regularizer for state overlap?
         constraints = [
@@ -692,8 +688,8 @@ if __name__ == "__main__":
 
     # cna_sim.plot_realization_flat()
     # cna_sim.plot_realization_genome()
-    cna_sim.fit_gaussian_mixture()
-
-    # cna_sim.fit_cna_mixture()
+    # cna_sim.fit_gaussian_mixture()
+    
+    cna_sim.fit_cna_mixture()
 
     print("\n\nDone.\n\n")
