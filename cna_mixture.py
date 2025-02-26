@@ -408,9 +408,6 @@ class CNA_Sim:
         """
         See:  https://github.com/raphael-group/CalicoST/blob/5e4a8a1230e71505667d51390dc9c035a69d60d9/src/calicost/utils_hmm.py#L163
         """
-        # baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
-        # rdr = self.get_data_bykey("read_coverage") / self.realized_genome_coverage
-
         # NB covariance_type = {diag, full}
         #
         #    see https://scikit-learn.org/stable/modules/generated/sklearn.mixture.GaussianMixture.html
@@ -426,15 +423,19 @@ class CNA_Sim:
 
         logger.info(f"Fit Gaussian mixture means:\n{means}")
 
-        self.plot_rdr_baf(
+        self.plot_rdr_baf_flat(
             samples[:, 0],
             samples[:, 1],
             ln_state_posteriors=np.log(onehot_encode_states(decoded_states)),
-            states=means,
-            title=r"Gaussian Mixture Model samples",
+            states_bag=means,
+            title=r"Best-fit Gaussian Mixture Model samples",
         )
 
     def unpack_cna_mixture_params(self, params):
+        """
+        Given a cost parameter vector, unpack into named cna mixture
+        parameters. 
+        """
         num_states = self.num_states
 
         # NB read_depths + overdispersion + bafs + overdispersion
@@ -686,9 +687,8 @@ if __name__ == "__main__":
     cna_sim = CNA_Sim()
 
     # cna_sim.plot_realization_flat()
-    cna_sim.plot_realization_genome()
-
-    # cna_sim.fit_gaussian_mixture()
+    # cna_sim.plot_realization_genome()
+    cna_sim.fit_gaussian_mixture()
 
     # cna_sim.fit_cna_mixture()
 
