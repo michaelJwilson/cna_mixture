@@ -526,20 +526,19 @@ class CNA_Sim:
         )
 
     def estep(self, params, ln_lambdas):
+        """
+        Calculate normalized state posteriors based on current parameter + lambda
+        settings.
+        """
         return normalize_ln_posteriors(
             self.cna_mixture_ln_state_posterior_update(params, ln_lambdas)
         )
 
-    def cna_mixture_ln_lambdas_update(self, params, ln_lambdas):
+    def cna_mixture_ln_lambdas_update(self, ln_state_posteriors):
         """ """
-        ln_state_posteriors = self.cna_mixture_ln_state_posterior_update(
-            params, ln_lambdas
-        )
-        ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
+        return logsumexp(ln_state_posteriors, axis=0) - logsumexp(
             ln_state_posteriors
         )
-
-        return ln_lambdas
 
     def cna_mixture_cost(self, params, ln_lambdas, approx_state_posteriors=None):
         """
@@ -687,7 +686,7 @@ class CNA_Sim:
             )
         )
 
-        ln_lambdas = self.cna_mixture_ln_lambdas_update(res.x, initial_ln_lambdas)
+        ln_lambdas = self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
 
         self.estep(res.x, ln_lambdas)
 
