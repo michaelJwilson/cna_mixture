@@ -21,13 +21,15 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+
 def tophat_smooth(data, window_size):
     kernel = np.ones(window_size) / window_size
-    
+
     # Apply convolution with 'same' mode to keep the output size the same as the input
-    smoothed_data = np.convolve(data, kernel, mode='same')
-    
+    smoothed_data = np.convolve(data, kernel, mode="same")
+
     return smoothed_data
+
 
 def simple_logsumexp(array):
     max_val = array.max()
@@ -377,14 +379,14 @@ class CNA_Sim:
         figsize = (15, 10)
         fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=figsize)
 
-        rdr, baf = self.rdr_baf[:,0], self.rdr_baf[:,1]
+        rdr, baf = self.rdr_baf[:, 0], self.rdr_baf[:, 1]
 
         smooth_rdr = tophat_smooth(rdr, window_size=25)
         smooth_baf = tophat_smooth(baf, window_size=25)
 
         axes[0].plot(bases, rdr)
         axes[0].plot(bases, smooth_rdr)
-        
+
         axes[1].plot(bases, baf)
         axes[1].plot(bases, smooth_baf)
 
@@ -392,7 +394,7 @@ class CNA_Sim:
 
         axes[1].set_ylabel(r"$b$-allele frequency")
         axes[1].set_xlabel("intervals")
-        
+
         pl.show()
 
     def fit_gaussian_mixture(
@@ -685,7 +687,7 @@ if __name__ == "__main__":
 
     # cna_sim.plot_realization_flat()
     cna_sim.plot_realization_genome()
-    
+
     # cna_sim.fit_gaussian_mixture()
 
     # cna_sim.fit_cna_mixture()
