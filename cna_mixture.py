@@ -574,6 +574,16 @@ class CNA_Sim:
 
         return ln_state_posteriors
 
+    def initialize_ln_lambdas(self, init_mixture_params):
+        # TODO kmeans++ like.                                                                                                                                                                                             
+        decoded_states = assign_closest(self.rdr_baf, init_mixture_params.cna_states)
+
+        # NB categorical prior on state fractions                                                                                                                                                                          
+        _, counts = np.unique(decoded_states, return_counts=True)
+        initial_ln_lambdas = np.log(counts) - np.log(np.sum(counts))
+
+        return initial_ln_lambdas
+        
     def fit_cna_mixture(self):
         """
         Fit CNA mixture model via Expectation Maximization.
@@ -590,12 +600,7 @@ class CNA_Sim:
 
         logging.info(f"Initializing CNA states:\n{init_mixture_params.cna_states}\n")
 
-        # TODO kmeans++ like.
-        decoded_states = assign_closest(self.rdr_baf, init_mixture_params.cna_states)
-
-        # NB categorical prior on state fractions
-        _, counts = np.unique(decoded_states, return_counts=True)
-        initial_ln_lambdas = np.log(counts) - np.log(np.sum(counts))
+        initial_ln_lambdas = self.initialize_ln_lambdas(init_mixture_params)
 
         initial_state_read_depths = (
             self.realized_genome_coverage * init_mixture_params.cna_states[:, 0]
