@@ -199,8 +199,8 @@ class CNA_Sim:
         )
 
         self.assumed_cna_mixture_params = {
-            "overdisp_tau": 45.0,
-            "overdisp_phi": 1.0e-2,
+            "overdisp_tau": 50.0,
+            "overdisp_phi": 2.0e-2,
             "cna_states": [
                 [3.0, 0.33],
                 [4.0, 0.25],
@@ -588,7 +588,7 @@ class CNA_Sim:
 
         return initial_ln_lambdas
 
-    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=15):
+    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=25):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
