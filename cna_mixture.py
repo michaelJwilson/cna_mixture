@@ -272,8 +272,14 @@ class CNA_Sim:
             )
 
         self.data = np.array(result)
-        self.realized_genome_coverage = np.sum(data[:,2])
 
+        # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage
+        # TODO? biases RDR estimates, particularly if many CNAs.
+        # 
+        # self.realized_genome_coverage = np.sum(self.data[:,2]) / self.num_segments
+        
+        self.realized_genome_coverage = self.normal_genome_coverage
+        
     def get_data_bykey(self, key):
         keys = {
             "state": 0,
@@ -638,7 +644,7 @@ class CNA_Sim:
 if __name__ == "__main__":
     cna_sim = CNA_Sim()
 
-    # cna_sim.plot_realization()
+    cna_sim.plot_realization()
     # cna_sim.fit_gaussian_mixture()
 
     # cna_sim.fit_cna_mixture()
