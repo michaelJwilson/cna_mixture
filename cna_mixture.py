@@ -596,10 +596,9 @@ class CNA_Sim:
         """
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
-
-        logging.info(f"Initializing CNA states:\n{init_mixture_params.cna_states}\n")
-
         initial_ln_lambdas = self.initialize_ln_lambdas(init_mixture_params)
+        
+        logging.info(f"Initializing CNA states:\n{init_mixture_params.cna_states}\n")
 
         # NB self.realized_genome_coverage == normal_coverage currently.
         initial_state_read_depths = (
