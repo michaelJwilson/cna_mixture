@@ -615,7 +615,6 @@ class CNA_Sim:
         )
 
         ln_state_posteriors = self.estep(initial_params, initial_ln_lambdas)
-
         
         self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
@@ -624,8 +623,6 @@ class CNA_Sim:
             states_bag=init_mixture_params.cna_states,
             title="Initial state posteriors based on closest state lambdas."
         )
-
-        exit(0)
         
         # NB equality constaints to be zero.
         # TODO regularizer for state overlap?
