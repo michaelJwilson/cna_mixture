@@ -588,7 +588,7 @@ class CNA_Sim:
 
         return initial_ln_lambdas
 
-    def fit_cna_mixture(self):
+    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=15):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -621,7 +621,6 @@ class CNA_Sim:
 
         initial_cost = self.cna_mixture_em_cost(initial_params, initial_ln_lambdas, verbose=True)
 
-        ln_state_posteriors = self.estep(initial_params, initial_ln_lambdas)
         """
         self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
@@ -652,27 +651,34 @@ class CNA_Sim:
         bounds += [(1.0e-6, None)]  # baf overdispersion
         bounds = tuple(bounds)
 
-        # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
-        res = minimize(
-            self.cna_mixture_em_cost,
-            initial_params,
-            args=(initial_ln_lambdas),
-            method="nelder-mead",
-            bounds=bounds,
-            constraints=None,
-            options={"disp": True, "maxiter": 15},
-        )
+        params, ln_lambdas = initial_params, initial_ln_lambdas
+        ln_state_posteriors = self.estep(params, ln_lambdas)
 
-        logger.info(res.message)
+        for ii in range(maxiter):
+            # TODO minimization assuming fixed lambdas, on which there is a constraint.
+            #      ln_state_posterior calculated exactly for given theta under this assumption.
+            #
+            # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
+            res = minimize(
+                self.cna_mixture_em_cost,
+                params,
+                args=(ln_lambdas),
+                method=optimizer,
+                bounds=bounds,
+                constraints=None,
+                options={"disp": True, "maxiter": 1},
+            )
+
+            logger.info(f"success={res.success} with message={res.message}")
+                    
+            ln_state_posteriors = self.estep(res.x, ln_lambdas)            
+            params, ln_lambdas = res.x, self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
 
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-            self.unpack_cna_mixture_params(res.x)
+            self.unpack_cna_mixture_params(params)
         )
-        
-        ln_state_posteriors = self.estep(res.x, initial_ln_lambdas)
-        ln_lambdas = self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
 
-        ln_state_posteriors = self.estep(res.x, ln_lambdas)
+        logger.info(f"Found best-fit CNA mixture params:\n{params}")
         
         self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
