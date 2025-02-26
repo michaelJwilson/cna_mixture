@@ -549,15 +549,20 @@ class CNA_Sim:
         ln_state_posteriors_nonorm = cna_mixture_ln_state_posterior_update(params, ln_lambdas)
 
         if approx_state_posteriors is None:
+            # NB set ln_state_posteriors based on current parameters.
             ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
         else:
-            ln_state_posteriors = approx_ln_state_posteriors
+            # NB utilize estimate of ln_state_posteriors, e.g. based on last parameter set rather than
+            #    current.
+            ln_state_posteriors = normalize_ln_posteriors(approx_ln_state_posteriors)
 
         # NB responsibilites rik, where i is the sample and k is the state.                                                                                                                                                    
         state_posteriors = np.exp(ln_state_posteriors)
              
         # NB this is *not* state-posterior weighted log-likelihood. 
         em_cost = state_posteriors * ln_state_posteriors_nonorm
+
+        # NB sum over samples and states.  Maximization -> minimization.
         em_cost = -em_cost.sum()
 
         if verbose:
@@ -614,6 +619,8 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
+        initial_cost = 
+        
         ln_state_posteriors = self.estep(initial_params, initial_ln_lambdas)
         
         self.plot_rdr_baf_flat(
@@ -621,7 +628,7 @@ class CNA_Sim:
             self.rdr_baf[:, 1],
             ln_state_posteriors=ln_state_posteriors,
             states_bag=init_mixture_params.cna_states,
-            title="Initial state posteriors based on closest state lambdas."
+            title="Initial state posteriors (based on closest state lambdas)."
         )
         
         # NB equality constaints to be zero.
@@ -651,7 +658,7 @@ class CNA_Sim:
             args=(initial_ln_lambdas),
             method="nelder-mead",
             bounds=bounds,
-            constraints=constraints,
+            constraints=None,
             options={"disp": True, "maxiter": 1},
         )
 
