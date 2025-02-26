@@ -179,6 +179,9 @@ class CNA_Sim:
     def __init__(self):
         self.num_segments = 10_000
 
+        # TODO numerical precision on ps -> tie jump_rate to # states?                                                                                                                                          
+        self.jump_rate = 1.0e-1
+         
         # NB normal coverage per segment, i.e. for RDR=1.
         self.min_snp_coverage, self.max_snp_coverage, self.normal_genome_coverage = (
             100,
@@ -202,14 +205,10 @@ class CNA_Sim:
 
         self.cna_states = [self.normal_state] + self.cna_states
 
-        logger.info(f"Simulating copy number states: {self.cna_states}.")
-
         self.cna_states = np.array(self.cna_states)
         self.normal_state = np.array(self.normal_state)
         self.num_states = len(self.cna_states)
 
-        # TODO numerical precision on ps -> tie jump_rate to # states?
-        self.jump_rate = 1.0e-1
         self.jump_rate_per_state = 1.0e-1 / (self.num_states - 1.)        
         self.transfer = self.jump_rate_per_state * np.ones(shape=(self.num_states, self.num_states))
         self.transfer -= self.jump_rate_per_state * np.eye(self.num_states)
@@ -221,6 +220,8 @@ class CNA_Sim:
         """
         Generate a realization (one seed only) for given configuration settings.
         """
+        logger.info(f"Simulating copy number states: {self.cna_states}.")
+        
         # NB SNP-covering reads per segment.
         self.snp_coverages = np.random.randint(
             self.min_snp_coverage, self.max_snp_coverage, self.num_segments
@@ -242,15 +243,15 @@ class CNA_Sim:
             # NB overdisp_tau parameterizes the degree of deviations from the mean baf.
             alpha, beta = reparameterize_beta_binom([baf], self.overdisp_tau)[0]
 
-            # NB assumes some slop in terms of deviates from mean baf.
+            # NB simulate variation in realized BAF according to betabinom model.
             b_reads = betabinom.rvs(self.snp_coverages[ii], beta, alpha)
-            baf = b_reads / self.snp_coverages[ii]
 
             # NB we expect for baf ~0.5, some baf estimate to NOT be the minor allele,
             #    i.e. to occur at a rate > 0.5;
+            baf = b_reads / self.snp_coverages[ii]
 
+            # NB stochastic, given rdr derived from state sampling.
             true_read_coverage = rdr * self.normal_genome_coverage
-            self.realized_genome_coverage = np.sum(true_read_coverage)
 
             # NB equivalent to r and prob. for a bernoulli trial of r.
             lost_reads, dropout_rate = reparameterize_nbinom(
@@ -271,6 +272,7 @@ class CNA_Sim:
             )
 
         self.data = np.array(result)
+        self.realized_genome_coverage = np.sum(data[:,2])
 
     def get_data_bykey(self, key):
         keys = {
