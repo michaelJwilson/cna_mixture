@@ -619,7 +619,9 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
-        initial_cost = 
+        initial_cost = self.cna_mixture_cost(initial_params, initial_ln_lambdas, verbose=True)
+
+        exit(0)
         
         ln_state_posteriors = self.estep(initial_params, initial_ln_lambdas)
         
