@@ -21,6 +21,13 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+def tophat_smooth(data, window_size):
+    kernel = np.ones(window_size) / window_size
+    
+    # Apply convolution with 'same' mode to keep the output size the same as the input
+    smoothed_data = np.convolve(data, kernel, mode='same')
+    
+    return smoothed_data
 
 def simple_logsumexp(array):
     max_val = array.max()
@@ -179,9 +186,9 @@ class CNA_Sim:
     def __init__(self):
         self.num_segments = 10_000
 
-        # TODO numerical precision on ps -> tie jump_rate to # states?                                                                                                                                          
+        # TODO numerical precision on ps -> tie jump_rate to # states?
         self.jump_rate = 1.0e-1
-         
+
         # NB normal coverage per segment, i.e. for RDR=1.
         self.min_snp_coverage, self.max_snp_coverage, self.normal_genome_coverage = (
             100,
@@ -209,11 +216,13 @@ class CNA_Sim:
         self.normal_state = np.array(self.normal_state)
         self.num_states = len(self.cna_states)
 
-        self.jump_rate_per_state = 1.0e-1 / (self.num_states - 1.)        
-        self.transfer = self.jump_rate_per_state * np.ones(shape=(self.num_states, self.num_states))
+        self.jump_rate_per_state = 1.0e-1 / (self.num_states - 1.0)
+        self.transfer = self.jump_rate_per_state * np.ones(
+            shape=(self.num_states, self.num_states)
+        )
         self.transfer -= self.jump_rate_per_state * np.eye(self.num_states)
-        self.transfer += (1. - self.jump_rate) * np.eye(self.num_states)
-        
+        self.transfer += (1.0 - self.jump_rate) * np.eye(self.num_states)
+
         self.realize()
 
     def realize(self):
@@ -221,7 +230,7 @@ class CNA_Sim:
         Generate a realization (one seed only) for given configuration settings.
         """
         logger.info(f"Simulating copy number states: {self.cna_states}.")
-        
+
         # NB SNP-covering reads per segment.
         self.snp_coverages = np.random.randint(
             self.min_snp_coverage, self.max_snp_coverage, self.num_segments
@@ -231,12 +240,14 @@ class CNA_Sim:
 
         # NB Equal-probability for categorical states: {0, .., K-1}.
         state = np.random.randint(0, self.num_states)
-        
+
         # NB we loop over genomic segments, sampling a state and assigning appropriate
         #    emission values.
         for ii in range(self.num_segments):
-            state_probs = self.transfer[state]            
-            state = np.random.choice(np.arange(self.num_states), size=1, p=state_probs)[0]
+            state_probs = self.transfer[state]
+            state = np.random.choice(np.arange(self.num_states), size=1, p=state_probs)[
+                0
+            ]
 
             rdr, baf = self.cna_states[state]
 
@@ -275,11 +286,11 @@ class CNA_Sim:
 
         # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage
         # TODO? biases RDR estimates, particularly if many CNAs.
-        # 
+        #
         # self.realized_genome_coverage = np.sum(self.data[:,2]) / self.num_segments
-        
+
         self.realized_genome_coverage = self.normal_genome_coverage
-        
+
     def get_data_bykey(self, key):
         keys = {
             "state": 0,
@@ -300,7 +311,9 @@ class CNA_Sim:
 
         return np.c_[rdr, baf]
 
-    def plot_rdr_baf(self, rdr, baf, ln_state_posteriors=None, states=None, title=None):
+    def plot_rdr_baf_flat(
+        self, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None
+    ):
         """
         NB state_posteriors may be an integer, corresponding to a decoded state, or
            the posterior probs. for up to four states, which are mapped to RGB +
@@ -325,8 +338,8 @@ class CNA_Sim:
         pl.axhline(0.5, c="k", lw=0.5)
         plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
 
-        if states is not None:
-            for rdr, baf in states:
+        if states_bag is not None:
+            for rdr, baf in states_bag:
                 pl.scatter(
                     rdr, baf, marker="*", edgecolors="black", facecolors="white", s=45
                 )
@@ -342,19 +355,45 @@ class CNA_Sim:
 
         pl.show()
 
-    def plot_realization(self):
+    def plot_realization_flat(self):
         """
         BAF vs RDR for the assumed simulation.
         """
         true_states = self.get_data_bykey("state")
 
-        self.plot_rdr_baf(
+        self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=np.log(onehot_encode_states(true_states)),
-            states=self.cna_states,
-            title="CNA realizations",
+            states_bag=self.cna_states,
+            title="CNA realizations - true states",
         )
+
+    def plot_realization_genome(
+        self, ln_state_posteriors=None, states_bag=None, title=None
+    ):
+        bases = np.arange(self.num_segments)
+
+        figsize = (20, 10)
+        fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=figsize)
+
+        rdr, baf = self.rdr_baf[:,0], self.rdr_baf[:,1]
+
+        smooth_rdr = tophat_smooth(rdr, window_size=25)
+        smooth_baf = tophat_smooth(baf, window_size=25)
+
+        axes[0].plot(bases, rdr)
+        axes[0].plot(bases, smooth_rdr)
+        
+        axes[1].plot(bases, baf)
+        axes[1].plot(bases, smooth_baf)
+
+        axes[0].set_ylabel(r"read depth ratio")
+
+        axes[1].set_ylabel(r"$b$-allele frequency")
+        axes[1].set_xlabel("intervals")
+        
+        pl.show()
 
     def fit_gaussian_mixture(
         self,
@@ -644,7 +683,9 @@ class CNA_Sim:
 if __name__ == "__main__":
     cna_sim = CNA_Sim()
 
-    cna_sim.plot_realization()
+    # cna_sim.plot_realization_flat()
+    cna_sim.plot_realization_genome()
+    
     # cna_sim.fit_gaussian_mixture()
 
     # cna_sim.fit_cna_mixture()
