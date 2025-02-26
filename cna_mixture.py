@@ -85,6 +85,7 @@ def reparameterize_beta_binom(input_bafs, overdispersion):
         ]
     )
 
+
 def poisson_state_logprobs(state_mus, ks):
     result = np.zeros((len(ks), len(state_mus)))
 
@@ -207,6 +208,13 @@ class CNA_Sim:
         self.normal_state = np.array(self.normal_state)
         self.num_states = len(self.cna_states)
 
+        # TODO numerical precision on ps -> tie jump_rate to # states?
+        self.jump_rate = 1.0e-1
+        self.jump_rate_per_state = 1.0e-1 / (self.num_states - 1.)        
+        self.transfer = self.jump_rate_per_state * np.ones(shape=(self.num_states, self.num_states))
+        self.transfer -= self.jump_rate_per_state * np.eye(self.num_states)
+        self.transfer += (1. - self.jump_rate) * np.eye(self.num_states)
+        
         self.realize()
 
     def realize(self):
@@ -220,11 +228,15 @@ class CNA_Sim:
 
         result = []
 
+        # NB Equal-probability for categorical states: {0, .., K-1}.
+        state = np.random.randint(0, self.num_states)
+        
         # NB we loop over genomic segments, sampling a state and assigning appropriate
         #    emission values.
         for ii in range(self.num_segments):
-            # NB Equal-probability for categorical states: {0, .., K-1}.
-            state = np.random.randint(0, self.num_states)
+            state_probs = self.transfer[state]            
+            state = np.random.choice(np.arange(self.num_states), size=1, p=state_probs)[0]
+
             rdr, baf = self.cna_states[state]
 
             # NB overdisp_tau parameterizes the degree of deviations from the mean baf.
@@ -393,7 +405,9 @@ class CNA_Sim:
         """
         ln_norm = logsumexp(ln_lambdas)
 
-        return np.broadcast_to(ln_lambdas - ln_norm, (self.num_segments, len(ln_lambdas))).copy()
+        return np.broadcast_to(
+            ln_lambdas - ln_norm, (self.num_segments, len(ln_lambdas))
+        ).copy()
 
     def cna_mixture_betabinom_update(self, params):
         """
@@ -402,9 +416,7 @@ class CNA_Sim:
 
         TODO port from python
         """
-        _, _, bafs, baf_overdispersion = (
-            self.unpack_cna_mixture_params(params)
-        )
+        _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
 
         state_alpha_betas = reparameterize_beta_binom(
             bafs,
@@ -427,8 +439,8 @@ class CNA_Sim:
 
         TODO port from python
         """
-        state_read_depths, rdr_overdispersion, _, _ = (
-            self.unpack_cna_mixture_params(params)
+        state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
+            params
         )
 
         # TODO does a non-linear transform in the cost trip the optimizer?
@@ -437,7 +449,7 @@ class CNA_Sim:
             rdr_overdispersion,
         )
 
-        ks = self.get_data_bykey("read_coverage")        
+        ks = self.get_data_bykey("read_coverage")
         result = np.zeros((len(ks), len(state_rs_ps)))
 
         # TODO Poisson limit for (phi * mu) << 1.
@@ -448,8 +460,7 @@ class CNA_Sim:
         return result, state_rs_ps
 
     def cna_mixture_ln_state_posterior_update(self, params, ln_lambdas):
-        """
-        """
+        """ """
         ln_state_posterior_categorical = self.cna_mixture_categorical_update(ln_lambdas)
         ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
@@ -462,15 +473,16 @@ class CNA_Sim:
         )
 
     def cna_mixture_ln_lambdas_update(self, params, ln_lambdas):
-        """        
-        """
-        ln_state_posteriors = self.cna_mixture_ln_state_posterior_update(params, ln_lambdas)        
+        """ """
+        ln_state_posteriors = self.cna_mixture_ln_state_posterior_update(
+            params, ln_lambdas
+        )
         ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
             ln_state_posteriors
         )
 
         return ln_lambdas
-    
+
     def cna_mixture_cost(self, params, ln_lambdas, approx_state_posteriors=None):
         """
         if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
@@ -483,12 +495,12 @@ class CNA_Sim:
 
         if approx_state_posteriors is None:
             ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
-            
+
             # NB responsibilites rik, where i is the sample and k is the state.
             state_posteriors = np.exp(ln_state_posteriors)
         else:
             state_posteriors = approx_state_posteriors
-            
+
         # NB this is *not* state-posterior weighted log-likelihood.
         em_cost = state_posteriors * ln_state_posteriors_nonorm
 
@@ -496,14 +508,14 @@ class CNA_Sim:
 
     def estep(self, params, ln_lambdas):
         ln_state_posteriors = normalize_ln_posteriors(
-            self.cna_mixture_ln_state_posterior_update(
-                params, ln_lambdas
-            )
+            self.cna_mixture_ln_state_posterior_update(params, ln_lambdas)
         )
 
         cost = self.cna_mixture_cost(params, ln_lambdas)
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
-        
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+            self.unpack_cna_mixture_params(params)
+        )
+
         msg = f"Minimizing cost with SLSQP with initial value: {cost} for:\n"
         msg += f"lambdas={np.exp(ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
         msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
@@ -534,7 +546,7 @@ class CNA_Sim:
         # NB categorical prior on state fractions
         _, counts = np.unique(decoded_states, return_counts=True)
         initial_ln_lambdas = np.log(counts) - np.log(np.sum(counts))
-        
+
         initial_state_read_depths = (
             self.realized_genome_coverage * init_mixture_params.cna_states[:, 0]
         )
@@ -549,7 +561,7 @@ class CNA_Sim:
         )
 
         ln_state_posteriors = self.estep(initial_params, initial_ln_lambdas)
-        
+
         self.plot_rdr_baf(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
@@ -557,14 +569,14 @@ class CNA_Sim:
             states=init_mixture_params.cna_states,
         )
 
-        # NB e.g. [0.2443, 0.3857, 0.1247, 0.2453, ... 500.0, 1500.0, 2500.0, 3500.0, 0.01, ... 0.5, 0.3333333333333333, 0.2, 0.14285714285714285, 47.075625069001084]                                                
+        # NB e.g. [0.2443, 0.3857, 0.1247, 0.2453, ... 500.0, 1500.0, 2500.0, 3500.0, 0.01, ... 0.5, 0.3333333333333333, 0.2, 0.14285714285714285, 47.075625069001084]
         initial_params = (
             initial_state_read_depths.tolist()
             + [init_mixture_params.overdisp_phi]
             + initial_bafs.tolist()
             + [init_mixture_params.overdisp_tau]
         )
-        
+
         # NB equality constaints to be zero.
         # TODO regularizer for state overlap?
         constraints = [
@@ -598,8 +610,10 @@ class CNA_Sim:
 
         logger.info(res.message)
 
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_cna_mixture_params(res.x)
-        
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+            self.unpack_cna_mixture_params(res.x)
+        )
+
         # NB responsibilites rik, where i is the sample and k is the state.
         ln_state_posteriors = normalize_ln_posteriors(
             self.cna_mixture_ln_state_posterior_update(
@@ -625,6 +639,6 @@ if __name__ == "__main__":
     # cna_sim.plot_realization()
     # cna_sim.fit_gaussian_mixture()
 
-    cna_sim.fit_cna_mixture()
+    # cna_sim.fit_cna_mixture()
 
     print("\n\nDone.\n\n")
