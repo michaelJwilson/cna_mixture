@@ -540,7 +540,7 @@ class CNA_Sim:
             ln_state_posteriors
         )
 
-    def cna_mixture_cost(self, params, ln_lambdas, approx_ln_state_posteriors=None, verbose=False):
+    def cna_mixture_em_cost(self, params, ln_lambdas, approx_ln_state_posteriors=None, verbose=False):
         """
         if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
         the current params values and the assumed state_posteriors.
@@ -619,10 +619,8 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
-        initial_cost = self.cna_mixture_cost(initial_params, initial_ln_lambdas, verbose=True)
+        initial_cost = self.cna_mixture_em_cost(initial_params, initial_ln_lambdas, verbose=True)
 
-        exit(0)
-        
         ln_state_posteriors = self.estep(initial_params, initial_ln_lambdas)
         
         self.plot_rdr_baf_flat(
@@ -655,7 +653,7 @@ class CNA_Sim:
 
         # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         res = minimize(
-            self.cna_mixture_cost,
+            self.cna_mixture_em_cost,
             initial_params,
             args=(initial_ln_lambdas),
             method="nelder-mead",
@@ -669,19 +667,13 @@ class CNA_Sim:
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(res.x)
         )
-
-        # NB responsibilites rik, where i is the sample and k is the state.
-        ln_state_posteriors = normalize_ln_posteriors(
-            self.cna_mixture_ln_state_posterior_update(
-                initial_params, initial_ln_lambdas
-            )
-        )
-
+        
+        ln_state_posteriors = self.estep(res.x, initial_ln_lambdas)
         ln_lambdas = self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
 
-        self.estep(res.x, ln_lambdas)
-
-        self.plot_rdr_baf(
+        ln_state_posteriors = self.estep(res.x, ln_lambdas)
+        
+        self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=ln_state_posteriors,
