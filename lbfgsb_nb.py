@@ -174,7 +174,7 @@ if __name__ == "__main__":
 
     start = time.time()
     
-    # NB L-BFGS-B accepts bounds.                                                                                                                                                              
+    # NB L-BFGS-B accepts bounds, e.g. on positive params.
     res = minimize(
 	nloglike,
 	x0,
