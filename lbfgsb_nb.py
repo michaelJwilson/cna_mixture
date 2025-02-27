@@ -163,7 +163,7 @@ if __name__ == "__main__":
         options=None,
     )
 
-    print(f"\n\nOptimized with L-BFGS-B in {time.time() - start} seconds with result:\n{res}")
+    print(f"\n\nOptimized with L-BFGS-B in {time.time() - start:.3f} seconds with result:\n{res}")
 
     r, p = muvar2rp(*res.x)
     probs = nloglikes(r, p, samples)
@@ -190,7 +190,7 @@ if __name__ == "__main__":
 	options=None,
     )
 
-    print(f"\n\nOptimized with Nelder-Mead in {time.time() - start} seconds with result:\n{res}")
+    print(f"\n\nOptimized with Nelder-Mead in {time.time() - start:.3f} seconds with result:\n{res}")
     print("\n\nDone.\n\n")
     
     """
