@@ -164,10 +164,28 @@ if __name__ == "__main__":
     r, p = muvar2rp(*res.x)
     probs = nloglikes(r, p, samples)
 
-    pl.plot(samples, exp_probs, lw=0.0, marker=".")
-    pl.plot(samples, probs, lw=0.0, marker='.')
-    pl.show()
+    # pl.plot(samples, exp_probs, lw=0.0, marker=".")
+    # pl.plot(samples, probs, lw=0.0, marker='.')
+    # pl.show()
 
+    # NB L-BFGS-B accepts bounds.                                                                                                                                                              
+    res = minimize(
+	nloglike,
+	x0,
+        args=(samples),
+        method="nelder-mead",
+        jac=None,
+	hess=None,
+        hessp=None,
+	bounds=bounds,
+        constraints=(),
+        tol=None,
+        callback=None,
+	options=None,
+    )
+
+    print(res)
+    
     """
     k = torch.tensor(k, requires_grad=False)  # Number of successes
     mean = torch.tensor(mu, requires_grad=True)  # Mean of the distribution
