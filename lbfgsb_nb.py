@@ -1,3 +1,4 @@
+import time
 import torch
 import numpy as np
 import pylab as pl
@@ -135,14 +136,17 @@ if __name__ == "__main__":
     approx_grad = approx_fprime(x0, nloglike, np.sqrt(np.finfo(float).eps), samples)
     err = check_grad(nloglike, grad_nloglike, x0, samples)
 
-    print(grad)
-    print(approx_grad)
+    # print(grad)
+    # print(approx_grad)
 
+    # NB err is ~ 1.0e-2
     # assert err < 2.0e-6, f""
 
     epsilon = np.sqrt(np.finfo(float).eps)
     bounds = [(epsilon, None), (epsilon, None)]
 
+    start = time.time()
+    
     # NB L-BFGS-B accepts bounds.
     res = minimize(
         nloglike,
@@ -159,7 +163,7 @@ if __name__ == "__main__":
         options=None,
     )
 
-    print(res)
+    print(f"\n\nOptimized with L-BFGS-B in {time.time() - start} seconds with result:\n{res}")
 
     r, p = muvar2rp(*res.x)
     probs = nloglikes(r, p, samples)
@@ -168,6 +172,8 @@ if __name__ == "__main__":
     # pl.plot(samples, probs, lw=0.0, marker='.')
     # pl.show()
 
+    start = time.time()
+    
     # NB L-BFGS-B accepts bounds.                                                                                                                                                              
     res = minimize(
 	nloglike,
@@ -184,7 +190,8 @@ if __name__ == "__main__":
 	options=None,
     )
 
-    print(res)
+    print(f"\n\nOptimized with Nelder-Mead in {time.time() - start} seconds with result:\n{res}")
+    print("\n\nDone.\n\n")
     
     """
     k = torch.tensor(k, requires_grad=False)  # Number of successes
