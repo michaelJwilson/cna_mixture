@@ -118,7 +118,7 @@ if __name__ == "__main__":
     assert err < 2.0e-6, f""
 
     samples = nbinom.rvs(r, p, size=10_000)
-    probs = nloglikes(r, p, samples)
+    exp_probs = nloglikes(r, p, samples)
 
     # pl.plot(samples, probs, lw=0.0, marker='.')
     # pl.show()
@@ -128,7 +128,6 @@ if __name__ == "__main__":
     grad = grad_nloglike(x0, samples)
 
     approx_grad = approx_fprime(x0, nloglike, np.sqrt(np.finfo(float).eps), samples)
-
     err = check_grad(nloglike, grad_nloglike, x0, samples)
     
     print(grad)
@@ -157,9 +156,12 @@ if __name__ == "__main__":
 
     print(res)
 
-    
+    probs = nloglikes(*res.x, samples)
 
-    
+    pl.plot(samples, probs, lw=0.0, marker='.')
+    pl.plot(samples, probs, lw=0.0, marker='.')
+    pl.show()
+
     """
     k = torch.tensor(k, requires_grad=False)  # Number of successes
     mean = torch.tensor(mu, requires_grad=True)  # Mean of the distribution
