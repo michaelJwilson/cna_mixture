@@ -135,7 +135,7 @@ class CNA_mixture_params:
 
         # NB RDR overdispersion.  Random between 1e-2 and 4e-2
         self.overdisp_phi = 1.0e-2
-
+        
         # NB list of (baf, rdr) for k=4 states.
         integer_samples = np.random.choice(
             np.arange(2, 10), size=self.num_cna_states, replace=False
@@ -588,7 +588,7 @@ class CNA_Sim:
 
         return initial_ln_lambdas
 
-    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=25):
+    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=15):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -671,9 +671,11 @@ class CNA_Sim:
 
             logger.info(f"success={res.success} with message={res.message}")
                     
-            ln_state_posteriors = self.estep(res.x, ln_lambdas)            
-            params, ln_lambdas = res.x, self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
+            # ln_state_posteriors = self.estep(res.x, ln_lambdas)            
+            # params, ln_lambdas = res.x, self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
 
+            params = res.x
+            
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
