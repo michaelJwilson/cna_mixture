@@ -25,12 +25,20 @@ def ln_nb_rp(x, k):
     return nbinom.logpmf(k, r, p)
 
 
-def ln_nb_muvar(x, k):
-    mu, var = x
-
+def muvar2rp(mu, var):
     p = mu / var
     r = mu * mu / (var - mu)
 
+    return r, p
+
+def rp2muvar(r, p):
+    mu = r * (1. - p) / p
+    var = mu / p
+
+    return mu, var
+
+def ln_nb_muvar(x, k):
+    r, p = muvar2rp(*x)
     return nbinom.logpmf(k, r, p)
 
 
@@ -48,8 +56,7 @@ def grad_ln_nb_rp(x, k):
 
 
 def grad_ln_nb_mu(k, mu, var):
-    p = mu / var
-    r = mu * mu / (var - mu)
+    r, p = muvar2rp(mu, var)
 
     return (2.0 * var - mu) * mu * grad_ln_nb_r(k, r, p) / (var - mu) ** 2.0 + (
         1.0 / var
@@ -57,8 +64,7 @@ def grad_ln_nb_mu(k, mu, var):
 
 
 def grad_ln_nb_var(k, mu, var):
-    p = mu / var
-    r = mu * mu / (var - mu)
+    r, p = muvar2rp(mu, var)
 
     result = -(mu**2.0) * grad_ln_nb_r(k, r, p) / (var - mu) ** 2.0
     result -= (mu / var**2.0) * grad_ln_nb_p(k, r, p)
@@ -76,11 +82,9 @@ def nloglikes(r, p, samples):
 
 
 def nloglike(x, samples):
-    mu, var = x    
-    p = mu / var
-    r = mu * mu / (var - mu)
-
+    r, p = muvar2rp(*x)
     return nloglikes(r, p, samples).sum()
+
 
 def grad_nloglike(x, samples):
     result = np.zeros(2)
@@ -89,6 +93,7 @@ def grad_nloglike(x, samples):
         result += grad_ln_nb_muvar(x, k)
 
     return -result
+
 
 if __name__ == "__main__":
     # NB https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.check_grad.html
@@ -122,22 +127,22 @@ if __name__ == "__main__":
 
     # pl.plot(samples, probs, lw=0.0, marker='.')
     # pl.show()
-    
+
     # NB (mu, var) = (36.0 144.0)
-    x0 = np.array([50., 100.])
+    x0 = np.array([50.0, 100.0])
     grad = grad_nloglike(x0, samples)
 
     approx_grad = approx_fprime(x0, nloglike, np.sqrt(np.finfo(float).eps), samples)
     err = check_grad(nloglike, grad_nloglike, x0, samples)
-    
+
     print(grad)
     print(approx_grad)
 
     # assert err < 2.0e-6, f""
-    
+
     epsilon = np.sqrt(np.finfo(float).eps)
     bounds = [(epsilon, None), (epsilon, None)]
-    
+
     # NB L-BFGS-B accepts bounds.
     res = minimize(
         nloglike,
@@ -156,9 +161,10 @@ if __name__ == "__main__":
 
     print(res)
 
-    probs = nloglikes(*res.x, samples)
+    r, p = muvar2rp(*res.x)
+    probs = nloglikes(r, p, samples)
 
-    pl.plot(samples, probs, lw=0.0, marker='.')
+    pl.plot(samples, exp_probs, lw=0.0, marker=".")
     pl.plot(samples, probs, lw=0.0, marker='.')
     pl.show()
 
