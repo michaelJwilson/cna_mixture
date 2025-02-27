@@ -3,6 +3,7 @@ import numpy as np
 from scipy.stats import nbinom, betabinom
 from scipy.special import digamma
 from scipy.optimize import approx_fprime, check_grad
+from scipy.differentiate import derivative
 
 
 def ln_nb_rp(x, k):
@@ -73,7 +74,8 @@ if __name__ == "__main__":
     x0 = np.array([mu, var])
 
     grad = grad_ln_nb_muvar(x0, k)
+    
     approx_grad = approx_fprime(x0, ln_nb_muvar, np.sqrt(np.finfo(float).eps), k)
-
+    
     print(grad)
     print(approx_grad)
