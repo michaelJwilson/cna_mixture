@@ -13,7 +13,7 @@ from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
 from cna_mixture_rs.core import bb, nb
 
-RUST_BACKEND = True
+RUST_BACKEND = False
 
 
 np.random.seed(1234)
@@ -649,6 +649,8 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
+        """
+        # TODO tests
         start = time.time()
 
         for ii in range(5):
@@ -658,7 +660,8 @@ class CNA_Sim:
         print(f"{time.time() - start:.3f},\n{result}")
 
         return
-
+        """
+        
         initial_cost = self.cna_mixture_em_cost(
             initial_params, initial_ln_lambdas, verbose=True
         )
@@ -717,7 +720,7 @@ class CNA_Sim:
             # params, ln_lambdas = res.x, self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
 
             params = res.x
-
+            
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )

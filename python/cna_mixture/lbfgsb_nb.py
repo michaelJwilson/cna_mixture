@@ -1,15 +1,15 @@
 import time
-import torch
+# import torch
 import numpy as np
 import pylab as pl
-import torch.nn.functional as F
+# import torch.nn.functional as F
 
 from scipy.stats import nbinom, betabinom
 from scipy.special import digamma
 from scipy.optimize import approx_fprime, check_grad, minimize
 from scipy.differentiate import derivative
 
-
+"""
 def negative_binomial_log_pmf(k, r, p):
     log_pmf = (
         torch.lgamma(k + r)
@@ -19,7 +19,7 @@ def negative_binomial_log_pmf(k, r, p):
         + k * torch.log(1 - p)
     )
     return log_pmf
-
+"""
 
 def ln_nb_rp(x, k):
     r, p = x
