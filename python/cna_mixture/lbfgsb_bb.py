@@ -7,7 +7,7 @@ from scipy.special import digamma
 from scipy.optimize import approx_fprime, check_grad, minimize
 from cna_mixture_rs.core import betabinom_logpmf as betabinom_logpmf_rs
 
-RUST_BACKEND = False
+RUST_BACKEND = True
 
 np.random.seed(1234)
 
