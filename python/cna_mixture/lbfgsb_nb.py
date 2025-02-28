@@ -28,8 +28,8 @@ def nbinom_logpmf(ks, r, p):
     if RUST_BACKEND:
         raise NotImplementedError()
     else:
-        ks = np.atleast_1d(ks)
-        result = np.zeros(ks.len())
+        ks = np.atleast_1d(ks)        
+        result = np.zeros(len(ks))
 
         for ii, k in enumerate(ks):
             result[ii] = nbinom.logpmf(k, r, p)
@@ -39,9 +39,7 @@ def nbinom_logpmf(ks, r, p):
 
 def ln_nb_rp(x, k):
     r, p = x
-
-    # nbinom.logpmf(k, r, p)
-    return nbinom_logpmf(k, r, p)
+    return nbinom_logpmf(k, r, p)[0]
 
 
 def muvar2rp(mu, var):
@@ -124,7 +122,7 @@ if __name__ == "__main__":
     approx_grad = approx_fprime(x0, ln_nb_rp, np.sqrt(np.finfo(float).eps), k)
 
     err = check_grad(ln_nb_rp, grad_ln_nb_rp, x0, k)
-
+    
     assert err < 2.0e-6, f""
 
     mu = r * (1.0 - p) / p
@@ -187,6 +185,8 @@ if __name__ == "__main__":
     # pl.plot(samples, exp_probs, lw=0.0, marker=".")                                                                                                                                                                                                                          
     # pl.plot(samples, probs, lw=0.0, marker='.')
     # pl.show()
+
+    exit(0)
     
     ## >>>>  L-BFGS-B no analytic gradients.
     start = time.time()
