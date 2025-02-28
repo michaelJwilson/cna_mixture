@@ -94,8 +94,6 @@ def grad_ln_nb_muvar(x, k):
 
 def nloglikes(r, p, samples):
     return -nbinom_logpmf(samples, r, p)[:,0]
-    
-    # return np.array([-nbinom.logpmf(k, r, p) for k in samples])
 
 
 def nloglike(x, samples):
