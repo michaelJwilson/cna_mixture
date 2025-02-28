@@ -689,8 +689,7 @@ class CNA_Sim:
             states_bag=np.c_[state_read_depths / self.realized_genome_coverage, bafs],
         )
 
-
-if __name__ == "__main__":
+def main():
     cna_sim = CNA_Sim()
 
     # cna_sim.plot_realization_flat()
@@ -700,3 +699,6 @@ if __name__ == "__main__":
     cna_sim.fit_cna_mixture()
 
     print("\n\nDone.\n\n")
+
+if __name__ == "__main__":
+    main()
