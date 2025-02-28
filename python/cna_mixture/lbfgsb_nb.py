@@ -10,11 +10,12 @@ from cna_mixture_rs.core import nb
 
 RUST_BACKEND = True
 
+
 def nbinom_logpmf(ks, rs, ps):
     ks = np.atleast_1d(ks).astype(float)
     rs = np.atleast_1d(rs).astype(float)
     ps = np.atleast_1d(ps).astype(float)
-    
+
     if RUST_BACKEND:
         ks = np.ascontiguousarray(ks)
         rs = np.ascontiguousarray(rs)
@@ -22,7 +23,7 @@ def nbinom_logpmf(ks, rs, ps):
 
         result = nb(ks, rs, ps)
         result = np.array(result)
-        
+
     else:
         result = np.zeros(shape=(len(ks), len(rs)))
 
@@ -49,12 +50,12 @@ def muvar2rp(mu, var):
 
 def ln_nb_rp(x, k):
     r, p = x
-    return nbinom_logpmf(k, r, p)[:,0]
+    return nbinom_logpmf(k, r, p)[:, 0]
 
 
 def ln_nb_muvar(x, k):
     r, p = muvar2rp(*x)
-    return nbinom_logpmf(k, r, p)[:,0]
+    return nbinom_logpmf(k, r, p)[:, 0]
 
 
 def grad_ln_nb_r(k, r, p):
@@ -93,7 +94,7 @@ def grad_ln_nb_muvar(x, k):
 
 
 def nloglikes(r, p, samples):
-    return -nbinom_logpmf(samples, r, p)[:,0]
+    return -nbinom_logpmf(samples, r, p)[:, 0]
 
 
 def nloglike(x, samples):
@@ -120,8 +121,10 @@ if __name__ == "__main__":
     approx_grad = approx_fprime(x0, ln_nb_rp, np.sqrt(np.finfo(float).eps), k)
 
     err = check_grad(ln_nb_rp, grad_ln_nb_rp, x0, k)
-    
-    assert err < 3.5e-6, f"Failed to match ln_nb_rp gradient with sufficient precision.  Achieved {err}."
+
+    assert (
+        err < 3.5e-6
+    ), f"Failed to match ln_nb_rp gradient with sufficient precision.  Achieved {err}."
 
     mu = r * (1.0 - p) / p
     var = mu / p
@@ -135,7 +138,9 @@ if __name__ == "__main__":
     err = check_grad(ln_nb_muvar, grad_ln_nb_muvar, x0, k)
 
     assert res == exp
-    assert err < 7.0e-6, f"Failed to match ln_nb_muvar gradient with sufficient precision.  Achieved {err}."
+    assert (
+        err < 7.0e-6
+    ), f"Failed to match ln_nb_muvar gradient with sufficient precision.  Achieved {err}."
 
     samples = nbinom.rvs(r, p, size=10_000)
     exp_probs = nloglikes(r, p, samples)
@@ -183,7 +188,7 @@ if __name__ == "__main__":
     r, p = muvar2rp(*res.x)
     probs = nloglikes(r, p, samples)
     pl.plot(samples, exp_probs, lw=0.0, marker=".", alpha=0.5)
-    pl.plot(samples, probs, lw=0.0, marker='.', alpha=0.5)
+    pl.plot(samples, probs, lw=0.0, marker=".", alpha=0.5)
     pl.show()
 
     """
