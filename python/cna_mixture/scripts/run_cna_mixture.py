@@ -11,7 +11,7 @@ from scipy.special import logsumexp as logsumexp
 from scipy.spatial import KDTree
 from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
-from cna_mixture_rs.core import bb
+from cna_mixture_rs.core import bb, nb
 
 RUST_BACKEND = True
 
@@ -519,13 +519,21 @@ class CNA_Sim:
         )
 
         ks = self.get_data_bykey("read_coverage")
-        result = np.zeros((len(ks), len(state_rs_ps)))
 
-        # TODO Poisson limit for (phi * mu) << 1.
-        # TODO port from python.  broadcast gammas.
-        for col, (rr, pp) in enumerate(state_rs_ps):
-            for row, kk in enumerate(ks):
-                result[row, col] = nbinom.logpmf(kk, rr, pp)
+        if RUST_BACKEND:
+            ks = np.ascontiguousarray(ks)
+
+            rs = np.ascontiguousarray(state_rs_ps[:, 0].copy())
+            ps = np.ascontiguousarray(state_rs_ps[:, 1].copy())
+
+            result = nb(ks, rs, ps)
+            result = np.array(result)
+        else:
+            result = np.zeros((len(ks), len(state_rs_ps)))
+
+            for col, (rr, pp) in enumerate(state_rs_ps):
+                for row, kk in enumerate(ks):
+                    result[row, col] = nbinom.logpmf(kk, rr, pp)
 
         return result, state_rs_ps
 
@@ -644,8 +652,9 @@ class CNA_Sim:
         start = time.time()
 
         for ii in range(5):
-            result, _ = self.cna_mixture_betabinom_update(initial_params)
-
+            # result, _ = self.cna_mixture_betabinom_update(initial_params)
+            result, _ = self.cna_mixture_nbinom_update(initial_params) 
+            
         print(f"{time.time() - start:.3f},\n{result}")
 
         return
