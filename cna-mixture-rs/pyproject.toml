@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "cna_mixture_rs"
+version = "0.1.0"
+description = ""
+authors = ["M. J. Wilson"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.11.3"
+maturin = "^1.1.0"
+numpy = "^1.26.0"
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+python-source = "python"
+module-name = "cna_mixture_rs.core"

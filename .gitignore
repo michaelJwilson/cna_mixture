@@ -1,0 +1,9 @@
+target/
+*~
+
+__pycache__/
+cna-mixture-rs/.venv/
+cna-mixture-rs/python/cna_mixture_rs/__pycache__/
+cna-mixture-rs/python/cna_mixture_rs/core.cpython-310-darwin.so
+cna-mixture-rs/src/
+python/cna_mixture/__pycache__/

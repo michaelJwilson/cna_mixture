@@ -10,6 +10,7 @@ from scipy.special import logsumexp as logsumexp
 from scipy.spatial import KDTree
 from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
+from cna_mixture_rs import bb
 
 np.random.seed(1234)
 
@@ -120,7 +121,6 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model with
     shared overdispersions.
     """
-
     def __init__(self):
         """
         Initialize an instance of the class with random values in

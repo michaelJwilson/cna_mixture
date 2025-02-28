@@ -1,0 +1,22 @@
+[package]
+name = "cna-mixture-rs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "cna_mixture_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+statrs = "*"
+rayon = "*"
+numpy = { version = "*" }
+pyo3 = { version = "0.19.0", features = ["extension-module"] }
+ndarray = {version = "*", features = ["rayon"] }
+rand = "0.8.5"
+ordered-float = "2.10.0"
+GSL = "*"
+
+[profile.release]
+opt-level = 3
+lto = true
