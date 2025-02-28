@@ -13,6 +13,9 @@ from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
 from cna_mixture_rs.core import bb
 
+RUST_BACKEND = True
+
+
 np.random.seed(1234)
 
 logging.basicConfig(
@@ -22,8 +25,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
-RUST_BACKEND=True
 
 
 def tophat_smooth(data, window_size):
@@ -124,6 +125,7 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model with
     shared overdispersions.
     """
+
     def __init__(self):
         """
         Initialize an instance of the class with random values in
@@ -138,7 +140,7 @@ class CNA_mixture_params:
 
         # NB RDR overdispersion.  Random between 1e-2 and 4e-2
         self.overdisp_phi = 1.0e-2
-        
+
         # NB list of (baf, rdr) for k=4 states.
         integer_samples = np.random.choice(
             np.arange(2, 10), size=self.num_cna_states, replace=False
@@ -487,18 +489,18 @@ class CNA_Sim:
 
         if RUST_BACKEND:
             ks, ns = np.ascontiguousarray(ks), np.ascontiguousarray(ns)
-        
-            alphas = np.ascontiguousarray(state_alpha_betas[:,0].copy())
-            betas = np.ascontiguousarray(state_alpha_betas[:,1].copy())
-        
+
+            alphas = np.ascontiguousarray(state_alpha_betas[:, 0].copy())
+            betas = np.ascontiguousarray(state_alpha_betas[:, 1].copy())
+
             result = bb(ks, ns, betas, alphas, num_threads=num_threads)
-            result = np.array(result) 
+            result = np.array(result)
         else:
-            result = np.zeros((len(ks), len(state_alpha_betas)))                                                                                                                                         
-            for col, (alpha, beta) in enumerate(state_alpha_betas):                                                                                                                                 
-                for row, (k, n) in enumerate(zip(ks, ns)):                                                                                                                                          
-                    result[row, col] = betabinom.logpmf(k, n, beta, alpha) 
-            
+            result = np.zeros((len(ks), len(state_alpha_betas)))
+            for col, (alpha, beta) in enumerate(state_alpha_betas):
+                for row, (k, n) in enumerate(zip(ks, ns)):
+                    result[row, col] = betabinom.logpmf(k, n, beta, alpha)
+
         return result, state_alpha_betas
 
     def cna_mixture_nbinom_update(self, params):
@@ -554,17 +556,19 @@ class CNA_Sim:
 
     def cna_mixture_ln_lambdas_update(self, ln_state_posteriors):
         """ """
-        return logsumexp(ln_state_posteriors, axis=0) - logsumexp(
-            ln_state_posteriors
-        )
+        return logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
 
-    def cna_mixture_em_cost(self, params, ln_lambdas, approx_ln_state_posteriors=None, verbose=False):
+    def cna_mixture_em_cost(
+        self, params, ln_lambdas, approx_ln_state_posteriors=None, verbose=False
+    ):
         """
         if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
         the current params values and the assumed state_posteriors.
         """
         # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi) as required by EM cost.
-        ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(params, ln_lambdas)
+        ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(
+            params, ln_lambdas
+        )
 
         if approx_ln_state_posteriors is None:
             # NB set ln_state_posteriors based on current parameters.
@@ -574,10 +578,10 @@ class CNA_Sim:
             #    current.
             ln_state_posteriors = normalize_ln_posteriors(approx_ln_state_posteriors)
 
-        # NB responsibilites rik, where i is the sample and k is the state.                                                                                                                                                    
+        # NB responsibilites rik, where i is the sample and k is the state.
         state_posteriors = np.exp(ln_state_posteriors)
-             
-        # NB this is *not* state-posterior weighted log-likelihood. 
+
+        # NB this is *not* state-posterior weighted log-likelihood.
         em_cost = state_posteriors * ln_state_posteriors_nonorm
 
         # NB sum over samples and states.  Maximization -> minimization.
@@ -593,7 +597,7 @@ class CNA_Sim:
             msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
 
             logger.info(msg)
-            
+
         return em_cost
 
     def initialize_ln_lambdas(self, init_mixture_params):
@@ -620,7 +624,7 @@ class CNA_Sim:
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
         initial_ln_lambdas = self.initialize_ln_lambdas(init_mixture_params)
-        
+
         logging.info(f"Initializing CNA states:\n{init_mixture_params.cna_states}\n")
 
         # NB self.realized_genome_coverage == normal_coverage currently.
@@ -643,11 +647,13 @@ class CNA_Sim:
             result, _ = self.cna_mixture_betabinom_update(initial_params)
 
         print(f"{time.time() - start:.3f},\n{result}")
-        
-        return 
 
-        initial_cost = self.cna_mixture_em_cost(initial_params, initial_ln_lambdas, verbose=True)
-        
+        return
+
+        initial_cost = self.cna_mixture_em_cost(
+            initial_params, initial_ln_lambdas, verbose=True
+        )
+
         """
         self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
@@ -657,7 +663,7 @@ class CNA_Sim:
             title="Initial state posteriors (based on closest state lambdas)."
         )
         """
-        
+
         # NB equality constaints to be zero.
         # TODO regularizer for state overlap?
         constraints = [
@@ -697,18 +703,18 @@ class CNA_Sim:
             )
 
             logger.info(f"success={res.success} with message={res.message}")
-                    
-            # ln_state_posteriors = self.estep(res.x, ln_lambdas)            
+
+            # ln_state_posteriors = self.estep(res.x, ln_lambdas)
             # params, ln_lambdas = res.x, self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
 
             params = res.x
-            
+
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
 
         logger.info(f"Found best-fit CNA mixture params:\n{params}")
-        
+
         self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
@@ -716,16 +722,18 @@ class CNA_Sim:
             states_bag=np.c_[state_read_depths / self.realized_genome_coverage, bafs],
         )
 
+
 def main():
     cna_sim = CNA_Sim()
 
     # cna_sim.plot_realization_flat()
     # cna_sim.plot_realization_genome()
     # cna_sim.fit_gaussian_mixture()
-    
+
     cna_sim.fit_cna_mixture()
 
     print("\n\nDone.\n\n")
+
 
 if __name__ == "__main__":
     main()
