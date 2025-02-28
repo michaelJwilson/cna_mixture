@@ -13,7 +13,7 @@ from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
 from cna_mixture_rs.core import betabinom_logpmf, nbinom_logpmf
 
-RUST_BACKEND = False
+RUST_BACKEND = True
 
 
 np.random.seed(1234)
@@ -478,14 +478,6 @@ class CNA_Sim:
         )
 
         ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
-        """
-        result = np.zeros((len(ks), len(state_alpha_betas)))
-        
-        # TODO port from python.  broadcast gammas.
-        for col, (alpha, beta) in enumerate(state_alpha_betas):
-            for row, (k, n) in enumerate(zip(ks, ns)):
-                result[row, col] = betabinom.logpmf(k, n, beta, alpha)
-        """
 
         if RUST_BACKEND:
             ks, ns = np.ascontiguousarray(ks), np.ascontiguousarray(ns)
@@ -493,10 +485,11 @@ class CNA_Sim:
             alphas = np.ascontiguousarray(state_alpha_betas[:, 0].copy())
             betas = np.ascontiguousarray(state_alpha_betas[:, 1].copy())
 
-            result = bb(ks, ns, betas, alphas)
+            result = betabinom_logpmf(ks, ns, betas, alphas)
             result = np.array(result)
         else:
             result = np.zeros((len(ks), len(state_alpha_betas)))
+            
             for col, (alpha, beta) in enumerate(state_alpha_betas):
                 for row, (k, n) in enumerate(zip(ks, ns)):
                     result[row, col] = betabinom.logpmf(k, n, beta, alpha)
@@ -526,7 +519,7 @@ class CNA_Sim:
             rs = np.ascontiguousarray(state_rs_ps[:, 0].copy())
             ps = np.ascontiguousarray(state_rs_ps[:, 1].copy())
 
-            result = nb(ks, rs, ps)
+            result = nbinom_logpmf(ks, rs, ps)
             result = np.array(result)
         else:
             result = np.zeros((len(ks), len(state_rs_ps)))
@@ -649,19 +642,18 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
-        """
         # TODO tests
         start = time.time()
 
         for ii in range(5):
-            # result, _ = self.cna_mixture_betabinom_update(initial_params)
-            result, _ = self.cna_mixture_nbinom_update(initial_params) 
+            result, _ = self.cna_mixture_betabinom_update(initial_params)
+            # result, _ = self.cna_mixture_nbinom_update(initial_params) 
             
         print(f"{time.time() - start:.3f},\n{result}")
 
         return
-        """
-        
+
+    
         initial_cost = self.cna_mixture_em_cost(
             initial_params, initial_ln_lambdas, verbose=True
         )
