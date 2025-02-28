@@ -6,7 +6,7 @@ from scipy.stats import nbinom, betabinom
 from scipy.special import digamma
 from scipy.optimize import approx_fprime, check_grad, minimize
 from scipy.differentiate import derivative
-from cna_mixture_rs.core import nb
+from cna_mixture_rs.core import nbinom_logpmf
 
 RUST_BACKEND = True
 
@@ -21,7 +21,7 @@ def nbinom_logpmf(ks, rs, ps):
         rs = np.ascontiguousarray(rs)
         ps = np.ascontiguousarray(ps)
 
-        result = nb(ks, rs, ps)
+        result = nbinom_logpmf(ks, rs, ps)
         result = np.array(result)
 
     else:

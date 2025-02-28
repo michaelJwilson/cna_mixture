@@ -11,7 +11,7 @@ from scipy.special import logsumexp as logsumexp
 from scipy.spatial import KDTree
 from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
-from cna_mixture_rs.core import bb, nb
+from cna_mixture_rs.core import betabinom_logpmf, nbinom_logpmf
 
 RUST_BACKEND = False
 
