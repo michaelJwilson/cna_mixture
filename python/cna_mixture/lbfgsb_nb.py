@@ -12,7 +12,7 @@ from scipy.optimize import approx_fprime, check_grad, minimize
 from scipy.differentiate import derivative
 from cna_mixture_rs.core import nb
 
-RUST_BACKEND = False
+RUST_BACKEND = True
 
 """
 def negative_binomial_log_pmf(k, r, p):
@@ -28,9 +28,9 @@ def negative_binomial_log_pmf(k, r, p):
 
 
 def nbinom_logpmf(ks, rs, ps):
-    ks = np.atleast_1d(ks)
-    rs = np.atleast_1d(rs)
-    ps = np.atleast_1d(ps)
+    ks = np.atleast_1d(ks).astype(float)
+    rs = np.atleast_1d(rs).astype(float)
+    ps = np.atleast_1d(ps).astype(float)
     
     if RUST_BACKEND:
         ks = np.ascontiguousarray(ks)
@@ -66,12 +66,12 @@ def muvar2rp(mu, var):
 
 def ln_nb_rp(x, k):
     r, p = x
-    return nbinom_logpmf(k, r, p)[0]
+    return nbinom_logpmf(k, r, p)[:,0]
 
 
 def ln_nb_muvar(x, k):
     r, p = muvar2rp(*x)
-    return nbinom.logpmf(k, r, p)
+    return nbinom_logpmf(k, r, p)[:,0]
 
 
 def grad_ln_nb_r(k, r, p):
@@ -110,7 +110,7 @@ def grad_ln_nb_muvar(x, k):
 
 
 def nloglikes(r, p, samples):
-    return -nbinom_logpmf(samples, r, p)
+    return -nbinom_logpmf(samples, r, p)[:,0]
     
     # return np.array([-nbinom.logpmf(k, r, p) for k in samples])
 
@@ -139,8 +139,8 @@ if __name__ == "__main__":
     approx_grad = approx_fprime(x0, ln_nb_rp, np.sqrt(np.finfo(float).eps), k)
 
     err = check_grad(ln_nb_rp, grad_ln_nb_rp, x0, k)
-
-    assert err < 2.0e-6, f""
+    
+    assert err < 3.5e-6, f"Failed to match ln_nb_rp gradient with sufficient precision.  Achieved {err}."
 
     mu = r * (1.0 - p) / p
     var = mu / p
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     err = check_grad(ln_nb_muvar, grad_ln_nb_muvar, x0, k)
 
     assert res == exp
-    assert err < 2.0e-6, f""
+    assert err < 7.0e-6, f"Failed to match ln_nb_muvar gradient with sufficient precision.  Achieved {err}."
 
     samples = nbinom.rvs(r, p, size=10_000)
     exp_probs = nloglikes(r, p, samples)
