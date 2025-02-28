@@ -23,6 +23,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+RUST_BACKEND=True
+
 
 def tophat_smooth(data, window_size):
     kernel = np.ones(window_size) / window_size
@@ -462,7 +464,7 @@ class CNA_Sim:
             ln_lambdas - ln_norm, (self.num_segments, len(ln_lambdas))
         ).copy()
 
-    def cna_mixture_betabinom_update(self, params, rust=True):
+    def cna_mixture_betabinom_update(self, params, num_threads=12):
         """
         Evaluate log prob. under BetaBinom model.
         Returns (# sample, # state) array.
@@ -483,13 +485,13 @@ class CNA_Sim:
                 result[row, col] = betabinom.logpmf(k, n, beta, alpha)
         """
 
-        if rust:
+        if RUST_BACKEND:
             ks, ns = np.ascontiguousarray(ks), np.ascontiguousarray(ns)
         
             alphas = np.ascontiguousarray(state_alpha_betas[:,0].copy())
             betas = np.ascontiguousarray(state_alpha_betas[:,1].copy())
         
-            result = bb(ks, ns, betas, alphas)
+            result = bb(ks, ns, betas, alphas, num_threads=num_threads)
             result = np.array(result) 
         else:
             result = np.zeros((len(ks), len(state_alpha_betas)))                                                                                                                                         
