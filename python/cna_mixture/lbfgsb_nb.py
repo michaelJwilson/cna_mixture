@@ -186,8 +186,7 @@ if __name__ == "__main__":
     # pl.plot(samples, probs, lw=0.0, marker='.')
     # pl.show()
 
-    exit(0)
-    
+    """
     ## >>>>  L-BFGS-B no analytic gradients.
     start = time.time()
     res = minimize(
@@ -244,7 +243,7 @@ if __name__ == "__main__":
     )
 
     print(f"\n\nOptimized with Nelder-Mead in {time.time() - start:.3f} seconds with result:\n{res}")
-    print("\n\nDone.\n\n")
+    """
     
     """
     k = torch.tensor(k, requires_grad=False)  # Number of successes
@@ -264,3 +263,5 @@ if __name__ == "__main__":
     print("Gradient with respect to mean:", grad_mean.item())
     print("Gradient with respect to variance:", grad_var.item())
     """
+
+    print("\n\nDone.\n\n")
