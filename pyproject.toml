@@ -4,6 +4,9 @@ version = "0.1.0"
 description = ""
 authors = ["M. J. Wilson"]
 readme = "README.md"
+packages = [
+    { include = "cna_mixture", from = "python" },
+]
 
 [tool.poetry.dependencies]
 python = "3.12.2"
@@ -16,3 +19,6 @@ scikit-learn = "*"
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+# [project.scripts]
+# run_cna_mixture = 'cna_mixture.scripts:main'
