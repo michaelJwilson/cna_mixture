@@ -466,7 +466,7 @@ class CNA_Sim:
             ln_lambdas - ln_norm, (self.num_segments, len(ln_lambdas))
         ).copy()
 
-    def cna_mixture_betabinom_update(self, params, num_threads=12):
+    def cna_mixture_betabinom_update(self, params):
         """
         Evaluate log prob. under BetaBinom model.
         Returns (# sample, # state) array.
@@ -493,7 +493,7 @@ class CNA_Sim:
             alphas = np.ascontiguousarray(state_alpha_betas[:, 0].copy())
             betas = np.ascontiguousarray(state_alpha_betas[:, 1].copy())
 
-            result = bb(ks, ns, betas, alphas, num_threads=num_threads)
+            result = bb(ks, ns, betas, alphas)
             result = np.array(result)
         else:
             result = np.zeros((len(ks), len(state_alpha_betas)))
