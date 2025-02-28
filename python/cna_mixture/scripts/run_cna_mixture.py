@@ -236,7 +236,7 @@ class CNA_Sim:
         """
         Generate a realization (one seed only) for given configuration settings.
         """
-        logger.info(f"Simulating copy number states: {self.cna_states}.")
+        logger.info(f"Simulating copy number states:\n{self.cna_states}.")
 
         # NB SNP-covering reads per segment.
         self.snp_coverages = np.random.randint(
