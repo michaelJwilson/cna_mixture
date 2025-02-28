@@ -37,7 +37,7 @@ fn nbinom_logpmf<'py>(
     let lnq: Vec<f64> = p.iter().map(|&x| (1. - x).ln()).collect();
 
     let result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
-        k.par_iter().enumerate().map(|(ii, &k_val)| {
+        k.par_iter().enumerate().map(|(_ii, &k_val)| {
 	    //  NB data-dependent only
             let zero_point = -ln_factorial(k_val as u64);
 	    
