@@ -462,7 +462,7 @@ class CNA_Sim:
             ln_lambdas - ln_norm, (self.num_segments, len(ln_lambdas))
         ).copy()
 
-    def cna_mixture_betabinom_update(self, params):
+    def cna_mixture_betabinom_update(self, params, rust=False):
         """
         Evaluate log prob. under BetaBinom model.
         Returns (# sample, # state) array.
@@ -482,15 +482,21 @@ class CNA_Sim:
             for row, (k, n) in enumerate(zip(ks, ns)):
                 result[row, col] = betabinom.logpmf(k, n, beta, alpha)
         """
-        
-        ks, ns = np.ascontiguousarray(ks), np.ascontiguousarray(ns)
-        
-        alphas = np.ascontiguousarray(state_alpha_betas[:,0].copy())
-        betas = np.ascontiguousarray(state_alpha_betas[:,1].copy())
 
-        result = bb(ks, ns, betas, alphas)
-        result = np.array(result) 
+        if rust:
+            ks, ns = np.ascontiguousarray(ks), np.ascontiguousarray(ns)
         
+            alphas = np.ascontiguousarray(state_alpha_betas[:,0].copy())
+            betas = np.ascontiguousarray(state_alpha_betas[:,1].copy())
+        
+            result = bb(ks, ns, betas, alphas)
+            result = np.array(result) 
+        else:
+            result = np.zeros((len(ks), len(state_alpha_betas)))                                                                                                                                         
+            for col, (alpha, beta) in enumerate(state_alpha_betas):                                                                                                                                 
+                for row, (k, n) in enumerate(zip(ks, ns)):                                                                                                                                          
+                    result[row, col] = betabinom.logpmf(k, n, beta, alpha) 
+            
         return result, state_alpha_betas
 
     def cna_mixture_nbinom_update(self, params):
@@ -634,7 +640,7 @@ class CNA_Sim:
         for ii in range(5):
             result, _ = self.cna_mixture_betabinom_update(initial_params)
 
-        print(time.time() - start, result)
+        print(f"{time.time() - start:.3f},\n{result}")
         
         return 
 
