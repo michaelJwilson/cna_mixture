@@ -9,6 +9,7 @@ from cna_mixture_rs.core import betabinom_logpmf as betabinom_logpmf_rs
 
 RUST_BACKEND = False
 
+np.random.seed(1234)
 
 def betabinom_logpmf(ks, ns, alphas, betas):
     ks = np.atleast_1d(ks).astype(float)
@@ -23,23 +24,26 @@ def betabinom_logpmf(ks, ns, alphas, betas):
         
         alphas = np.ascontiguousarray(alphas)
         betas = np.ascontiguousarray(betas)
-
+        
         result = betabinom_logpmf_rs(ks, ns, betas, alphas)
         result = np.array(result)
+        
     else:
         result = np.zeros(shape=(len(ks), len(alphas)))
 
         for ss, (a, b) in enumerate(zip(alphas, betas)):
             for ii, (k, n) in enumerate(zip(ks, ns)):
                 result[ii, ss] = betabinom.logpmf(k, n, b, a)
-
+                
     return result
 
 
 if __name__ == "__main__":
     alphas, betas = np.array([0.6]), np.array([0.4])
 
-    ns = np.random.randint(low=25, high=500, size=10_000)
+    nsample = 10_000
+    
+    ns = np.random.randint(low=25, high=500, size=nsample)
     samples = np.array([[betabinom.rvs(n, alphas[0], betas[0]), n] for n in ns])
     
     ln_probs = betabinom_logpmf(samples[:,0], samples[:,1], alphas, betas)
