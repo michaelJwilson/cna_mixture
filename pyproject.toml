@@ -11,12 +11,13 @@ packages = [
 [tool.poetry.dependencies]
 python = "3.12.2"
 numpy = "^1.26.0"
+maturin = "^1.1.0"
 matplotlib = "*"
 scipy = "*"
 scikit-learn = "*"
 
 [tool.poetry.scripts]
-run_cna_mixture = 'cna_mixture.scripts:main'
+run_cna_mixture = 'cna_mixture.scripts.run_cna_mixture:main'
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

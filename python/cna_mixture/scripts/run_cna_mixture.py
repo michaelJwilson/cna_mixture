@@ -10,7 +10,7 @@ from scipy.special import logsumexp as logsumexp
 from scipy.spatial import KDTree
 from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
-from cna_mixture_rs import bb
+from cna_mixture_rs.core import bb
 
 np.random.seed(1234)
 
@@ -690,13 +690,13 @@ class CNA_Sim:
         )
 
 def main():
-    cna_sim = CNA_Sim()
+    # cna_sim = CNA_Sim()
 
     # cna_sim.plot_realization_flat()
     # cna_sim.plot_realization_genome()
     # cna_sim.fit_gaussian_mixture()
     
-    cna_sim.fit_cna_mixture()
+    # cna_sim.fit_cna_mixture()
 
     print("\n\nDone.\n\n")
 
