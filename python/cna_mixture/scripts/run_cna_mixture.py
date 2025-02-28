@@ -1,3 +1,4 @@
+import time
 import logging
 import numpy as np
 import pylab as pl
@@ -467,14 +468,12 @@ class CNA_Sim:
         Returns (# sample, # state) array.
         """
         _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
-
         state_alpha_betas = reparameterize_beta_binom(
             bafs,
             baf_overdispersion,
         )
 
         ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
-
         """
         result = np.zeros((len(ks), len(state_alpha_betas)))
         
@@ -630,13 +629,15 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
-        result, _ = self.cna_mixture_betabinom_update(initial_params)
+        start = time.time()
 
-        print(result)
+        for ii in range(5):
+            result, _ = self.cna_mixture_betabinom_update(initial_params)
+
+        print(time.time() - start, result)
         
         return 
 
-        
         initial_cost = self.cna_mixture_em_cost(initial_params, initial_ln_lambdas, verbose=True)
         
         """
