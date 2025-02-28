@@ -182,11 +182,11 @@ if __name__ == "__main__":
         f"\n\nOptimized with L-BFGS-B in {time.time() - start:.3f} seconds with result:\n{res}"
     )
 
-    # r, p = muvar2rp(*res.x)
-    # probs = nloglikes(r, p, samples)
-    # pl.plot(samples, exp_probs, lw=0.0, marker=".")
-    # pl.plot(samples, probs, lw=0.0, marker='.')
-    # pl.show()
+    r, p = muvar2rp(*res.x)
+    probs = nloglikes(r, p, samples)
+    pl.plot(samples, exp_probs, lw=0.0, marker=".", alpha=0.5)
+    pl.plot(samples, probs, lw=0.0, marker='.', alpha=0.5)
+    pl.show()
 
     """
     ## >>>>  L-BFGS-B no analytic gradients.
