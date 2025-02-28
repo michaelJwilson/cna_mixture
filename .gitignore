@@ -1,5 +1,7 @@
 target/
+dist/
 *~
+*.so
 
 __pycache__/
 cna-mixture-rs/.venv/
