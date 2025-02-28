@@ -88,6 +88,7 @@ def grad_ln_nb_var(k, mu, var):
     return result
 
 
+# TODO port from python.  vectorized over k.
 def grad_ln_nb_muvar(x, k):
     mu, var = x
     return np.array([grad_ln_nb_mu(k, mu, var), grad_ln_nb_var(k, mu, var)])
