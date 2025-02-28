@@ -462,7 +462,7 @@ class CNA_Sim:
             ln_lambdas - ln_norm, (self.num_segments, len(ln_lambdas))
         ).copy()
 
-    def cna_mixture_betabinom_update(self, params, rust=False):
+    def cna_mixture_betabinom_update(self, params, rust=True):
         """
         Evaluate log prob. under BetaBinom model.
         Returns (# sample, # state) array.
