@@ -38,45 +38,72 @@ def betabinom_logpmf(ks, ns, alphas, betas):
 
     return result
 
+def ln_bb_ab(x, k, n):
+    a, b = x
+    return betabinom.logpmf(k, n, a, b)
 
-def nloglikes(ks, ns, alpha, beta):
+def grad_ln_bb_ab(x, k, n):
+    a, b = x
+    
+    gka = digamma(k + a)
+    gab = digamma(a + b)
+    gnab = digamma(n + a + b)
+    ga = digamma(a)
+
+    gnkb = digamma(n - k + b)
+    gb = digamma(b)
+
+    return np.array([gka + gab - gnab - ga, gnkb + gab - gnab - gb])
+
+
+def nloglikes(x, ks, ns):
+    alpha, beta = x
     return -betabinom_logpmf(ks, ns, alpha, beta)[:, 0]
 
 
 def nloglike(x, ks, ns):
-    alpha, beta = x
-    return nloglikes(ks, ns, alpha, beta).sum()
+    return nloglikes(x, ks, ns)
 
 
 if __name__ == "__main__":
-    alphas, betas = np.array([0.6]), np.array([0.4])
-
     nsample = 10_000
+    alphas, betas = np.array([0.6]), np.array([0.4])
 
     ns = np.random.randint(low=25, high=500, size=nsample)
     ks = np.array([betabinom.rvs(n, alphas[0], betas[0]) for n in ns])
 
-    res = nloglike((alphas[0], betas[0]), ks, ns)
-
     x0 = (0.9, 0.1)
+    
+    res = nloglike(x0, ks, ns)
+    grad = grad_ln_bb_ab(x0, ks[0], ns[0])
+
+    approx_grad = approx_fprime(x0, ln_bb_ab, np.sqrt(np.finfo(float).eps), ks[0], ns[0])
+    
+    print(grad)
+    print(approx_grad)
+    
+    """
     epsilon = np.sqrt(np.finfo(float).eps)
     bounds = [(epsilon, None), (epsilon, None)]
-    
-    ## >>>>  L-BFGS-B no analytic gradients.                                                                                                                                                                                                                                    
-    start = time.time()                                                                                                                                                                                                                                                         
-    res = minimize(                                                                                                                                                                                                                                                             
-        nloglike,                                                                                                                                                                                                                                                               
-        x0,                                                                                                                                                                                                                                                                     
-        args=(ks, ns),                                                                                                                                                                                                                                                         
-        method="L-BFGS-B",                                                                                                                                                                                                                                                      
-        jac=None,                                                                                                                                                                                                                                                               
-        hess=None,                                                                                                                                                                                                                                                              
-        hessp=None,                                                                                                                                                                                                                                                             
-        bounds=bounds,                                                                                                                                                                                                                                                          
-        constraints=(),                                                                                                                                                                                                                                                         
-        tol=None,                                                                                                                                                                                                                                                               
-        callback=None,                                                                                                                                                                                                                                                          
-        options=None,                                                                                                                                                                                                                                                           
-    )                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-    print(f"\n\nOptimized with L-BFGS-B (no analytic gradients) in {time.time() - start:.3f} seconds with result:\n{res}")    
+
+    ## >>>>  L-BFGS-B no analytic gradients.
+    start = time.time()
+    res = minimize(
+        nloglike,
+        x0,
+        args=(ks, ns),
+        method="L-BFGS-B",
+        jac=None,
+        hess=None,
+        hessp=None,
+        bounds=bounds,
+        constraints=(),
+        tol=None,
+        callback=None,
+        options=None,
+    )
+    print(
+        f"\n\nOptimized with L-BFGS-B (no analytic gradients) in {time.time() - start:.3f} seconds with result:\n{res}"
+    )
+    """
     print("\n\nDone.\n\n")
