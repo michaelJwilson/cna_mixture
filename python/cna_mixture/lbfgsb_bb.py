@@ -12,6 +12,15 @@ RUST_BACKEND = True
 np.random.seed(1234)
 
 
+def pt2ab(p, t):
+    return p * t, (1.0 - p) * t
+
+def ab2pt(a, b):
+    t = a + b
+    p = a / t
+    
+    return p, t
+    
 def betabinom_logpmf(ks, ns, alphas, betas):
     ks = np.atleast_1d(ks).astype(float)
     ns = np.atleast_1d(ns).astype(float)
@@ -38,13 +47,20 @@ def betabinom_logpmf(ks, ns, alphas, betas):
 
     return result
 
-def ln_bb_ab(x, k, n):
-    a, b = x
+
+def ln_bb_ab(ab, k, n):
+    a, b = ab
     return betabinom.logpmf(k, n, a, b)
 
-def grad_ln_bb_ab(x, k, n):
-    a, b = x
-    
+
+def ln_bb_pt(pt, k, n):
+    a, b = pt2ab(*pt)
+    return ln_bb_ab((a, b), k, n)
+
+
+def grad_ln_bb_ab(ab, k, n):
+    a, b = ab
+
     gka = digamma(k + a)
     gab = digamma(a + b)
     gnab = digamma(n + a + b)
@@ -54,6 +70,18 @@ def grad_ln_bb_ab(x, k, n):
     gb = digamma(b)
 
     return np.array([gka + gab - gnab - ga, gnkb + gab - gnab - gb])
+
+
+def grad_ln_bb_pt(pt, k, n):
+    p, t = pt
+    a, b = pt2ab(p, t)
+
+    interim = grad_ln_bb_ab((a, b), k, n)
+
+    gradp = t * (interim[0] - interim[1])
+    gradt = p * interim[0] + (1.0 - p) * interim[1]
+
+    return np.array([gradp, gradt])
 
 
 def nloglikes(x, ks, ns):
@@ -73,12 +101,23 @@ if __name__ == "__main__":
     ks = np.array([betabinom.rvs(n, alphas[0], betas[0]) for n in ns])
 
     x0 = (0.9, 0.1)
+    p0 = ab2pt(*x0)
     
     res = nloglike(x0, ks, ns)
     grad = grad_ln_bb_ab(x0, ks[0], ns[0])
 
-    approx_grad = approx_fprime(x0, ln_bb_ab, np.sqrt(np.finfo(float).eps), ks[0], ns[0])
-    
+    approx_grad = approx_fprime(
+        x0, ln_bb_ab, np.sqrt(np.finfo(float).eps), ks[0], ns[0]
+    )
+
+    print(grad)
+    print(approx_grad)
+
+    grad = grad_ln_bb_pt(p0, ks[0], ns[0])
+    approx_grad = approx_fprime(
+	p0, ln_bb_pt, np.sqrt(np.finfo(float).eps), ks[0], ns[0]
+    )
+
     print(grad)
     print(approx_grad)
     
