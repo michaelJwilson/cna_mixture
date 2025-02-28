@@ -1,7 +1,9 @@
 import time
+
 # import torch
 import numpy as np
 import pylab as pl
+
 # import torch.nn.functional as F
 
 from scipy.stats import nbinom, betabinom
@@ -24,22 +26,35 @@ def negative_binomial_log_pmf(k, r, p):
     return log_pmf
 """
 
-def nbinom_logpmf(ks, r, p):
-    if RUST_BACKEND:
-        raise NotImplementedError()
-    else:
-        ks = np.atleast_1d(ks)        
-        result = np.zeros(len(ks))
 
-        for ii, k in enumerate(ks):
-            result[ii] = nbinom.logpmf(k, r, p)
+def nbinom_logpmf(ks, rs, ps):
+    ks = np.atleast_1d(ks)
+    rs = np.atleast_1d(rs)
+    ps = np.atleast_1d(ps)
+    
+    if RUST_BACKEND:
+        ks = np.ascontiguousarray(ks)
+        rs = np.ascontiguousarray(rs)
+        ps = np.ascontiguousarray(ps)
+
+        result = nb(ks, rs, ps)
+        result = np.array(result)
+        
+    else:
+        result = np.zeros(shape=(len(ks), len(rs)))
+
+        for ss, (r, p) in enumerate(zip(rs, ps)):
+            for ii, k in enumerate(ks):
+                result[ii, ss] = nbinom.logpmf(k, r, p)
 
     return result
-                
 
-def ln_nb_rp(x, k):
-    r, p = x
-    return nbinom_logpmf(k, r, p)[0]
+
+def rp2muvar(r, p):
+    mu = r * (1.0 - p) / p
+    var = mu / p
+
+    return mu, var
 
 
 def muvar2rp(mu, var):
@@ -48,11 +63,11 @@ def muvar2rp(mu, var):
 
     return r, p
 
-def rp2muvar(r, p):
-    mu = r * (1. - p) / p
-    var = mu / p
 
-    return mu, var
+def ln_nb_rp(x, k):
+    r, p = x
+    return nbinom_logpmf(k, r, p)[0]
+
 
 def ln_nb_muvar(x, k):
     r, p = muvar2rp(*x)
@@ -95,7 +110,9 @@ def grad_ln_nb_muvar(x, k):
 
 
 def nloglikes(r, p, samples):
-    return np.array([-nbinom.logpmf(k, r, p) for k in samples])
+    return -nbinom_logpmf(samples, r, p)
+    
+    # return np.array([-nbinom.logpmf(k, r, p) for k in samples])
 
 
 def nloglike(x, samples):
@@ -122,7 +139,7 @@ if __name__ == "__main__":
     approx_grad = approx_fprime(x0, ln_nb_rp, np.sqrt(np.finfo(float).eps), k)
 
     err = check_grad(ln_nb_rp, grad_ln_nb_rp, x0, k)
-    
+
     assert err < 2.0e-6, f""
 
     mu = r * (1.0 - p) / p
@@ -161,7 +178,7 @@ if __name__ == "__main__":
     epsilon = np.sqrt(np.finfo(float).eps)
     bounds = [(epsilon, None), (epsilon, None)]
 
-    ## >>>>  L-BFGS-B gradients.                                                                                                                                                                                                                                               
+    ## >>>>  L-BFGS-B gradients.
     start = time.time()
     res = minimize(
         nloglike,
@@ -178,11 +195,13 @@ if __name__ == "__main__":
         options=None,
     )
 
-    print(f"\n\nOptimized with L-BFGS-B in {time.time() - start:.3f} seconds with result:\n{res}")
+    print(
+        f"\n\nOptimized with L-BFGS-B in {time.time() - start:.3f} seconds with result:\n{res}"
+    )
 
     # r, p = muvar2rp(*res.x)
     # probs = nloglikes(r, p, samples)
-    # pl.plot(samples, exp_probs, lw=0.0, marker=".")                                                                                                                                                                                                                          
+    # pl.plot(samples, exp_probs, lw=0.0, marker=".")
     # pl.plot(samples, probs, lw=0.0, marker='.')
     # pl.show()
 
@@ -244,7 +263,7 @@ if __name__ == "__main__":
 
     print(f"\n\nOptimized with Nelder-Mead in {time.time() - start:.3f} seconds with result:\n{res}")
     """
-    
+
     """
     k = torch.tensor(k, requires_grad=False)  # Number of successes
     mean = torch.tensor(mu, requires_grad=True)  # Mean of the distribution
