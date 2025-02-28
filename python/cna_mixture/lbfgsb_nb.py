@@ -145,6 +145,28 @@ if __name__ == "__main__":
     epsilon = np.sqrt(np.finfo(float).eps)
     bounds = [(epsilon, None), (epsilon, None)]
 
+    ## >>>>  L-BFGS-B no analytic gradients.
+    start = time.time()
+
+    # NB L-BFGS-B accepts bounds.                                                                                                                                                                                                                                               
+    res = minimize(
+        nloglike,
+        x0,
+        args=(samples),
+        method="L-BFGS-B",
+        jac=None,
+        hess=None,
+        hessp=None,
+        bounds=bounds,
+	constraints=(),
+        tol=None,
+        callback=None,
+        options=None,
+    )
+
+    print(f"\n\nOptimized with L-BFGS-B (no analytic gradients) in {time.time() - start:.3f} seconds with result:\n{res}")
+
+    ## >>>>  L-BFGS-B gradients.
     start = time.time()
     
     # NB L-BFGS-B accepts bounds.
@@ -165,16 +187,35 @@ if __name__ == "__main__":
 
     print(f"\n\nOptimized with L-BFGS-B in {time.time() - start:.3f} seconds with result:\n{res}")
 
-    r, p = muvar2rp(*res.x)
-    probs = nloglikes(r, p, samples)
+    ## >>>>  Powell's
+    start = time.time()
+
+    res = minimize(
+        nloglike,
+        x0,
+	args=(samples),
+	method="Powell",
+        jac=grad_nloglike,
+        hess=None,
+        hessp=None,
+	bounds=bounds,
+        constraints=(),
+	tol=None,
+        callback=None,
+        options=None,
+    )
+
+    print(f"\n\nOptimized with Powell's in {time.time() - start:.3f} seconds with result:\n{res}")
+
+    # r, p = muvar2rp(*res.x)
+    # probs = nloglikes(r, p, samples)
 
     # pl.plot(samples, exp_probs, lw=0.0, marker=".")
     # pl.plot(samples, probs, lw=0.0, marker='.')
     # pl.show()
 
+    ## >>>>  Nelder-Mead
     start = time.time()
-    
-    # NB L-BFGS-B accepts bounds, e.g. on positive params.
     res = minimize(
 	nloglike,
 	x0,
