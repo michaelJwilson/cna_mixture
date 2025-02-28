@@ -474,13 +474,24 @@ class CNA_Sim:
         )
 
         ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
-        result = np.zeros((len(ks), len(state_alpha_betas)))
 
+        """
+        result = np.zeros((len(ks), len(state_alpha_betas)))
+        
         # TODO port from python.  broadcast gammas.
         for col, (alpha, beta) in enumerate(state_alpha_betas):
             for row, (k, n) in enumerate(zip(ks, ns)):
                 result[row, col] = betabinom.logpmf(k, n, beta, alpha)
+        """
+        
+        ks, ns = np.ascontiguousarray(ks), np.ascontiguousarray(ns)
+        
+        alphas = np.ascontiguousarray(state_alpha_betas[:,0].copy())
+        betas = np.ascontiguousarray(state_alpha_betas[:,1].copy())
 
+        result = bb(ks, ns, betas, alphas)
+        result = np.array(result) 
+        
         return result, state_alpha_betas
 
     def cna_mixture_nbinom_update(self, params):
@@ -619,8 +630,15 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
-        initial_cost = self.cna_mixture_em_cost(initial_params, initial_ln_lambdas, verbose=True)
+        result, _ = self.cna_mixture_betabinom_update(initial_params)
 
+        print(result)
+        
+        return 
+
+        
+        initial_cost = self.cna_mixture_em_cost(initial_params, initial_ln_lambdas, verbose=True)
+        
         """
         self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
@@ -690,13 +708,13 @@ class CNA_Sim:
         )
 
 def main():
-    # cna_sim = CNA_Sim()
+    cna_sim = CNA_Sim()
 
     # cna_sim.plot_realization_flat()
     # cna_sim.plot_realization_genome()
     # cna_sim.fit_gaussian_mixture()
     
-    # cna_sim.fit_cna_mixture()
+    cna_sim.fit_cna_mixture()
 
     print("\n\nDone.\n\n")
 
