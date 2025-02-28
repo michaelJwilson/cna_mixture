@@ -8,6 +8,9 @@ from scipy.stats import nbinom, betabinom
 from scipy.special import digamma
 from scipy.optimize import approx_fprime, check_grad, minimize
 from scipy.differentiate import derivative
+from cna_mixture_rs.core import nb
+
+RUST_BACKEND = False
 
 """
 def negative_binomial_log_pmf(k, r, p):
@@ -21,9 +24,24 @@ def negative_binomial_log_pmf(k, r, p):
     return log_pmf
 """
 
+def nbinom_logpmf(ks, r, p):
+    if RUST_BACKEND:
+        raise NotImplementedError()
+    else:
+        ks = np.atleast_1d(ks)
+        result = np.zeros(ks.len())
+
+        for ii, k in enumerate(ks):
+            result[ii] = nbinom.logpmf(k, r, p)
+
+    return result
+                
+
 def ln_nb_rp(x, k):
     r, p = x
-    return nbinom.logpmf(k, r, p)
+
+    # nbinom.logpmf(k, r, p)
+    return nbinom_logpmf(k, r, p)
 
 
 def muvar2rp(mu, var):
@@ -145,26 +163,7 @@ if __name__ == "__main__":
     epsilon = np.sqrt(np.finfo(float).eps)
     bounds = [(epsilon, None), (epsilon, None)]
 
-    ## >>>>  L-BFGS-B no analytic gradients.
-    start = time.time()
-    res = minimize(
-        nloglike,
-        x0,
-        args=(samples),
-        method="L-BFGS-B",
-        jac=None,
-        hess=None,
-        hessp=None,
-        bounds=bounds,
-	constraints=(),
-        tol=None,
-        callback=None,
-        options=None,
-    )
-
-    print(f"\n\nOptimized with L-BFGS-B (no analytic gradients) in {time.time() - start:.3f} seconds with result:\n{res}")
-
-    ## >>>>  L-BFGS-B gradients.
+    ## >>>>  L-BFGS-B gradients.                                                                                                                                                                                                                                               
     start = time.time()
     res = minimize(
         nloglike,
@@ -183,11 +182,30 @@ if __name__ == "__main__":
 
     print(f"\n\nOptimized with L-BFGS-B in {time.time() - start:.3f} seconds with result:\n{res}")
 
-    # r, p = muvar2rp(*res.x)                                                                                                                                                                                                                                                   
-    # probs = nloglikes(r, p, samples)                                                                                                                                                                                                                                           
-    # pl.plot(samples, exp_probs, lw=0.0, marker=".")                                                                                                                                                                                                                           
-    # pl.plot(samples, probs, lw=0.0, marker='.')                                                                                                                                                                                                                               
-    # pl.show() 
+    # r, p = muvar2rp(*res.x)
+    # probs = nloglikes(r, p, samples)
+    # pl.plot(samples, exp_probs, lw=0.0, marker=".")                                                                                                                                                                                                                          
+    # pl.plot(samples, probs, lw=0.0, marker='.')
+    # pl.show()
+    
+    ## >>>>  L-BFGS-B no analytic gradients.
+    start = time.time()
+    res = minimize(
+        nloglike,
+        x0,
+        args=(samples),
+        method="L-BFGS-B",
+        jac=None,
+        hess=None,
+        hessp=None,
+        bounds=bounds,
+	constraints=(),
+        tol=None,
+        callback=None,
+        options=None,
+    )
+
+    print(f"\n\nOptimized with L-BFGS-B (no analytic gradients) in {time.time() - start:.3f} seconds with result:\n{res}")
     
     ## >>>>  Powell's
     start = time.time()
