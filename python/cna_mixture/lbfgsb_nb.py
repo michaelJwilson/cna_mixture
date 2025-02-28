@@ -147,8 +147,6 @@ if __name__ == "__main__":
 
     ## >>>>  L-BFGS-B no analytic gradients.
     start = time.time()
-
-    # NB L-BFGS-B accepts bounds.                                                                                                                                                                                                                                               
     res = minimize(
         nloglike,
         x0,
@@ -168,8 +166,6 @@ if __name__ == "__main__":
 
     ## >>>>  L-BFGS-B gradients.
     start = time.time()
-    
-    # NB L-BFGS-B accepts bounds.
     res = minimize(
         nloglike,
         x0,
@@ -187,15 +183,20 @@ if __name__ == "__main__":
 
     print(f"\n\nOptimized with L-BFGS-B in {time.time() - start:.3f} seconds with result:\n{res}")
 
+    # r, p = muvar2rp(*res.x)                                                                                                                                                                                                                                                   
+    # probs = nloglikes(r, p, samples)                                                                                                                                                                                                                                           
+    # pl.plot(samples, exp_probs, lw=0.0, marker=".")                                                                                                                                                                                                                           
+    # pl.plot(samples, probs, lw=0.0, marker='.')                                                                                                                                                                                                                               
+    # pl.show() 
+    
     ## >>>>  Powell's
     start = time.time()
-
     res = minimize(
         nloglike,
         x0,
 	args=(samples),
 	method="Powell",
-        jac=grad_nloglike,
+        jac=None,
         hess=None,
         hessp=None,
 	bounds=bounds,
@@ -206,13 +207,6 @@ if __name__ == "__main__":
     )
 
     print(f"\n\nOptimized with Powell's in {time.time() - start:.3f} seconds with result:\n{res}")
-
-    # r, p = muvar2rp(*res.x)
-    # probs = nloglikes(r, p, samples)
-
-    # pl.plot(samples, exp_probs, lw=0.0, marker=".")
-    # pl.plot(samples, probs, lw=0.0, marker='.')
-    # pl.show()
 
     ## >>>>  Nelder-Mead
     start = time.time()
