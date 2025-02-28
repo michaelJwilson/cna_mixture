@@ -6,9 +6,13 @@ authors = ["M. J. Wilson"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "3.11.3"
+python = "3.12.2"
 maturin = "^1.1.0"
 numpy = "^1.26.0"
 matplotlib = "*"
 scipy = "*"
 scikit-learn = "*"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
