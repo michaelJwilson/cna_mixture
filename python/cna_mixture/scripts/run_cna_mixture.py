@@ -489,7 +489,7 @@ class CNA_Sim:
             result = np.array(result)
         else:
             result = np.zeros((len(ks), len(state_alpha_betas)))
-            
+
             for col, (alpha, beta) in enumerate(state_alpha_betas):
                 for row, (k, n) in enumerate(zip(ks, ns)):
                     result[row, col] = betabinom.logpmf(k, n, beta, alpha)
@@ -611,7 +611,7 @@ class CNA_Sim:
 
         return initial_ln_lambdas
 
-    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=15):
+    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=25):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -642,18 +642,18 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
+        """
         # TODO tests
         start = time.time()
 
         for ii in range(5):
             result, _ = self.cna_mixture_betabinom_update(initial_params)
-            # result, _ = self.cna_mixture_nbinom_update(initial_params) 
+            # result, _ = self.cna_mixture_nbinom_update(initial_params)
             
-        print(f"{time.time() - start:.3f},\n{result}")
+        # print(f"{time.time() - start:.3f},\n{result}")
 
-        return
-
-    
+        # return
+        """
         initial_cost = self.cna_mixture_em_cost(
             initial_params, initial_ln_lambdas, verbose=True
         )
@@ -703,7 +703,7 @@ class CNA_Sim:
                 method=optimizer,
                 bounds=bounds,
                 constraints=None,
-                options={"disp": True, "maxiter": 1},
+                options={"disp": True, "maxiter": 25},
             )
 
             logger.info(f"success={res.success} with message={res.message}")
@@ -712,7 +712,7 @@ class CNA_Sim:
             # params, ln_lambdas = res.x, self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
 
             params = res.x
-            
+
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
@@ -728,6 +728,7 @@ class CNA_Sim:
 
 
 def main():
+    start = time.time()    
     cna_sim = CNA_Sim()
 
     # cna_sim.plot_realization_flat()
@@ -736,7 +737,7 @@ def main():
 
     cna_sim.fit_cna_mixture()
 
-    print("\n\nDone.\n\n")
+    print(f"\n\nDone ({time.time() - start} seconds).\n\n")
 
 
 if __name__ == "__main__":
