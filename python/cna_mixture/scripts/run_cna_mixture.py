@@ -29,19 +29,7 @@ logger = logging.getLogger(__name__)
 
 def tophat_smooth(data, window_size):
     kernel = np.ones(window_size) / window_size
-
-    # Apply convolution with 'same' mode to keep the output size the same as the input
-    smoothed_data = np.convolve(data, kernel, mode="same")
-
-    return smoothed_data
-
-
-def simple_logsumexp(array):
-    max_val = array.max()
-    shifted_array = array.copy() - max_val
-
-    # TODO test: array = -np.arange(100); assert logsumexp(array) == __logsumexp(array)
-    return max_val + np.log(np.exp(shifted_array).sum())
+    return np.convolve(data, kernel, mode="same")
 
 
 def assign_closest(points, centers):
@@ -125,11 +113,9 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model with
     shared overdispersions.
     """
-
     def __init__(self):
         """
-        Initialize an instance of the class with random values in
-        the assumed bounds.
+        Initialize an instance of the class with random values in the assumed bounds.
         """
         # NB normal is treated independently
         self.num_cna_states = 3
@@ -593,7 +579,7 @@ class CNA_Sim:
                 self.unpack_cna_mixture_params(params)
             )
 
-            msg = f"Minimizing cost with SLSQP with initial value: {em_cost} for:\n"
+            msg = f"Minimizing cost with initial value: {em_cost} for:\n"
             msg += f"lambdas={np.exp(ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
             msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
 
@@ -611,7 +597,7 @@ class CNA_Sim:
 
         return initial_ln_lambdas
 
-    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=25):
+    def fit_cna_mixture(self, optimizer="L-BFGS-B", maxiter=5):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -642,18 +628,6 @@ class CNA_Sim:
             + [init_mixture_params.overdisp_tau]
         )
 
-        """
-        # TODO tests
-        start = time.time()
-
-        for ii in range(5):
-            result, _ = self.cna_mixture_betabinom_update(initial_params)
-            # result, _ = self.cna_mixture_nbinom_update(initial_params)
-            
-        # print(f"{time.time() - start:.3f},\n{result}")
-
-        # return
-        """
         initial_cost = self.cna_mixture_em_cost(
             initial_params, initial_ln_lambdas, verbose=True
         )
@@ -691,6 +665,8 @@ class CNA_Sim:
         params, ln_lambdas = initial_params, initial_ln_lambdas
         ln_state_posteriors = self.estep(params, ln_lambdas)
 
+        assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
+        
         for ii in range(maxiter):
             # TODO minimization assuming fixed lambdas, on which there is a constraint.
             #      ln_state_posterior calculated exactly for given theta under this assumption.
@@ -708,8 +684,8 @@ class CNA_Sim:
 
             logger.info(f"success={res.success} with message={res.message}")
 
-            # ln_state_posteriors = self.estep(res.x, ln_lambdas)
-            # params, ln_lambdas = res.x, self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
+            ln_state_posteriors = self.estep(res.x, ln_lambdas)
+            params, ln_lambdas = res.x, self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
 
             params = res.x
 
@@ -737,7 +713,7 @@ def main():
 
     cna_sim.fit_cna_mixture()
 
-    print(f"\n\nDone ({time.time() - start} seconds).\n\n")
+    print(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
 
 if __name__ == "__main__":
