@@ -597,7 +597,7 @@ class CNA_Sim:
 
         return initial_ln_lambdas
 
-    def fit_cna_mixture(self, optimizer="L-BFGS-B", maxiter=5):
+    def fit_cna_mixture(self, optimizer="L-BFGS-B", maxiter=50):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -668,18 +668,15 @@ class CNA_Sim:
         assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
         
         for ii in range(maxiter):
-            # TODO minimization assuming fixed lambdas, on which there is a constraint.
-            #      ln_state_posterior calculated exactly for given theta under this assumption.
-            #
-            # NB https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
+            # NB see https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
             res = minimize(
                 self.cna_mixture_em_cost,
                 params,
                 args=(ln_lambdas),
                 method=optimizer,
                 bounds=bounds,
-                constraints=None,
-                options={"disp": True, "maxiter": 25},
+                constraints=None,  # NB simulation too small to fix RDR constraint.
+                options={"disp": True, "maxiter": 10},
             )
 
             logger.info(f"success={res.success} with message={res.message}")
@@ -689,6 +686,8 @@ class CNA_Sim:
 
             params = res.x
 
+            logger.info(f"success={res.success}, params: {params} with message={res.message}")
+            
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
