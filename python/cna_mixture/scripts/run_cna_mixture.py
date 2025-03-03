@@ -136,10 +136,10 @@ class CNA_mixture_params:
         self.num_states = 1 + self.num_cna_states
 
         # NB BAF overdispersion.  Random between 25. and 55.
-        self.overdisp_tau = 45.0
+        self.overdisp_tau = 50.0
 
         # NB RDR overdispersion.  Random between 1e-2 and 4e-2
-        self.overdisp_phi = 1.0e-2
+        self.overdisp_phi = 2.0e-2
 
         # NB list of (baf, rdr) for k=4 states.
         integers = np.random.choice(
@@ -205,8 +205,8 @@ class CNA_Sim:
         )
 
         self.assumed_cna_mixture_params = {
-            "overdisp_tau": 50.0,
-            "overdisp_phi": 2.0e-2,
+            "overdisp_tau": 45.0,
+            "overdisp_phi": 1.0e-2,
             "cna_states": [
                 [3.0, 0.33],
                 [4.0, 0.25],
@@ -224,7 +224,7 @@ class CNA_Sim:
         self.normal_state = np.array(self.normal_state)
         self.num_states = len(self.cna_states)
 
-        self.jump_rate_per_state = 1.0e-1 / (self.num_states - 1.0)
+        self.jump_rate_per_state = self.jump_rate / (self.num_states - 1.0)
         self.transfer = self.jump_rate_per_state * np.ones(
             shape=(self.num_states, self.num_states)
         )
@@ -363,7 +363,7 @@ class CNA_Sim:
 
         pl.show()
 
-    def plot_realization_flat(self):
+    def plot_realization_true_flat(self):
         """
         BAF vs RDR for the assumed simulation.
         """
@@ -721,7 +721,7 @@ def main():
     start = time.time()    
     cna_sim = CNA_Sim()
 
-    # cna_sim.plot_realization_flat()
+    # cna_sim.plot_realization_true_flat()
     # cna_sim.plot_realization_genome()
     # cna_sim.fit_gaussian_mixture()
 
