@@ -607,8 +607,11 @@ class CNA_Sim:
         msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
 
         logger.info(msg)
-    
-    def initialize_ln_lambdas(self, init_mixture_params):
+
+    def initialize_ln_lambdas_equal(self, init_mixture_params):
+        return (1. / self.num_states) * np.ones(self.num_states)
+        
+    def initialize_ln_lambdas_closest(self, init_mixture_params):
         # TODO kmeans++ like.
         decoded_states = assign_closest(self.rdr_baf, init_mixture_params.cna_states)
 
@@ -616,8 +619,8 @@ class CNA_Sim:
         _, counts = np.unique(decoded_states, return_counts=True)
         initial_ln_lambdas = np.log(counts) - np.log(np.sum(counts))
 
-        return initial_ln_lambdas
-
+        return initial_ln_lambdas        
+    
     def get_cna_mixture_bounds(self):
         # NB exp_read_depths > 0
         bounds = [(1.0e-6, None) for _ in range(self.num_states)]
@@ -667,7 +670,7 @@ class CNA_Sim:
         init_mixture_params = CNA_mixture_params()
 
         # TODO assign closest -> better initialization.
-        initial_ln_lambdas = self.initialize_ln_lambdas(init_mixture_params)
+        initial_ln_lambdas = self.initialize_ln_lambdas_closest(init_mixture_params)
 
         logging.info(f"Initializing CNA states:\n{init_mixture_params.cna_states}\n")
 
