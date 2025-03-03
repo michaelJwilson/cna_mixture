@@ -676,7 +676,7 @@ class CNA_Sim:
         initial_bafs = init_mixture_params.cna_states[:, 1]
 
         # NB e.g. [0.2443, 0.3857, 0.1247, 0.2453, ... 500.0, 1500.0, 2500.0, 3500.0, 0.01, ... 0.5, 0.3333333333333333, 0.2, 0.14285714285714285, 47.075625069001084]
-        initial_params = (
+        initial_params = np.array(
             initial_state_read_depths.tolist()
             + [init_mixture_params.overdisp_phi]
             + initial_bafs.tolist()
@@ -687,12 +687,11 @@ class CNA_Sim:
             initial_params, initial_ln_lambdas, verbose=True
         )
 
-        bounds = self.get_cna_mixture_bounds()
-
         params, ln_lambdas = initial_params, initial_ln_lambdas
+        bounds = self.get_cna_mixture_bounds()
         ln_state_posteriors = self.estep(params, ln_lambdas)
 
-        """                                                                                                                                                                                                           
+        """                                                                                                                                                                                                          
         self.plot_rdr_baf_flat(                                                                                                                                                                                       
             self.rdr_baf[:, 0],                                                                                                                                                                                       
             self.rdr_baf[:, 1],                                                                                                                                                                                       
@@ -711,26 +710,27 @@ class CNA_Sim:
                 method=optimizer,
                 bounds=bounds,
                 constraints=None,
-                options={"disp": True, "maxiter": 5},
+                options={"disp": True, "maxiter": 25},
             )
 
             max_ptol = np.max(np.abs((1. - res.x / params)))
-            """
-            if max_ptol < 1.e-2:
-                break
-            """
+
             ln_state_posteriors = self.estep(res.x, ln_lambdas)
             params, ln_lambdas = res.x, self.cna_mixture_ln_lambdas_update(
                 ln_state_posteriors
             )
 
             logger.info(
-                f"minimization success={res.success}, with best-fit params:\n{params}\nwith parameter fractional update: {max_ptol} and message={res.message}\n"
+                f"minimization success={res.success}, with best-fit params:\n{params}\nwith parameter fractional update: {max_ptol}\nwith state occupancies:\n{np.exp(ln_lambdas)}\nand message={res.message}\n"
             )
+
+            if (ii > 5) and (max_ptol < 1.e-6):
+                break
             
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
+        
         states_bag = np.c_[state_read_depths / self.realized_genome_coverage, bafs]
 
         logger.info(f"Found best-fit CNA mixture params:\n{params}")
