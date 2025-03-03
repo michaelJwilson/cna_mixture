@@ -146,12 +146,12 @@ class CNA_mixture_params:
         integers = np.random.choice(
             np.arange(2, 10), size=self.num_cna_states, replace=False
         )
-        integers = np.sort(integer_samples)
+        integers = np.sort(integers)
 
         self.normal_state = [1.0, 0.5]
 
         self.cna_states = [
-            [1.0 * int_sample, 1.0 / int_sample] for int_sample in integer_samples
+            [1.0 * int_sample, 1.0 / int_sample] for int_sample in integers
         ]
 
         self.cna_states = [self.normal_state] + self.cna_states
@@ -647,7 +647,7 @@ class CNA_Sim:
         # BUG sum of *realized* rdr values along genome should explain coverage??
         raise RuntimeError()
 
-    def fit_cna_mixture(self, optimizer="L-BFGS-B", maxiter=50):
+    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=50):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -711,18 +711,23 @@ class CNA_Sim:
                 method=optimizer,
                 bounds=bounds,
                 constraints=None,
-                options={"disp": True, "maxiter": 10},
+                options={"disp": True, "maxiter": 5},
             )
 
+            max_ptol = np.max(np.abs((1. - res.x / params)))
+            """
+            if max_ptol < 1.e-2:
+                break
+            """
             ln_state_posteriors = self.estep(res.x, ln_lambdas)
             params, ln_lambdas = res.x, self.cna_mixture_ln_lambdas_update(
                 ln_state_posteriors
             )
 
             logger.info(
-                f"success={res.success}, params: {params} with message={res.message}"
+                f"minimization success={res.success}, with best-fit params:\n{params}\nwith parameter fractional update: {max_ptol} and message={res.message}\n"
             )
-
+            
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
