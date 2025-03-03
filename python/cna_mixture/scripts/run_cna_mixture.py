@@ -127,6 +127,7 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model,
     with shared overdispersions.
     """
+
     def __init__(self):
         """
         Initialize an instance of the class with random values in the assumed bounds.
@@ -148,7 +149,7 @@ class CNA_mixture_params:
         integers = np.sort(integer_samples)
 
         self.normal_state = [1.0, 0.5]
-        
+
         self.cna_states = [
             [1.0 * int_sample, 1.0 / int_sample] for int_sample in integer_samples
         ]
@@ -615,6 +616,37 @@ class CNA_Sim:
 
         return initial_ln_lambdas
 
+    def get_cna_mixture_bounds(self):
+        # NB exp_read_depths > 0
+        bounds = [(1.0e-6, None) for _ in range(self.num_states)]
+
+        # NB RDR overdispersion > 0
+        bounds += [(1.0e-6, None)]
+
+        # NB bafs - note, not limited to 0.5
+        bounds += [(1.0e-6, 1.0) for _ in range(self.num_states)]
+
+        # NB baf overdispersion > 0
+        bounds += [(1.0e-6, None)]
+        bounds = tuple(bounds)
+
+        return bounds
+
+    def get_cna_mixture_constraints(self):
+        # TODO regularizer for state overlap?                                                                                                                                                                         
+        # NB equality constaints to be zero.                                                                                                                                                                          
+        constraints = [
+            # NB sum of RDRs should explain realized genome-wide coverage.                                                                                                                                            
+            {
+                "type": "eq",
+                "fun": lambda x: np.sum(x[: self.num_states])
+                - self.realized_genome_coverage,
+            },
+        ]
+
+        # BUG sum of *realized* rdr values along genome should explain coverage??
+        raise RuntimeError()
+        
     def fit_cna_mixture(self, optimizer="L-BFGS-B", maxiter=50):
         """
         Fit CNA mixture model via Expectation Maximization.
@@ -626,6 +658,7 @@ class CNA_Sim:
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.nbinom.html
         """
+        # NB see e.g. https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp 
         assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
 
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
@@ -654,30 +687,11 @@ class CNA_Sim:
             initial_params, initial_ln_lambdas, verbose=True
         )
 
-        # TODO regularizer for state overlap?
-        # NB equality constaints to be zero.
-        # BUG sum of *realized* rdr values along genome should explain coverage.
-        constraints = [
-            # NB sum of RDRs should explain realized genome-wide coverage.
-            {
-                "type": "eq",
-                "fun": lambda x: np.sum(x[: self.num_states])
-                - self.realized_genome_coverage,
-            },
-        ]
-
-        # NB all parameters are constained to be positive. bafs. max of unity.
-        bounds = [(1.0e-6, None) for _ in range(self.num_states)]  # exp_read_depths > 0
-        bounds += [(1.0e-6, None)]  # RDR overdispersion > 0
-        bounds += [
-            (1.0e-6, 1.0) for _ in range(self.num_states)
-        ]  # bafs - note, not limited to 0.5
-        bounds += [(1.0e-6, None)]  # baf overdispersion > 0
-        bounds = tuple(bounds)
+        bounds = self.get_cna_mixture_bounds()
 
         params, ln_lambdas = initial_params, initial_ln_lambdas
         ln_state_posteriors = self.estep(params, ln_lambdas)
-        
+
         """                                                                                                                                                                                                           
         self.plot_rdr_baf_flat(                                                                                                                                                                                       
             self.rdr_baf[:, 0],                                                                                                                                                                                       
@@ -687,28 +701,33 @@ class CNA_Sim:
             title="Initial state posteriors (based on closest state lambdas)."                                                                                                                                        
         )                                                                                                                                                                                                             
         """
-                
+
         for ii in range(maxiter):
-            # NB see https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
+            # NB state posterior calculated exactly on each parameter step (no runtime loss).
+            #    lambdas handled explicitly as sum constrained to be unity (i.e. probabilities)
             res = minimize(
                 self.cna_mixture_em_cost,
                 params,
                 args=(ln_lambdas),
                 method=optimizer,
                 bounds=bounds,
-                constraints=None,  # NB simulation too small to fix RDR constraint.
+                constraints=None,
                 options={"disp": True, "maxiter": 10},
             )
 
             logger.info(f"success={res.success} with message={res.message}")
 
             ln_state_posteriors = self.estep(res.x, ln_lambdas)
-            params, ln_lambdas = res.x, self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
+            params, ln_lambdas = res.x, self.cna_mixture_ln_lambdas_update(
+                ln_state_posteriors
+            )
 
             params = res.x
 
-            logger.info(f"success={res.success}, params: {params} with message={res.message}")
-            
+            logger.info(
+                f"success={res.success}, params: {params} with message={res.message}"
+            )
+
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
@@ -724,7 +743,7 @@ class CNA_Sim:
 
 
 def main():
-    start = time.time()    
+    start = time.time()
     cna_sim = CNA_Sim()
 
     # cna_sim.plot_realization_true_flat()
@@ -732,7 +751,7 @@ def main():
     # cna_sim.fit_gaussian_mixture()
 
     cna_sim.fit_cna_mixture()
-    
+
     print(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
 
