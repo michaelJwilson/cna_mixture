@@ -647,7 +647,7 @@ class CNA_Sim:
         # BUG sum of *realized* rdr values along genome should explain coverage??
         raise RuntimeError()
 
-    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=50):
+    def fit_cna_mixture(self, optimizer="SLSQP", maxiter=50):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
