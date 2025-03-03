@@ -533,9 +533,10 @@ class CNA_Sim:
 
     def cna_mixture_ln_state_posterior_update(self, params, ln_lambdas):
         """
-        Calculate *un-normalized* state posteriors based on current parameter + lambda
-        settings.
+        Calculate *un-normalized* state posteriors based on current parameter +
+        lambda settings.
         """
+        # NB simple broadcasting.
         ln_state_posterior_categorical = self.cna_mixture_categorical_update(ln_lambdas)
         ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
@@ -557,7 +558,9 @@ class CNA_Sim:
         )
 
     def cna_mixture_ln_lambdas_update(self, ln_state_posteriors):
-        """ """
+        """
+        Given updated ln_state_posteriors, calculate the updated ln_lambdas.
+        """
         return logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
 
     def cna_mixture_em_cost(
