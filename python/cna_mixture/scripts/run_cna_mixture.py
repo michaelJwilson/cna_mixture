@@ -380,21 +380,21 @@ class CNA_Sim:
     def plot_realization_genome(
         self, ln_state_posteriors=None, states_bag=None, title=None
     ):
-        bases = np.arange(self.num_segments)
+        segment_index = np.arange(self.num_segments)
 
         figsize = (15, 10)
         fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=figsize)
 
         rdr, baf = self.rdr_baf[:, 0], self.rdr_baf[:, 1]
 
-        smooth_rdr = tophat_smooth(rdr, window_size=25)
-        smooth_baf = tophat_smooth(baf, window_size=25)
+        smooth_rdr = tophat_smooth(rdr, window_size=100)
+        smooth_baf = tophat_smooth(baf, window_size=100)
 
-        axes[0].plot(bases, rdr)
-        axes[0].plot(bases, smooth_rdr)
+        axes[0].plot(segment_index, rdr)
+        axes[0].plot(segment_index, smooth_rdr)
 
-        axes[1].plot(bases, baf)
-        axes[1].plot(bases, smooth_baf)
+        axes[1].plot(segment_index, baf)
+        axes[1].plot(segment_index, smooth_baf)
 
         axes[0].set_ylabel(r"read depth ratio")
 
@@ -726,7 +726,7 @@ def main():
     # cna_sim.fit_gaussian_mixture()
 
     cna_sim.fit_cna_mixture()
-
+    
     print(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
 
