@@ -623,8 +623,12 @@ class CNA_Sim:
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.nbinom.html
         """
+        assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
+
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
+
+        # TODO assign closest -> better initialization.
         initial_ln_lambdas = self.initialize_ln_lambdas(init_mixture_params)
 
         logging.info(f"Initializing CNA states:\n{init_mixture_params.cna_states}\n")
@@ -647,18 +651,9 @@ class CNA_Sim:
             initial_params, initial_ln_lambdas, verbose=True
         )
 
-        """
-        self.plot_rdr_baf_flat(
-            self.rdr_baf[:, 0],
-            self.rdr_baf[:, 1],
-            ln_state_posteriors=ln_state_posteriors,
-            states_bag=init_mixture_params.cna_states,
-            title="Initial state posteriors (based on closest state lambdas)."
-        )
-        """
-
-        # NB equality constaints to be zero.
         # TODO regularizer for state overlap?
+        # NB equality constaints to be zero.
+        # BUG sum of *realized* rdr values along genome should explain coverage.
         constraints = [
             # NB sum of RDRs should explain realized genome-wide coverage.
             {
@@ -669,19 +664,27 @@ class CNA_Sim:
         ]
 
         # NB all parameters are constained to be positive. bafs. max of unity.
-        bounds = [(1.0e-6, None) for _ in range(self.num_states)]  # exp_read_depths
-        bounds += [(1.0e-6, None)]  # RDR overdispersion
+        bounds = [(1.0e-6, None) for _ in range(self.num_states)]  # exp_read_depths > 0
+        bounds += [(1.0e-6, None)]  # RDR overdispersion > 0
         bounds += [
             (1.0e-6, 1.0) for _ in range(self.num_states)
-        ]  # bafs - not limited to 0.5
-        bounds += [(1.0e-6, None)]  # baf overdispersion
+        ]  # bafs - note, not limited to 0.5
+        bounds += [(1.0e-6, None)]  # baf overdispersion > 0
         bounds = tuple(bounds)
 
         params, ln_lambdas = initial_params, initial_ln_lambdas
         ln_state_posteriors = self.estep(params, ln_lambdas)
-
-        assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
         
+        """                                                                                                                                                                                                           
+        self.plot_rdr_baf_flat(                                                                                                                                                                                       
+            self.rdr_baf[:, 0],                                                                                                                                                                                       
+            self.rdr_baf[:, 1],                                                                                                                                                                                       
+            ln_state_posteriors=ln_state_posteriors,                                                                                                                                                                  
+            states_bag=init_mixture_params.cna_states,                                                                                                                                                                
+            title="Initial state posteriors (based on closest state lambdas)."                                                                                                                                        
+        )                                                                                                                                                                                                             
+        """
+                
         for ii in range(maxiter):
             # NB see https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
             res = minimize(
