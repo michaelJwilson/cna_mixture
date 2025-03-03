@@ -28,11 +28,17 @@ logger = logging.getLogger(__name__)
 
 
 def tophat_smooth(data, window_size):
+    """
+    Top-hat convolution of a 1D signal.
+    """
     kernel = np.ones(window_size) / window_size
     return np.convolve(data, kernel, mode="same")
 
 
 def assign_closest(points, centers):
+    """
+    Assign points to the closest center.
+    """
     assert len(points) > len(centers)
 
     tree = KDTree(centers)
@@ -43,10 +49,11 @@ def assign_closest(points, centers):
 
 def onehot_encode_states(state_array):
     """
-    Given an array of categorical states, return the
-    (# samples, # states) one-hot encoding.
+    Given an index array of categorical states,
+    return the (# samples, # states) one-hot
+    encoding.
 
-    NB equivalent to a state posterior!
+    NB equivalent to a (singular) state posterior!
     """
     num_states = np.max(state_array).astype(int) + 1
     states = state_array.astype(int)
@@ -89,6 +96,10 @@ def reparameterize_beta_binom(input_bafs, overdispersion):
 
 
 def poisson_state_logprobs(state_mus, ks):
+    """
+    log PDF for a Poisson distribution of given
+    means and realized ks.
+    """
     result = np.zeros((len(ks), len(state_mus)))
 
     for col, mu in enumerate(state_mus):
@@ -99,6 +110,9 @@ def poisson_state_logprobs(state_mus, ks):
 
 
 def normalize_ln_posteriors(ln_posteriors):
+    """
+    Return the normalized log posteriors.
+    """
     num_samples, num_states = ln_posteriors.shape
 
     # NB natural logarithm by definition;
@@ -110,14 +124,14 @@ def normalize_ln_posteriors(ln_posteriors):
 
 class CNA_mixture_params:
     """
-    Data class for parameters required by CNA mixture model with
-    shared overdispersions.
+    Data class for parameters required by CNA mixture model,
+    with shared overdispersions.
     """
     def __init__(self):
         """
         Initialize an instance of the class with random values in the assumed bounds.
         """
-        # NB normal is treated independently
+        # NB normal state is treated independently
         self.num_cna_states = 3
         self.num_states = 1 + self.num_cna_states
 
@@ -128,12 +142,13 @@ class CNA_mixture_params:
         self.overdisp_phi = 1.0e-2
 
         # NB list of (baf, rdr) for k=4 states.
-        integer_samples = np.random.choice(
+        integers = np.random.choice(
             np.arange(2, 10), size=self.num_cna_states, replace=False
         )
-        integer_samples = np.sort(integer_samples)
+        integers = np.sort(integer_samples)
 
         self.normal_state = [1.0, 0.5]
+        
         self.cna_states = [
             [1.0 * int_sample, 1.0 / int_sample] for int_sample in integer_samples
         ]
