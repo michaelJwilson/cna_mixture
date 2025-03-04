@@ -542,11 +542,11 @@ class CNA_Sim:
         return result, state_rs_ps
 
     def cna_mixture_ln_lambdas_update(self, ln_state_posteriors):
-	"""                                                                                                                                                                                                                      
-        Given updated ln_state_posteriors, calculate the updated ln_lambdas.                                                                                                                                                     
+        """
+        Given updated ln_state_posteriors, calculate the updated ln_lambdas.
         """
         return logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
-    
+
     def cna_mixture_ln_emission_update(self, params):
         ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
@@ -578,17 +578,17 @@ class CNA_Sim:
         cost = -cost.sum()
 
         if verbose:
-            self.update_message(params, ln_lambdas, cost)
+            self.update_message(params, cost)
 
         return cost
 
-    def update_message(self, params, ln_lambdas, cost):
+    def update_message(self, params, cost):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
 
         msg = f"Minimizing cost to value: {cost} for:\n"
-        msg += f"lambdas={np.exp(ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
+        msg += f"lambdas={np.exp(self.ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
         msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
 
         logger.info(msg)
@@ -637,6 +637,13 @@ class CNA_Sim:
         # BUG sum of *realized* rdr values along genome should explain coverage??
         raise RuntimeError()
 
+    def get_states_bag(self, params):
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+            self.unpack_cna_mixture_params(params)
+        )
+
+        return np.c_[state_read_depths / self.realized_genome_coverage, bafs]
+
     def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=25):
         """
         Fit CNA mixture model via Expectation Maximization.
@@ -672,26 +679,7 @@ class CNA_Sim:
             + [mixture_params.overdisp_tau]
         )
 
-        """
-        initial_cost = self.cna_mixture_em_cost(
-            initial_params, initial_ln_lambdas, verbose=True
-        )
-
-        self.update_message(initial_params, initial_ln_lambdas, initial_cost)
-        """
-
         bounds = self.get_cna_mixture_bounds()
-
-        """
-        # NB initialization only.
-        self.plot_rdr_baf_flat(
-            self.rdr_baf[:, 0],
-            self.rdr_baf[:, 1],
-            ln_state_posteriors=ln_state_posteriors,
-            states_bag=init_mixture_params.cna_states,
-            title="Initial state posteriors (based on closest state lambdas).",
-        )
-        """
 
         # TODO test
         # approx_grad = approx_fprime(params, self.cna_mixture_em_cost, np.sqrt(np.finfo(float).eps), ln_lambdas)
@@ -704,6 +692,8 @@ class CNA_Sim:
         self.ln_state_posteriors = self.estep(
             self.ln_state_emission, self.ln_state_prior
         )
+
+        cost = self.cna_mixture_em_cost(params, verbose=True)
 
         for ii in range(maxiter):
             # TODO prior to prevent single-state occupancy.
@@ -724,32 +714,28 @@ class CNA_Sim:
             self.ln_state_posteriors = self.estep(
                 self.ln_state_emission, self.ln_state_prior
             )
+            
             self.ln_lambdas = self.cna_mixture_ln_lambdas_update(
                 self.ln_state_posteriors
             )
+            
             self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
 
             logger.info(
                 f"minimization success={res.success}, with parameter fractional update: {max_param_frac_update} and message={res.message}\n"
             )
 
-            self.update_message(params, self.ln_lambdas, cost)
-
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-            self.unpack_cna_mixture_params(params)
-        )
-
-        states_bag = np.c_[state_read_depths / self.realized_genome_coverage, bafs]
+            self.update_message(params, cost)
 
         logger.info(f"Found best-fit CNA mixture params:\n{params}")
 
+        # title="Initial state posteriors (based on closest state lambdas).",
         self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=self.ln_state_posteriors,
-            states_bag=states_bag,
+            states_bag=self.get_states_bag(params),
         )
-
 
 def main():
     start = time.time()
