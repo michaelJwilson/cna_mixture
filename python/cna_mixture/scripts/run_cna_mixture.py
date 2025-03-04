@@ -551,9 +551,7 @@ class CNA_Sim:
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
         """
-        return normalize_ln_posteriors(
-            ln_state_emission + ln_state_prior
-        )
+        return normalize_ln_posteriors(ln_state_emission + ln_state_prior)
 
     def cna_mixture_ln_lambdas_update(self, ln_state_posteriors):
         """
@@ -561,9 +559,7 @@ class CNA_Sim:
         """
         return logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
 
-    def cna_mixture_em_cost(
-        self, params, verbose=False
-    ):
+    def cna_mixture_em_cost(self, params, verbose=False):
         """
         if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
         the current params values and the assumed state_posteriors.
@@ -571,10 +567,12 @@ class CNA_Sim:
         NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
         """
         self.ln_state_emission = self.cna_mixture_ln_emission_update(params)
-        
+
         # NB responsibilites rik, where i is the sample and k is the state.
         # NB this is *not* state-posterior weighted log-likelihood.
-        cost = np.exp(self.ln_state_posteriors) * (self.ln_state_prior + self.ln_state_emission)
+        cost = np.exp(self.ln_state_posteriors) * (
+            self.ln_state_prior + self.ln_state_emission
+        )
 
         # NB sum over samples and states.  Maximization -> minimization.
         cost = -cost.sum()
@@ -639,7 +637,7 @@ class CNA_Sim:
         # BUG sum of *realized* rdr values along genome should explain coverage??
         raise RuntimeError()
 
-    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=100):
+    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=25):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -657,14 +655,13 @@ class CNA_Sim:
         mixture_params = CNA_mixture_params()
         mixture_params.update_rdr_baf_choice(self.rdr_baf)
 
-        ln_lambdas = self.initialize_ln_lambdas_closest(mixture_params)
-
         logging.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
 
         # NB self.realized_genome_coverage == normal_coverage currently.
         state_read_depths = (
             self.realized_genome_coverage * mixture_params.cna_states[:, 0]
         )
+
         bafs = mixture_params.cna_states[:, 1]
 
         # NB e.g. [0.2443, 0.3857, 0.1247, 0.2453, ... 500.0, 1500.0, 2500.0, 3500.0, 0.01, ... 0.5, 0.3333333333333333, 0.2, 0.14285714285714285, 47.075625069001084]
@@ -674,7 +671,7 @@ class CNA_Sim:
             + bafs.tolist()
             + [mixture_params.overdisp_tau]
         )
-        
+
         """
         initial_cost = self.cna_mixture_em_cost(
             initial_params, initial_ln_lambdas, verbose=True
@@ -682,7 +679,7 @@ class CNA_Sim:
 
         self.update_message(initial_params, initial_ln_lambdas, initial_cost)
         """
-        
+
         bounds = self.get_cna_mixture_bounds()
 
         """
@@ -701,13 +698,14 @@ class CNA_Sim:
         # print(approx_grad)
         # exit()
 
-        # NB initialize and populate emission cache.
+        self.ln_lambdas = self.initialize_ln_lambdas_closest(mixture_params)
         self.ln_state_emission = self.cna_mixture_ln_emission_update(params)
-        
+        self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
+        self.ln_state_posteriors = self.estep(
+            self.ln_state_emission, self.ln_state_prior
+        )
+
         for ii in range(maxiter):
-            self.ln_state_prior = self.cna_mixture_categorical_update(ln_lambdas)
-            self.ln_state_posteriors = self.estep(self.ln_state_emission, self.ln_state_prior)
-            
             # TODO prior to prevent single-state occupancy.
             # TODO callback forward.
             res = minimize(
@@ -722,15 +720,20 @@ class CNA_Sim:
             max_param_frac_update = np.max(np.abs((1.0 - res.x / params)))
 
             params, cost = res.x, res.fun
-            ln_state_posteriors = self.estep(params, ln_lambdas)
 
-            ln_lambdas = self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
+            self.ln_state_posteriors = self.estep(
+                self.ln_state_emission, self.ln_state_prior
+            )
+            self.ln_lambdas = self.cna_mixture_ln_lambdas_update(
+                self.ln_state_posteriors
+            )
+            self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
 
             logger.info(
                 f"minimization success={res.success}, with parameter fractional update: {max_param_frac_update} and message={res.message}\n"
             )
 
-            self.update_message(params, ln_lambdas, cost)
+            self.update_message(params, self.ln_lambdas, cost)
 
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
@@ -743,7 +746,7 @@ class CNA_Sim:
         self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
-            ln_state_posteriors=ln_state_posteriors,
+            ln_state_posteriors=self.ln_state_posteriors,
             states_bag=states_bag,
         )
 
