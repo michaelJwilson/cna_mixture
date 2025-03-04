@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pylab as pl
 import matplotlib.pyplot as plt
+import numpy.random as random
 
 from matplotlib.colors import LogNorm
 from scipy.stats import nbinom, betabinom, poisson
@@ -160,6 +161,14 @@ class CNA_mixture_params:
 
         self.__verify()
 
+    def __verify(self):
+        assert isinstance(
+            self.cna_states, np.ndarray
+        ), f"cna_states attribute must be a numpy array. Found {type(self.cna_states)}"
+
+    def __str__(self):
+        return ",  ".join([f"{key}: {value}" for key, value in self.__dict__.items()])
+
     def update(self, input_params_dict):
         """
         Update an instance of CNA_mixture_params to the input key: value dict.
@@ -181,13 +190,13 @@ class CNA_mixture_params:
         self.num_states = len(self.cna_states)
         self.__verify()
 
-    def __verify(self):
-        assert isinstance(
-            self.cna_states, np.ndarray
-        ), f"cna_states attribute must be a numpy array. Found {type(self.cna_states)}"
+    def update_rdr_baf_choice(self, rdr_baf):
+        non_normal = rdr_baf[rdr_baf[:,0] > 1.]
+        
+        xx = np.arange(len(non_normal))
+        idx = random.choice(xx, size=self.num_states - 1, replace=False)
 
-    def __str__(self):
-        return ",  ".join([f"{key}: {value}" for key, value in self.__dict__.items()])
+        self.cna_states = np.vstack([self.normal_state, non_normal[idx]])
 
 
 class CNA_Sim:
@@ -599,7 +608,7 @@ class CNA_Sim:
 
     def update_message(self, params, ln_lambdas, cost):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-	    self.unpack_cna_mixture_params(params)
+            self.unpack_cna_mixture_params(params)
         )
 
         msg = f"Minimizing cost to value: {cost} for:\n"
@@ -609,8 +618,8 @@ class CNA_Sim:
         logger.info(msg)
 
     def initialize_ln_lambdas_equal(self, init_mixture_params):
-        return (1. / self.num_states) * np.ones(self.num_states)
-        
+        return (1.0 / self.num_states) * np.ones(self.num_states)
+
     def initialize_ln_lambdas_closest(self, init_mixture_params):
         # TODO kmeans++ like.
         decoded_states = assign_closest(self.rdr_baf, init_mixture_params.cna_states)
@@ -619,8 +628,8 @@ class CNA_Sim:
         _, counts = np.unique(decoded_states, return_counts=True)
         initial_ln_lambdas = np.log(counts) - np.log(np.sum(counts))
 
-        return initial_ln_lambdas        
-    
+        return initial_ln_lambdas
+
     def get_cna_mixture_bounds(self):
         # NB exp_read_depths > 0
         bounds = [(1.0e-6, None) for _ in range(self.num_states)]
@@ -652,7 +661,7 @@ class CNA_Sim:
         # BUG sum of *realized* rdr values along genome should explain coverage??
         raise RuntimeError()
 
-    def fit_cna_mixture(self, optimizer="SLSQP", maxiter=1):
+    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=100):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -668,6 +677,9 @@ class CNA_Sim:
 
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         init_mixture_params = CNA_mixture_params()
+        init_mixture_params.update_rdr_baf_choice(self.rdr_baf)
+
+        # print(init_mixture_params)
 
         # TODO assign closest -> better initialization.
         initial_ln_lambdas = self.initialize_ln_lambdas_closest(init_mixture_params)
@@ -693,12 +705,11 @@ class CNA_Sim:
         )
 
         self.update_message(initial_params, initial_ln_lambdas, initial_cost)
-        
+
         params, ln_lambdas = initial_params, initial_ln_lambdas
         bounds = self.get_cna_mixture_bounds()
         ln_state_posteriors = self.estep(params, ln_lambdas)
 
-        """
         # NB initialization only.
         self.plot_rdr_baf_flat(                                                                                                                                                                                       
             self.rdr_baf[:, 0],                                                                                                                                                                                       
@@ -707,7 +718,6 @@ class CNA_Sim:
             states_bag=init_mixture_params.cna_states,                                                                                                                                                                
             title="Initial state posteriors (based on closest state lambdas)."                                                                                                                                        
         )
-        """
 
         for ii in range(maxiter):
             # NB state posterior calculated exactly on each parameter step (no runtime loss).
@@ -724,36 +734,33 @@ class CNA_Sim:
                 options={"disp": True, "maxiter": 5},
             )
 
-            max_param_frac_update = np.max(np.abs((1. - res.x / params)))
+            max_param_frac_update = np.max(np.abs((1.0 - res.x / params)))
 
             params, cost = res.x, res.fun
             ln_state_posteriors = self.estep(params, ln_lambdas)
-            
-            ln_lambdas = self.cna_mixture_ln_lambdas_update(
-                ln_state_posteriors
-            )
+
+            ln_lambdas = self.cna_mixture_ln_lambdas_update(ln_state_posteriors)
 
             logger.info(
                 f"minimization success={res.success}, with parameter fractional update: {max_param_frac_update} and message={res.message}\n"
             )
-            
+
             self.update_message(params, ln_lambdas, cost)
-            
+
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
-        
+
         states_bag = np.c_[state_read_depths / self.realized_genome_coverage, bafs]
 
         logger.info(f"Found best-fit CNA mixture params:\n{params}")
-        """
+
         self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=ln_state_posteriors,
             states_bag=states_bag,
         )
-        """
 
 
 def main():
