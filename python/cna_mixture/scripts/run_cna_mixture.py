@@ -191,7 +191,7 @@ class CNA_mixture_params:
         self.num_states = len(self.cna_states)
         self.__verify()
 
-    def update_rdr_baf_choice(self, rdr_baf):
+    def rdr_baf_choice_update(self, rdr_baf):
         non_normal = rdr_baf[rdr_baf[:, 0] > 1.0]
 
         xx = np.arange(len(non_normal))
@@ -644,7 +644,7 @@ class CNA_Sim:
 
         return np.c_[state_read_depths / self.realized_genome_coverage, bafs]
 
-    def fit_cna_mixture(self, optimizer="L-BFGS-B", maxiter=25):
+    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=100):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -660,7 +660,7 @@ class CNA_Sim:
 
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         mixture_params = CNA_mixture_params()
-        mixture_params.update_rdr_baf_choice(self.rdr_baf)
+        mixture_params.rdr_baf_choice_update(self.rdr_baf)
 
         logging.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
 
@@ -671,7 +671,6 @@ class CNA_Sim:
 
         bafs = mixture_params.cna_states[:, 1]
 
-        # NB e.g. [0.2443, 0.3857, 0.1247, 0.2453, ... 500.0, 1500.0, 2500.0, 3500.0, 0.01, ... 0.5, 0.3333333333333333, 0.2, 0.14285714285714285, 47.075625069001084]
         params = np.array(
             state_read_depths.tolist()
             + [mixture_params.overdisp_phi]
@@ -707,7 +706,7 @@ class CNA_Sim:
                 options={"disp": True, "maxiter": 5},
             )
 
-            max_param_frac_update = np.max(np.abs((1.0 - res.x / params)))
+            max_frac_shift = np.max(np.abs((1.0 - res.x / params)))
 
             params, cost = res.x, res.fun
 
@@ -722,11 +721,14 @@ class CNA_Sim:
             self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
 
             logger.info(
-                f"minimization success={res.success}, with parameter fractional update: {max_param_frac_update} and message={res.message}\n"
+                f"minimization success={res.success}, with max parameter frac. update: {max_frac_shift} and message={res.message}\n"
             )
 
             self.update_message(params, cost)
 
+            if max_frac_shift < 0.01:
+                break
+            
         logger.info(f"Found best-fit CNA mixture params:\n{params}")
 
         # title="Initial state posteriors (based on closest state lambdas).",
