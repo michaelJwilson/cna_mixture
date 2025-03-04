@@ -15,9 +15,6 @@ from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
 from cna_mixture_rs.core import betabinom_logpmf, nbinom_logpmf
 
-RUST_BACKEND = True
-
-
 np.random.seed(1234)
 
 logging.basicConfig(
@@ -27,7 +24,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
+RUST_BACKEND = True
 
 def tophat_smooth(data, window_size):
     """
@@ -680,11 +677,6 @@ class CNA_Sim:
 
         bounds = self.get_cna_mixture_bounds()
 
-        # TODO test
-        # approx_grad = approx_fprime(params, self.cna_mixture_em_cost, np.sqrt(np.finfo(float).eps), ln_lambdas)
-        # print(approx_grad)
-        # exit()
-
         self.ln_lambdas = self.initialize_ln_lambdas_closest(mixture_params)
         self.ln_state_emission = self.cna_mixture_ln_emission_update(params)
         self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
@@ -693,7 +685,13 @@ class CNA_Sim:
         )
 
         cost = self.cna_mixture_em_cost(params, verbose=True)
+        
+        # TODO test                                                                                                                                                                                                                                                            
+        approx_grad = approx_fprime(params, self.cna_mixture_em_cost, np.sqrt(np.finfo(float).eps))
+        print(approx_grad)
+        exit()
 
+        
         for ii in range(maxiter):
             # TODO prior to prevent single-state occupancy.
             # TODO callback forward.
