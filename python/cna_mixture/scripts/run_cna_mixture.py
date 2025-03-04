@@ -644,7 +644,7 @@ class CNA_Sim:
 
         return np.c_[state_read_depths / self.realized_genome_coverage, bafs]
 
-    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=25):
+    def fit_cna_mixture(self, optimizer="L-BFGS-B", maxiter=25):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
