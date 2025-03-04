@@ -713,11 +713,11 @@ class CNA_Sim:
             self.ln_state_posteriors = self.estep(
                 self.ln_state_emission, self.ln_state_prior
             )
-            
+
             self.ln_lambdas = self.cna_mixture_ln_lambdas_update(
                 self.ln_state_posteriors
             )
-            
+
             self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
 
             logger.info(
@@ -728,7 +728,7 @@ class CNA_Sim:
 
             if max_frac_shift < 0.01:
                 break
-            
+
         logger.info(f"Found best-fit CNA mixture params:\n{params}")
 
         # title="Initial state posteriors (based on closest state lambdas).",
@@ -738,6 +738,7 @@ class CNA_Sim:
             ln_state_posteriors=self.ln_state_posteriors,
             states_bag=self.get_states_bag(params),
         )
+
 
 def main():
     start = time.time()
