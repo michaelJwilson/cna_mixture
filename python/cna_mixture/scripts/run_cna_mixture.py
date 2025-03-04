@@ -191,8 +191,8 @@ class CNA_mixture_params:
         self.__verify()
 
     def update_rdr_baf_choice(self, rdr_baf):
-        non_normal = rdr_baf[rdr_baf[:,0] > 1.]
-        
+        non_normal = rdr_baf[rdr_baf[:, 0] > 1.0]
+
         xx = np.arange(len(non_normal))
         idx = random.choice(xx, size=self.num_states - 1, replace=False)
 
@@ -540,22 +540,24 @@ class CNA_Sim:
 
         return result, state_rs_ps
 
+    def cna_mixture_ln_emission_update(self, params):
+        ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
+        ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
+
+        return ln_state_posterior_betabinom + ln_state_posterior_nbinom
+    
     def cna_mixture_ln_state_posterior_update(self, params, ln_lambdas):
         """
         Calculate *un-normalized* state posteriors based on current parameter +
         lambda settings.
         """
+        ln_state_emission = self.cna_mixture_ln_emission_update(params)
+        
         # NB simple broadcasting.
         ln_state_posterior_categorical = self.cna_mixture_categorical_update(ln_lambdas)
-        ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
-        ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
-
+                
         # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi), as required by EM cost.
-        return (
-            ln_state_posterior_categorical
-            + ln_state_posterior_betabinom
-            + ln_state_posterior_nbinom
-        )
+        return ln_state_posterior_categorical + ln_state_emission
 
     def estep(self, params, ln_lambdas):
         """
@@ -679,8 +681,6 @@ class CNA_Sim:
         init_mixture_params = CNA_mixture_params()
         init_mixture_params.update_rdr_baf_choice(self.rdr_baf)
 
-        # print(init_mixture_params)
-
         # TODO assign closest -> better initialization.
         initial_ln_lambdas = self.initialize_ln_lambdas_closest(init_mixture_params)
 
@@ -711,12 +711,12 @@ class CNA_Sim:
         ln_state_posteriors = self.estep(params, ln_lambdas)
 
         # NB initialization only.
-        self.plot_rdr_baf_flat(                                                                                                                                                                                       
-            self.rdr_baf[:, 0],                                                                                                                                                                                       
-            self.rdr_baf[:, 1],                                                                                                                                                                                       
-            ln_state_posteriors=ln_state_posteriors,                                                                                                                                                                  
-            states_bag=init_mixture_params.cna_states,                                                                                                                                                                
-            title="Initial state posteriors (based on closest state lambdas)."                                                                                                                                        
+        self.plot_rdr_baf_flat(
+            self.rdr_baf[:, 0],
+            self.rdr_baf[:, 1],
+            ln_state_posteriors=ln_state_posteriors,
+            states_bag=init_mixture_params.cna_states,
+            title="Initial state posteriors (based on closest state lambdas).",
         )
 
         for ii in range(maxiter):
