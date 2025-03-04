@@ -541,6 +541,12 @@ class CNA_Sim:
 
         return result, state_rs_ps
 
+    def cna_mixture_ln_lambdas_update(self, ln_state_posteriors):
+	"""                                                                                                                                                                                                                      
+        Given updated ln_state_posteriors, calculate the updated ln_lambdas.                                                                                                                                                     
+        """
+        return logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
+    
     def cna_mixture_ln_emission_update(self, params):
         ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
@@ -552,12 +558,6 @@ class CNA_Sim:
         Calculate normalized state posteriors based on current parameter + lambda settings.
         """
         return normalize_ln_posteriors(ln_state_emission + ln_state_prior)
-
-    def cna_mixture_ln_lambdas_update(self, ln_state_posteriors):
-        """
-        Given updated ln_state_posteriors, calculate the updated ln_lambdas.
-        """
-        return logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
 
     def cna_mixture_em_cost(self, params, verbose=False):
         """
