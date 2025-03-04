@@ -7,6 +7,7 @@ import numpy.random as random
 
 from matplotlib.colors import LogNorm
 from scipy.stats import nbinom, betabinom, poisson
+from scipy.optimize import approx_fprime, check_grad, minimize
 from scipy.special import gamma
 from scipy.special import logsumexp as logsumexp
 from scipy.spatial import KDTree
@@ -545,27 +546,13 @@ class CNA_Sim:
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
 
         return ln_state_posterior_betabinom + ln_state_posterior_nbinom
-    
-    def cna_mixture_ln_state_posterior_update(self, params, ln_lambdas):
-        """
-        Calculate *un-normalized* state posteriors based on current parameter +
-        lambda settings.
-        """
-        ln_state_emission = self.cna_mixture_ln_emission_update(params)
-        
-        # NB simple broadcasting.
-        ln_state_posterior_categorical = self.cna_mixture_categorical_update(ln_lambdas)
-                
-        # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi), as required by EM cost.
-        return ln_state_posterior_categorical + ln_state_emission
 
-    def estep(self, params, ln_lambdas):
+    def estep(self, ln_state_emission, ln_state_prior):
         """
-        Calculate normalized state posteriors based on current parameter + lambda
-        settings.
+        Calculate normalized state posteriors based on current parameter + lambda settings.
         """
         return normalize_ln_posteriors(
-            self.cna_mixture_ln_state_posterior_update(params, ln_lambdas)
+            ln_state_emission + ln_state_prior
         )
 
     def cna_mixture_ln_lambdas_update(self, ln_state_posteriors):
@@ -575,30 +562,19 @@ class CNA_Sim:
         return logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
 
     def cna_mixture_em_cost(
-        self, params, ln_lambdas, approx_ln_state_posteriors=None, verbose=False
+        self, params, verbose=False
     ):
         """
         if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
         the current params values and the assumed state_posteriors.
+
+        NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
         """
-        # NB WARNING state posteriors are *not* normalized here, i.e. P(xi, hi) as required by EM cost.
-        ln_state_posteriors_nonorm = self.cna_mixture_ln_state_posterior_update(
-            params, ln_lambdas
-        )
-
-        if approx_ln_state_posteriors is None:
-            # NB set ln_state_posteriors based on current parameters.
-            ln_state_posteriors = normalize_ln_posteriors(ln_state_posteriors_nonorm)
-        else:
-            # NB utilize estimate of ln_state_posteriors, e.g. based on last parameter set rather than
-            #    current.
-            ln_state_posteriors = normalize_ln_posteriors(approx_ln_state_posteriors)
-
+        self.ln_state_emission = self.cna_mixture_ln_emission_update(params)
+        
         # NB responsibilites rik, where i is the sample and k is the state.
-        state_posteriors = np.exp(ln_state_posteriors)
-
         # NB this is *not* state-posterior weighted log-likelihood.
-        cost = state_posteriors * ln_state_posteriors_nonorm
+        cost = np.exp(self.ln_state_posteriors) * (self.ln_state_prior + self.ln_state_emission)
 
         # NB sum over samples and states.  Maximization -> minimization.
         cost = -cost.sum()
@@ -678,38 +654,38 @@ class CNA_Sim:
         assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
 
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
-        init_mixture_params = CNA_mixture_params()
-        init_mixture_params.update_rdr_baf_choice(self.rdr_baf)
+        mixture_params = CNA_mixture_params()
+        mixture_params.update_rdr_baf_choice(self.rdr_baf)
 
-        # TODO assign closest -> better initialization.
-        initial_ln_lambdas = self.initialize_ln_lambdas_closest(init_mixture_params)
+        ln_lambdas = self.initialize_ln_lambdas_closest(mixture_params)
 
-        logging.info(f"Initializing CNA states:\n{init_mixture_params.cna_states}\n")
+        logging.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
 
         # NB self.realized_genome_coverage == normal_coverage currently.
-        initial_state_read_depths = (
-            self.realized_genome_coverage * init_mixture_params.cna_states[:, 0]
+        state_read_depths = (
+            self.realized_genome_coverage * mixture_params.cna_states[:, 0]
         )
-        initial_bafs = init_mixture_params.cna_states[:, 1]
+        bafs = mixture_params.cna_states[:, 1]
 
         # NB e.g. [0.2443, 0.3857, 0.1247, 0.2453, ... 500.0, 1500.0, 2500.0, 3500.0, 0.01, ... 0.5, 0.3333333333333333, 0.2, 0.14285714285714285, 47.075625069001084]
-        initial_params = np.array(
-            initial_state_read_depths.tolist()
-            + [init_mixture_params.overdisp_phi]
-            + initial_bafs.tolist()
-            + [init_mixture_params.overdisp_tau]
+        params = np.array(
+            state_read_depths.tolist()
+            + [mixture_params.overdisp_phi]
+            + bafs.tolist()
+            + [mixture_params.overdisp_tau]
         )
-
+        
+        """
         initial_cost = self.cna_mixture_em_cost(
             initial_params, initial_ln_lambdas, verbose=True
         )
 
         self.update_message(initial_params, initial_ln_lambdas, initial_cost)
-
-        params, ln_lambdas = initial_params, initial_ln_lambdas
+        """
+        
         bounds = self.get_cna_mixture_bounds()
-        ln_state_posteriors = self.estep(params, ln_lambdas)
 
+        """
         # NB initialization only.
         self.plot_rdr_baf_flat(
             self.rdr_baf[:, 0],
@@ -718,16 +694,25 @@ class CNA_Sim:
             states_bag=init_mixture_params.cna_states,
             title="Initial state posteriors (based on closest state lambdas).",
         )
+        """
 
+        # TODO test
+        # approx_grad = approx_fprime(params, self.cna_mixture_em_cost, np.sqrt(np.finfo(float).eps), ln_lambdas)
+        # print(approx_grad)
+        # exit()
+
+        # NB initialize and populate emission cache.
+        self.ln_state_emission = self.cna_mixture_ln_emission_update(params)
+        
         for ii in range(maxiter):
-            # NB state posterior calculated exactly on each parameter step (no runtime loss).
-            #    lambdas handled explicitly as sum constrained to be unity (i.e. probabilities)
-            #
+            self.ln_state_prior = self.cna_mixture_categorical_update(ln_lambdas)
+            self.ln_state_posteriors = self.estep(self.ln_state_emission, self.ln_state_prior)
+            
             # TODO prior to prevent single-state occupancy.
+            # TODO callback forward.
             res = minimize(
                 self.cna_mixture_em_cost,
                 params,
-                args=(ln_lambdas),
                 method=optimizer,
                 bounds=bounds,
                 constraints=None,
