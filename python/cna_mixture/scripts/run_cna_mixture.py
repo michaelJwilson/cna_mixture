@@ -587,30 +587,43 @@ class CNA_Sim:
         )
 
         ks = self.get_data_bykey("read_coverage")
-        mus_result = np.zeros((len(ks), len(state_rs_ps)))
-        phi_result = np.zeros((len(ks), len(state_rs_ps)))
+
+        if RUST_BACKEND:
+            ks = np.ascontiguousarray(ks)
+            mus = np.ascontiguousarray(mus)
+
+            grad_cna_mixture_em_cost_nb = grad_cna_mixture_em_cost_nb_rs(ks, mus, phi)
+
+            raise NotImplementedError()
         
-        for col, (rr, pp) in enumerate(state_rs_ps):
-            phi = rdr_overdispersion
-            mu = state_read_depths[col]
+            return np.array(grad_cna_mixture_em_cost_nb)
+        else:        
+            ## >>>>>>>>>  ks, ns, mus, phi.
+            mus_result = np.zeros((len(ks), len(state_rs_ps)))
+            phi_result = np.zeros((len(ks), len(state_rs_ps)))
+        
+            for col, (rr, pp) in enumerate(state_rs_ps):
+                mu = state_read_depths[col]
+                phi = rdr_overdispersion
 
-            zero_point = digamma(rr) / (phi * phi)
-            zero_point += np.log(1.0 + phi * mu) / phi / phi
-            zero_point -= phi * mu * rr / phi / (1.0 + phi * mu)
+                zero_point = digamma(rr) / (phi * phi)
+                zero_point += np.log(1.0 + phi * mu) / phi / phi
+                zero_point -= phi * mu * rr / phi / (1.0 + phi * mu)
             
-            for row, kk in enumerate(ks):
-                mus_result[row, col] = (kk - phi * mu * rr) / mu / (1.0 + phi * mu)
-                phi_result[row, col] = (
-                    zero_point
-                    - digamma(kk + rr) / (phi * phi)
-                    + kk / phi / (1.0 + phi * mu)
-                )
+                for row, kk in enumerate(ks):
+                    mus_result[row, col] = (kk - phi * mu * rr) / mu / (1.0 + phi * mu)
+                    phi_result[row, col] = (
+                        zero_point
+                        - digamma(kk + rr) / (phi * phi)
+                        + kk / phi / (1.0 + phi * mu)
+                    )
                 
-        grad_mus = -(self.state_posteriors * mus_result).sum(axis=0)
-        grad_phi = -(self.state_posteriors * phi_result).sum()
+            grad_mus = -(self.state_posteriors * mus_result).sum(axis=0)
+            grad_phi = -(self.state_posteriors * phi_result).sum()
 
-        return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
-
+            return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
+            ## <<<<<<<<<
+    
     def grad_cna_mixture_em_cost_bb(self, params):
         def grad_ln_bb_ab_zeropoint(a, b):
             gab = digamma(a + b)

@@ -2,7 +2,7 @@ extern crate statrs;
 
 use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
-use statrs::function::gamma::ln_gamma;
+use statrs::function::gamma::{ln_gamma, digamma};
 use statrs::function::factorial::ln_factorial;
 use ndarray::parallel::prelude::IntoParallelRefIterator;
 use ndarray::parallel::prelude::IndexedParallelIterator;
@@ -96,6 +96,72 @@ fn betabinom_logpmf<'py>(
     });
 
     Ok(result)
+}
+
+
+/*
+mus_result = np.zeros((len(ks), len(state_rs_ps)))
+phi_result = np.zeros((len(ks), len(state_rs_ps)))
+
+for col, (rr, pp) in enumerate(state_rs_ps):
+    mu = state_read_depths[col]
+    phi = rdr_overdispersion
+
+    zero_point = digamma(rr) / (phi * phi)
+    zero_point += np.log(1.0 + phi * mu) / phi / phi
+    zero_point -= phi * mu * rr / phi / (1.0 + phi * mu)
+
+    for row, kk in enumerate(ks):
+        mus_result[row, col] = (kk - phi * mu * rr) / mu / (1.0 + phi * mu)
+        phi_result[row, col] = (
+                        zero_point
+                        - digamma(kk + rr) / (phi * phi)
+                        + kk / phi / (1.0 + phi * mu)
+        )
+
+    grad_mus = -(self.state_posteriors * mus_result).sum(axis=0)
+    grad_phi = -(self.state_posteriors * phi_result).sum()
+
+    return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
+*/
+
+#[pyfunction]
+fn grad_cna_mixture_em_cost_nb_rs<'py>(
+    ks: PyReadonlyArray1<'_, f64>,
+    mus: PyReadonlyArray1<'_, f64>,
+    rs: PyReadonlyArray1<'_, f64>,
+    phi: f64,
+) -> PyResult<Vec<Vec<f64>>> {
+    let ks = ks.to_vec()?;
+    let mus = mus.to_vec()?;
+    let rs = rs.to_vec()?;
+
+    // TODO define digamma
+    let zero_points: Vec<f64> = mus.iter().zip(rs.iter()).map(|(&mu, &rr)| digamma(rr) / (phi * phi) + (1.0 + phi * mu).ln() / phi / phi - phi * mu * rr / phi / (1.0 + phi * mu)).collect();
+
+    let mus_result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
+        ks.par_iter().enumerate().map(|(_ii, &k_val)| {
+            let row: Vec<f64> = mus.iter().zip(rs.iter()).map(|(&mu, &rr)| {
+                (k_val - phi * mu * rr) / mu / (1.0 + phi * mu)
+            }).collect();
+
+            row
+
+            }).collect::<Vec<Vec<f64>>>()
+    });
+
+    let phi_result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
+        ks.par_iter().enumerate().map(|(_ii, &k_val)| {
+            let row: Vec<f64> = mus.iter().enumerate().map(|(ss, &mu)| {
+	    	zero_points[ss] - digamma(k_val + rs[ss]) / (phi * phi) + k_val / phi / (1.0 + phi * mu)
+            }).collect();
+
+            row
+
+            }).collect::<Vec<Vec<f64>>>()
+    });
+
+    Ok(mus_result)
 }
 
 #[pymodule]
