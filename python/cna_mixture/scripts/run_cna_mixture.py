@@ -368,7 +368,7 @@ class CNA_Sim:
         if title is not None:
             pl.title(title)
 
-        pl.savefig("rdr_baf_flat.pdf")
+        pl.savefig("plots/rdr_baf_flat.pdf")
 
     def plot_realization_true_flat(self):
         """
