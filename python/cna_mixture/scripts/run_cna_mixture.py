@@ -28,7 +28,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-RUST_BACKEND = True
+RUST_BACKEND = False
 
 
 def tophat_smooth(data, window_size):
@@ -762,7 +762,7 @@ class CNA_Sim:
 
         return np.c_[state_read_depths / self.realized_genome_coverage, bafs]
 
-    def fit_cna_mixture(self, optimizer="L-BFGS-B", maxiter=100):
+    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=100):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -818,13 +818,14 @@ class CNA_Sim:
             self.cna_mixture_em_cost, self.cna_mixture_em_cost_grad, params
         )
 
-        print(em_cost_grad)
-        print(approx_grad)
-        print(err)
-        
+        # print(em_cost_grad)
+        # print(approx_grad)
+        # print(err)
+
+        # NB expect ~0.77
         assert err < 1.0, f"{err}"
 
-        # exit(0)
+        logger.info("Running optimization with optimizer {optimizer.upper()}")
         
         for ii in range(maxiter):
             # TODO prior to prevent single-state occupancy.
@@ -833,7 +834,7 @@ class CNA_Sim:
                 self.cna_mixture_em_cost,
                 params,
                 method=optimizer,
-                jac=self.cna_mixture_em_cost_grad,
+                jac=None, # self.cna_mixture_em_cost_grad
                 bounds=bounds,
                 constraints=None,
                 options={"disp": True, "maxiter": 5},
