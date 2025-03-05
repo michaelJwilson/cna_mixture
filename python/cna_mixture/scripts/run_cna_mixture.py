@@ -567,12 +567,8 @@ class CNA_Sim:
 
         # NB responsibilites rik, where i is the sample and k is the state.
         # NB this is *not* state-posterior weighted log-likelihood.
-        cost = np.exp(self.ln_state_posteriors) * (
-            self.ln_state_prior + self.ln_state_emission
-        )
-
         # NB sum over samples and states.  Maximization -> minimization.
-        cost = -cost.sum()
+        cost = -(self.state_posteriors * (self.ln_state_prior + self.ln_state_emission)).sum()
 
         if verbose:
             self.update_message(params, cost)
@@ -610,8 +606,8 @@ class CNA_Sim:
                     + kk / phi / (1.0 + phi * mu)
                 )
                 
-        grad_mus = -(np.exp(self.ln_state_posteriors) * mus_result).sum(axis=0)
-        grad_phi = -(np.exp(self.ln_state_posteriors) * phi_result).sum()
+        grad_mus = -(self.state_posteriors * mus_result).sum(axis=0)
+        grad_phi = -(self.state_posteriors * phi_result).sum()
 
         return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
 
@@ -653,18 +649,15 @@ class CNA_Sim:
                 ps_result[row, col] = -tau * interim[1] + tau * interim[0]
                 tau_result[row, col] = (1.0 - baf) * interim[1] + baf * interim[0]
 
-        grad_ps = -(np.exp(self.ln_state_posteriors) * ps_result).sum(axis=0)
-        grad_tau = -(np.exp(self.ln_state_posteriors) * tau_result).sum()
+        grad_ps = -(self.state_posteriors * ps_result).sum(axis=0)
+        grad_tau = -(self.state_posteriors * tau_result).sum()
 
         return np.concatenate([grad_ps, np.atleast_1d(grad_tau)])
 
     def cna_mixture_em_cost_grad(self, params, verbose=False):
         result = []
-
         result += self.grad_cna_mixture_em_cost_nb(params).tolist()
-        # result += [self.grad_cna_mixture_em_cost_phi(params)]
         result += self.grad_cna_mixture_em_cost_bb(params).tolist()
-        # result += [self.grad_cna_mixture_em_cost_tau(params)]
 
         return np.array(result)
 
@@ -772,6 +765,8 @@ class CNA_Sim:
         self.ln_state_posteriors = self.estep(
             self.ln_state_emission, self.ln_state_prior
         )
+        self.state_posteriors = np.exp(self.ln_state_posteriors)
+        
 
         cost = self.cna_mixture_em_cost(params, verbose=True)
 
@@ -812,6 +807,8 @@ class CNA_Sim:
             self.ln_state_posteriors = self.estep(
                 self.ln_state_emission, self.ln_state_prior
             )
+
+            self.state_posteriors = np.exp(self.ln_state_posteriors)
             
             self.ln_lambdas = self.cna_mixture_ln_lambdas_update(
                 self.ln_state_posteriors
