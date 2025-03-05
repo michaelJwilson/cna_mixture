@@ -812,7 +812,7 @@ class CNA_Sim:
             self.ln_state_posteriors = self.estep(
                 self.ln_state_emission, self.ln_state_prior
             )
-
+            
             self.ln_lambdas = self.cna_mixture_ln_lambdas_update(
                 self.ln_state_posteriors
             )
