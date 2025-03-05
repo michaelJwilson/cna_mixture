@@ -588,22 +588,19 @@ class CNA_Sim:
 
         ks = self.get_data_bykey("read_coverage")
 
-        if RUST_BACKEND:
+        if False:
             ks = np.ascontiguousarray(ks)
             mus = np.ascontiguousarray(state_read_depths)
             rs = np.ascontiguousarray(state_rs_ps[:,0])
             phi = rdr_overdispersion
             
-            grad_cna_mixture_em_cost_nb = grad_cna_mixture_em_cost_nb_rs(ks, mus, rs, phi)
-            grad_cna_mixture_em_cost_nb = np.array(grad_cna_mixture_em_cost_nb)
-            
-            print(grad_cna_mixture_em_cost_nb)
+            sample_grad_mus, sample_grad_phi = grad_cna_mixture_em_cost_nb_rs(ks, mus, rs, phi)
 
-            exit(0)
+            sample_grad_mus = np.array(sample_grad_mus)
+            sample_grad_phi = np.array(sample_grad_phi)
         else:        
-            ## >>>>>>>>>  ks, ns, mus, phi.
-            mus_result = np.zeros((len(ks), len(state_rs_ps)))
-            phi_result = np.zeros((len(ks), len(state_rs_ps)))
+            sample_grad_mus = np.zeros((len(ks), len(state_rs_ps)))
+            sample_grad_phi = np.zeros((len(ks), len(state_rs_ps)))
         
             for col, (rr, pp) in enumerate(state_rs_ps):
                 mu = state_read_depths[col]
@@ -614,18 +611,17 @@ class CNA_Sim:
                 zero_point -= phi * mu * rr / phi / (1.0 + phi * mu)
             
                 for row, kk in enumerate(ks):
-                    mus_result[row, col] = (kk - phi * mu * rr) / mu / (1.0 + phi * mu)
-                    phi_result[row, col] = (
+                    sample_grad_mus[row, col] = (kk - phi * mu * rr) / mu / (1.0 + phi * mu)
+                    sample_grad_phi[row, col] = (
                         zero_point
                         - digamma(kk + rr) / (phi * phi)
                         + kk / phi / (1.0 + phi * mu)
                     )
                 
-            grad_mus = -(self.state_posteriors * mus_result).sum(axis=0)
-            grad_phi = -(self.state_posteriors * phi_result).sum()
+            grad_mus = -(self.state_posteriors * sample_grad_mus).sum(axis=0)
+            grad_phi = -(self.state_posteriors * sample_grad_phi).sum()
 
             return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
-            ## <<<<<<<<<
     
     def grad_cna_mixture_em_cost_bb(self, params):
         def grad_ln_bb_ab_zeropoint(a, b):

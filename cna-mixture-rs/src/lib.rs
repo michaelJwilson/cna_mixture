@@ -131,7 +131,7 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
     mus: PyReadonlyArray1<'_, f64>,
     rs: PyReadonlyArray1<'_, f64>,
     phi: f64,
-) -> PyResult<Vec<Vec<f64>>> {
+) -> PyResult<(Vec<Vec<f64>>, Vec<Vec<f64>>)> {
     let ks = ks.to_vec()?;
     let mus = mus.to_vec()?;
     let rs = rs.to_vec()?;
@@ -161,7 +161,7 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
             }).collect::<Vec<Vec<f64>>>()
     });
 
-    Ok(mus_result)
+    Ok((mus_result, phi_result))
 }
 
 #[pymodule]
