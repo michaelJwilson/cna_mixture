@@ -31,6 +31,18 @@ logger = logging.getLogger(__name__)
 RUST_BACKEND = True
 
 
+"""
+TODOs:
+
+  - kmean++ like.
+  - multiple starts + best likelihood. 
+  - regularizer for state overlap.
+  - prior to prevent single-state occupancy.                                                                                            
+  - callback forward.
+  - unit tests.
+
+"""
+
 def tophat_smooth(data, window_size):
     """
     Top-hat convolution of a 1D signal.
@@ -205,8 +217,6 @@ class CNA_mixture_params:
 class CNA_Sim:
     def __init__(self):
         self.num_segments = 10_000
-
-        # TODO numerical precision on ps -> tie jump_rate to # states?
         self.jump_rate = 1.0e-1
 
         # NB normal coverage per segment, i.e. for RDR=1.
@@ -717,7 +727,6 @@ class CNA_Sim:
         return (1.0 / self.num_states) * np.ones(self.num_states)
 
     def initialize_ln_lambdas_closest(self, init_mixture_params):
-        # TODO kmeans++ like.
         decoded_states = assign_closest(self.rdr_baf, init_mixture_params.cna_states)
 
         # NB categorical prior on state fractions
@@ -743,7 +752,6 @@ class CNA_Sim:
         return bounds
 
     def get_cna_mixture_constraints(self):
-        # TODO regularizer for state overlap?
         # NB equality constaints to be zero.
         constraints = [
             # NB sum of RDRs should explain realized genome-wide coverage.
@@ -839,8 +847,6 @@ class CNA_Sim:
         logger.info(f"Running optimization with optimizer {optimizer.upper()}")
         
         for ii in range(maxiter):
-            # TODO prior to prevent single-state occupancy.
-            # TODO callback forward.
             res = minimize(
                 self.cna_mixture_em_cost,
                 params,
