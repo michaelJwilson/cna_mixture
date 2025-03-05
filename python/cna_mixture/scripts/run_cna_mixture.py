@@ -14,6 +14,8 @@ from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
 from cna_mixture.cna_mixture_params import CNA_mixture_params
 from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
+from cna_mixture.encoding import onehot_encode_states
+from cna_mixture.gaussian_mixture import fit_gaussian_mixture
 from cna_mixture_rs.core import (
     betabinom_logpmf,
     nbinom_logpmf,
@@ -55,20 +57,6 @@ def assign_closest(points, centers):
     distances, idx = tree.query(points)
 
     return idx
-
-
-def onehot_encode_states(state_array):
-    """
-    Given an index array of categorical states,
-    return the (# samples, # states) one-hot
-    encoding.
-
-    NB equivalent to a (singular) state posterior!
-    """
-    num_states = np.max(state_array).astype(int) + 1
-    states = state_array.astype(int)
-
-    return np.eye(num_states)[states]
 
 
 def reparameterize_nbinom(means, overdisp):
@@ -272,41 +260,6 @@ class CNA_Sim:
             ln_state_posteriors=np.log(onehot_encode_states(true_states)),
             states_bag=self.cna_states,
             title="CNA realizations - true states",
-        )
-
-    def fit_gaussian_mixture(
-        self,
-        num_samples=100_000,
-        num_components=4,
-        random_state=0,
-        max_iter=1,
-        covariance_type="diag",
-    ):
-        """
-        See:  https://github.com/raphael-group/CalicoST/blob/5e4a8a1230e71505667d51390dc9c035a69d60d9/src/calicost/utils_hmm.py#L163
-        """
-        # NB covariance_type = {diag, full}
-        #
-        #    see https://scikit-learn.org/stable/modules/generated/sklearn.mixture.GaussianMixture.html
-        gmm = GaussianMixture(
-            n_components=num_components,
-            random_state=random_state,
-            max_iter=max_iter,
-            covariance_type=covariance_type,
-        ).fit(self.rdr_baf)
-
-        means = np.c_[gmm.means_[:, 0], gmm.means_[:, 1]]
-        samples, decoded_states = gmm.sample(n_samples=num_samples)
-
-        logger.info(f"Fit Gaussian mixture means:\n{means}")
-        
-        plot_rdr_baf_flat(
-            "plots/gmm_rdr_baf_flat.pdf",
-            samples[:, 0],
-            samples[:, 1],
-            ln_state_posteriors=np.log(onehot_encode_states(decoded_states)),
-            states_bag=means,
-            title=r"Best-fit Gaussian Mixture Model samples",
         )
 
     def unpack_cna_mixture_params(self, params):
@@ -554,11 +507,7 @@ class CNA_Sim:
         return np.concatenate([grad_ps, np.atleast_1d(grad_tau)])
 
     def cna_mixture_em_cost_grad(self, params, verbose=False):
-        result = []
-        result += self.grad_cna_mixture_em_cost_nb(params).tolist()
-        result += self.grad_cna_mixture_em_cost_bb(params).tolist()
-
-        return np.array(result)
+        return np.concatenate([self.grad_cna_mixture_em_cost_nb(params), self.grad_cna_mixture_em_cost_bb(params)])
 
     def update_message(self, params, cost):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
@@ -747,10 +696,10 @@ def main():
     cna_sim = CNA_Sim()
     # cna_sim.plot_realization_true_flat()
     
-    plot_rdr_baf_genome("plots/rdr_baf_genome.pdf", cna_sim.rdr_baf)
+    # plot_rdr_baf_genome("plots/rdr_baf_genome.pdf", cna_sim.rdr_baf)
     
-    # cna_sim.fit_gaussian_mixture()
-    # cna_sim.fit_cna_mixture()
+    # fit_gaussian_mixture(cna_sim.rdr_baf)
+    cna_sim.fit_cna_mixture()
 
     print(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
