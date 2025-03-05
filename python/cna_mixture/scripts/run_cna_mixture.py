@@ -28,7 +28,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-RUST_BACKEND = False
+RUST_BACKEND = True
 
 
 def tophat_smooth(data, window_size):
@@ -332,7 +332,7 @@ class CNA_Sim:
         return np.c_[rdr, baf]
 
     def plot_rdr_baf_flat(
-        self, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None
+        self, fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None
     ):
         """
         NB state_posteriors may be an integer, corresponding to a decoded state, or
@@ -373,7 +373,7 @@ class CNA_Sim:
         if title is not None:
             pl.title(title)
 
-        pl.savefig("plots/initial_rdr_baf_flat.pdf")
+        pl.savefig(fpath)
 
     def plot_realization_true_flat(self):
         """
@@ -387,6 +387,7 @@ class CNA_Sim:
             ln_state_posteriors=np.log(onehot_encode_states(true_states)),
             states_bag=self.cna_states,
             title="CNA realizations - true states",
+            fpath="plots/truth_rdr_baf_flat.pdf"
         )
 
     def plot_realization_genome(
@@ -447,6 +448,7 @@ class CNA_Sim:
             ln_state_posteriors=np.log(onehot_encode_states(decoded_states)),
             states_bag=means,
             title=r"Best-fit Gaussian Mixture Model samples",
+            fpath="plots/gmm_rdr_baf_flat.pdf"
         )
 
     def unpack_cna_mixture_params(self, params):
@@ -762,7 +764,7 @@ class CNA_Sim:
 
         return np.c_[state_read_depths / self.realized_genome_coverage, bafs]
 
-    def fit_cna_mixture(self, optimizer="nelder-mead", maxiter=100):
+    def fit_cna_mixture(self, optimizer="L-BFGS-B", maxiter=100):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -817,9 +819,8 @@ class CNA_Sim:
             ln_state_posteriors=self.ln_state_posteriors,
             states_bag=self.get_states_bag(params),
             title="Initial state posteriors (based on closest state lambdas).",
+            fpath="plots/initial_rdr_baf_flat.pdf",
         )
-
-        exit()
         
         """
         # TODO test
@@ -844,7 +845,7 @@ class CNA_Sim:
                 self.cna_mixture_em_cost,
                 params,
                 method=optimizer,
-                jac=None, # self.cna_mixture_em_cost_grad
+                jac=self.cna_mixture_em_cost_grad,
                 bounds=bounds,
                 constraints=None,
                 options={"disp": True, "maxiter": 5},
@@ -883,6 +884,8 @@ class CNA_Sim:
             self.rdr_baf[:, 1],
             ln_state_posteriors=self.ln_state_posteriors,
             states_bag=self.get_states_bag(params),
+            title="Final state posteriors"
+            fpath="plots/final_rdr_baf_flat.pdf",
         )
 
 
