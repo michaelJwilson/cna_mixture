@@ -615,7 +615,7 @@ class CNA_Sim:
 
         return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
 
-    def grad_cna_mixture_em_cost_tau(self, params):
+    def grad_cna_mixture_em_cost_bb(self, params):
         def grad_ln_bb_ab(a, b, k, n):
             gka = digamma(k + a)
             gab = digamma(a + b)
@@ -634,56 +634,32 @@ class CNA_Sim:
         )
 
         ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
-        result = np.zeros((len(ks), len(state_alpha_betas)))
 
+        ps_result = np.zeros((len(ks), len(state_alpha_betas)))
+        tau_result = np.zeros((len(ks), len(state_alpha_betas)))
+        
         for col, (alpha, beta) in enumerate(state_alpha_betas):
             for row, (k, n) in enumerate(zip(ks, ns)):
                 tau = alpha + beta
                 baf = beta / tau
 
                 interim = grad_ln_bb_ab(beta, alpha, k, n)
-                result[row, col] = (1.0 - baf) * interim[1] + baf * interim[0]
+                
+                ps_result[row, col] = -tau * interim[1] + tau * interim[0]
+                tau_result[row, col] = (1.0 - baf) * interim[1] + baf * interim[0]
 
-        return -(np.exp(self.ln_state_posteriors) * result).sum()
+        grad_ps = -(np.exp(self.ln_state_posteriors) * ps_result).sum(axis=0)
+        grad_tau = -(np.exp(self.ln_state_posteriors) * tau_result).sum()
 
-    def grad_cna_mixture_em_cost_ps(self, params):
-        def grad_ln_bb_ab(a, b, k, n):
-            gka = digamma(k + a)
-            gab = digamma(a + b)
-            gnab = digamma(n + a + b)
-            ga = digamma(a)
-
-            gnkb = digamma(n - k + b)
-            gb = digamma(b)
-
-            return np.array([gka + gab - gnab - ga, gnkb + gab - gnab - gb])
-
-        _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
-        state_alpha_betas = reparameterize_beta_binom(
-            bafs,
-            baf_overdispersion,
-        )
-
-        ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
-        result = np.zeros((len(ks), len(state_alpha_betas)))
-
-        for col, (alpha, beta) in enumerate(state_alpha_betas):
-            for row, (k, n) in enumerate(zip(ks, ns)):
-                tau = alpha + beta
-                baf = beta / tau
-
-                interim = grad_ln_bb_ab(beta, alpha, k, n)
-                result[row, col] = -tau * interim[1] + tau * interim[0]
-
-        return -(np.exp(self.ln_state_posteriors) * result).sum(axis=0)
+        return np.concatenate([grad_ps, np.atleast_1d(grad_tau)])
 
     def cna_mixture_em_cost_grad(self, params, verbose=False):
         result = []
 
         result += self.grad_cna_mixture_em_cost_nb(params).tolist()
         # result += [self.grad_cna_mixture_em_cost_phi(params)]
-        result += self.grad_cna_mixture_em_cost_ps(params).tolist()
-        result += [self.grad_cna_mixture_em_cost_tau(params)]
+        result += self.grad_cna_mixture_em_cost_bb(params).tolist()
+        # result += [self.grad_cna_mixture_em_cost_tau(params)]
 
         return np.array(result)
 
@@ -806,10 +782,10 @@ class CNA_Sim:
 
         assert err < 1.0
 
-        # print(em_cost_grad)
-        # print(approx_grad)
-        # print(err)
-        # exit(0)
+        print(em_cost_grad)
+        print(approx_grad)
+        print(err)
+        exit(0)
 
         for ii in range(maxiter):
             # TODO prior to prevent single-state occupancy.
