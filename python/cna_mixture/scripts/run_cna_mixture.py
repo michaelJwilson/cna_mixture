@@ -588,7 +588,7 @@ class CNA_Sim:
 
         ks = self.get_data_bykey("read_coverage")
 
-        if False:
+        if RUST_BACKEND:
             ks = np.ascontiguousarray(ks)
             mus = np.ascontiguousarray(state_read_depths)
             rs = np.ascontiguousarray(state_rs_ps[:,0])
@@ -618,10 +618,10 @@ class CNA_Sim:
                         + kk / phi / (1.0 + phi * mu)
                     )
                 
-            grad_mus = -(self.state_posteriors * sample_grad_mus).sum(axis=0)
-            grad_phi = -(self.state_posteriors * sample_grad_phi).sum()
+        grad_mus = -(self.state_posteriors * sample_grad_mus).sum(axis=0)
+        grad_phi = -(self.state_posteriors * sample_grad_phi).sum()
 
-            return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
+        return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
     
     def grad_cna_mixture_em_cost_bb(self, params):
         def grad_ln_bb_ab_zeropoint(a, b):
@@ -794,9 +794,9 @@ class CNA_Sim:
 
         assert err < 1.0
 
-        # print(em_cost_grad)
-        # print(approx_grad)
-        # print(err)
+        print(em_cost_grad)
+        print(approx_grad)
+        print(err)
         # exit(0)
 
         for ii in range(maxiter):
