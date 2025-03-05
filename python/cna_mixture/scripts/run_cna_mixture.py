@@ -210,25 +210,25 @@ class CNA_Sim:
 
             # NB CNA state, obs. transcripts (NegBin), lost transcripts (NegBin), B-allele support transcripts, vis a vis A.
             result.append(
-                [
+                (
                     state,
                     read_coverage,
                     true_read_coverage,  # NB not an observable, to be inferrred.
                     b_reads,
                     self.snp_coverages[ii],
-                ]
+                )
             )
 
         dtype = [
-            ('state', np.int32),
+            ('state', np.float64),
             ('read_coverage', np.float64),
             ('true_read_coverage', np.float64),
-            ('b_reads', np.int32),
-            ('snp_coverage', np.int32)
+            ('b_reads', np.float64),
+            ('snp_coverage', np.float64)
         ]
    
         self.data = np.array(result, dtype=dtype)
-
+        
         # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage
         # TODO? biases RDR estimates, particularly if many CNAs.
         #
@@ -253,7 +253,7 @@ class CNA_Sim:
     def rdr_baf(self):
         rdr = self.data["read_coverage"] / self.realized_genome_coverage
         baf = self.data["b_reads"] / self.data["snp_coverage"]
-
+        
         return np.c_[rdr, baf]
     
     def plot_realization_true_flat(self):
@@ -709,7 +709,7 @@ def main():
     
     # fit_gaussian_mixture(cna_sim.rdr_baf)
     # cna_sim.fit_cna_mixture()
-
+    
     cna_mixture = CNA_mixture(cna_sim.data, cna_sim.rdr_baf, cna_sim.realized_genome_coverage)
     
     print(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")

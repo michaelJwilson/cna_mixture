@@ -1,3 +1,4 @@
+import numpy as np
 from scipy.special import logsumexp
 
 def normalize_ln_posteriors(ln_posteriors):

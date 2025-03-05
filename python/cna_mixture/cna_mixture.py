@@ -8,6 +8,13 @@ from cna_mixture.beta_binomial import reparameterize_beta_binom
 from scipy.spatial import KDTree
 from scipy.optimize import minimize, check_grad, approx_fprime
 from scipy.special import digamma, logsumexp
+from cna_mixture_rs.core import (
+    betabinom_logpmf,
+    nbinom_logpmf,
+    grad_cna_mixture_em_cost_nb_rs,
+    grad_cna_mixture_em_cost_bb_rs,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -225,7 +232,7 @@ class CNA_mixture:
 
         ks, ns = self.data["b_reads"], self.data["snp_coverage"]
 
-        if RUST_BACKEND:
+        if self.RUST_BACKEND:
             ks, ns = np.ascontiguousarray(ks), np.ascontiguousarray(ns)
 
             alphas = np.ascontiguousarray(state_alpha_betas[:, 0].copy())
@@ -259,7 +266,7 @@ class CNA_mixture:
 
         ks = self.data["read_coverage"]
 
-        if RUST_BACKEND:
+        if self.RUST_BACKEND:
             ks = np.ascontiguousarray(ks)
 
             rs = np.ascontiguousarray(state_rs_ps[:, 0].copy())
@@ -328,7 +335,7 @@ class CNA_mixture:
 
         ks = self.data["read_coverage"]
 
-        if RUST_BACKEND:
+        if self.RUST_BACKEND:
             ks = np.ascontiguousarray(ks)
             mus = np.ascontiguousarray(state_read_depths)
             rs = np.ascontiguousarray(state_rs_ps[:, 0])
@@ -376,7 +383,7 @@ class CNA_mixture:
 
         ks, ns = self.data["b_reads"], self.data["snp_coverage"]
 
-        if RUST_BACKEND:
+        if self.RUST_BACKEND:
             ks = np.ascontiguousarray(ks)
             ns = np.ascontiguousarray(ns)
 
