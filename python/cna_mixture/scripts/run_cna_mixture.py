@@ -579,7 +579,7 @@ class CNA_Sim:
 
         return cost
 
-    def grad_cna_mixture_em_cost_mu(self, params):
+    def grad_cna_mixture_em_cost_mus(self, params):
         state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
             params
         )
@@ -656,10 +656,9 @@ class CNA_Sim:
                 baf = beta / tau
 
                 interim = grad_ln_bb_ab(beta, alpha, k, n)
-                result[row, col] = (1. - baf) * interim[1] + baf * interim[0]
+                result[row, col] = (1.0 - baf) * interim[1] + baf * interim[0]
 
         return -(np.exp(self.ln_state_posteriors) * result).sum()
-    
 
     def grad_cna_mixture_em_cost_ps(self, params):
         def grad_ln_bb_ab(a, b, k, n):
@@ -689,9 +688,19 @@ class CNA_Sim:
 
                 interim = grad_ln_bb_ab(beta, alpha, k, n)
                 result[row, col] = -tau * interim[1] + tau * interim[0]
-                    
+
         return -(np.exp(self.ln_state_posteriors) * result).sum(axis=0)
-            
+
+    def cna_mixture_em_cost_grad(self, params, verbose=False):
+        result = []
+
+        result += self.grad_cna_mixture_em_cost_mus(params).tolist()
+        result += [self.grad_cna_mixture_em_cost_phi(params)]
+        result += self.grad_cna_mixture_em_cost_ps(params).tolist()
+        result += [self.grad_cna_mixture_em_cost_tau(params)]
+
+        return np.array(result)
+
     def update_message(self, params, cost):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
@@ -800,24 +809,10 @@ class CNA_Sim:
         cost = self.cna_mixture_em_cost(params, verbose=True)
 
         # TODO test
-
-        grad_mu_cost = self.grad_cna_mixture_em_cost_mu(params)
-        grad_phi_cost = self.grad_cna_mixture_em_cost_phi(params)
-        grad_ps_cost = self.grad_cna_mixture_em_cost_ps(params)
-        grad_tau_cost = self.grad_cna_mixture_em_cost_tau(params)
-        
+        em_cost_grad = self.cna_mixture_em_cost_grad(params)
         approx_grad = approx_fprime(
             params, self.cna_mixture_em_cost, np.sqrt(np.finfo(float).eps)
         )
-
-        print(grad_mu_cost)
-        print(grad_phi_cost)
-        print(grad_ps_cost)
-        print(grad_tau_cost)
-        
-        print(approx_grad)
-
-        exit()
 
         for ii in range(maxiter):
             # TODO prior to prevent single-state occupancy.
