@@ -579,7 +579,7 @@ class CNA_Sim:
 
         return cost
 
-    def grad_cna_mixture_em_cost_mus(self, params):
+    def grad_cna_mixture_em_cost_nb(self, params):
         state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
             params
         )
@@ -591,43 +591,29 @@ class CNA_Sim:
         )
 
         ks = self.get_data_bykey("read_coverage")
-        result = np.zeros((len(ks), len(state_rs_ps)))
-
+        mus_result = np.zeros((len(ks), len(state_rs_ps)))
+        phi_result = np.zeros((len(ks), len(state_rs_ps)))
+        
         for col, (rr, pp) in enumerate(state_rs_ps):
             phi = rdr_overdispersion
             mu = state_read_depths[col]
 
+            zero_point = digamma(rr) / (phi * phi)
+            zero_point += np.log(1.0 + phi * mu) / phi / phi
+            zero_point -= phi * mu * rr / phi / (1.0 + phi * mu)
+            
             for row, kk in enumerate(ks):
-                result[row, col] = (kk - phi * mu * rr) / mu / (1.0 + phi * mu)
-
-        return -(np.exp(self.ln_state_posteriors) * result).sum(axis=0)
-
-    def grad_cna_mixture_em_cost_phi(self, params):
-        state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
-            params
-        )
-
-        # TODO does a non-linear transform in the cost trip the optimizer?
-        state_rs_ps = reparameterize_nbinom(
-            state_read_depths,
-            rdr_overdispersion,
-        )
-
-        ks = self.get_data_bykey("read_coverage")
-        result = np.zeros((len(ks), len(state_rs_ps)))
-
-        for col, (rr, pp) in enumerate(state_rs_ps):
-            phi = rdr_overdispersion
-            mu = state_read_depths[col]
-
-            for row, kk in enumerate(ks):
-                result[row, col] = (
-                    (-digamma(kk + rr) + digamma(rr)) / (phi * phi)
-                    + np.log(1.0 + phi * mu) / phi / phi
-                    + (kk - phi * mu * rr) / phi / (1.0 + phi * mu)
+                mus_result[row, col] = (kk - phi * mu * rr) / mu / (1.0 + phi * mu)
+                phi_result[row, col] = (
+                    zero_point
+                    - digamma(kk + rr) / (phi * phi)
+                    + kk / phi / (1.0 + phi * mu)
                 )
+                
+        grad_mus = -(np.exp(self.ln_state_posteriors) * mus_result).sum(axis=0)
+        grad_phi = -(np.exp(self.ln_state_posteriors) * phi_result).sum()
 
-        return -(np.exp(self.ln_state_posteriors) * result).sum()
+        return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
 
     def grad_cna_mixture_em_cost_tau(self, params):
         def grad_ln_bb_ab(a, b, k, n):
@@ -694,8 +680,8 @@ class CNA_Sim:
     def cna_mixture_em_cost_grad(self, params, verbose=False):
         result = []
 
-        result += self.grad_cna_mixture_em_cost_mus(params).tolist()
-        result += [self.grad_cna_mixture_em_cost_phi(params)]
+        result += self.grad_cna_mixture_em_cost_nb(params).tolist()
+        # result += [self.grad_cna_mixture_em_cost_phi(params)]
         result += self.grad_cna_mixture_em_cost_ps(params).tolist()
         result += [self.grad_cna_mixture_em_cost_tau(params)]
 
