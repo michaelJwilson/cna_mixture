@@ -671,7 +671,6 @@ class CNA_Sim:
 
                 return np.array([gka - gnab, gnkb - gnab])
 
-            ## >>>>>>>>>>>>>>>>> (ks, ns, alphas, betas)
             sample_grad_ps = np.zeros((len(ks), len(state_alpha_betas)))
             sample_grad_tau = np.zeros((len(ks), len(state_alpha_betas)))
 
@@ -688,7 +687,6 @@ class CNA_Sim:
                     sample_grad_tau[row, col] = (1.0 - baf) * interim[
                         1
                     ] + baf * interim[0]
-            ## <<<<<<<<<<<<<<<<<
 
         grad_ps = -(self.state_posteriors * sample_grad_ps).sum(axis=0)
         grad_tau = -(self.state_posteriors * sample_grad_tau).sum()

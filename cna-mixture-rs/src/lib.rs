@@ -110,7 +110,6 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
     let rs = rs.to_vec()?;
 
     let zero_points: Vec<f64> = mus.iter().zip(rs.iter()).map(|(&mu, &rr)| digamma(rr) / (phi * phi) + (1.0 + phi * mu).ln() / phi / phi - phi * mu * rr / phi / (1.0 + phi * mu)).collect();
-
     let result: (Vec<Vec<f64>>, Vec<Vec<f64>>) = THREAD_POOL.install(|| {
         ks.par_iter().map(|&k_val| {
 	   let (mus_row, phi_row): (Vec<f64>, Vec<f64>) = mus.iter().enumerate().map(|(ss, &mu)| {
@@ -118,6 +117,7 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
 		let phi_val = zero_points[ss] - digamma(k_val + rs[ss]) / (phi * phi) + k_val / phi / (1.0 + phi * mu);
 
 		(mus_val, phi_val)
+		
 	    }).unzip();
 		
 	    (mus_row, phi_row)
@@ -164,39 +164,28 @@ fn grad_cna_mixture_em_cost_bb_rs<'py>(
     	grad_ln_bb_ab_zeropoint(bb, aa)
     }).collect();
 
-    let ps_result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
-        ks.par_iter().enumerate().map(|(ii, &k_val)| {  
-            let row: Vec<f64> = alphas.iter().enumerate().map(|(ss, &aa)| {
-	    	let tau = aa + betas[ss];
-		let data_points = grad_ln_bb_ab_data(k_val, ns[ii], betas[ss], aa);
-	    	let interim = vector_sum(zero_points[ss].clone(), data_points); 
-
-		-tau * interim[1] + tau * interim[0]
-            }).collect();
-
-            row
-
-            }).collect::<Vec<Vec<f64>>>()
-    });
-
-    let tau_result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
+    let result: (Vec<Vec<f64>>, Vec<Vec<f64>>) = THREAD_POOL.install(|| {
         ks.par_iter().enumerate().map(|(ii, &k_val)| {
-            let row: Vec<f64> = alphas.iter().enumerate().map(|(ss, &aa)| {
-            	let tau	= aa + betas[ss];
+            let (ps_row, tau_row): (Vec<f64>, Vec<f64>) = alphas.iter().enumerate().map(|(ss, &aa)| {
+	        let tau = aa + betas[ss];
 		let baf = betas[ss] / tau;
 
-		let data_points	= grad_ln_bb_ab_data(k_val, ns[ii], betas[ss], aa);
+		let data_points = grad_ln_bb_ab_data(k_val, ns[ii], betas[ss], aa);
 		let interim = vector_sum(zero_points[ss].clone(), data_points);
 
-		(1.0 - baf) * interim[1] + baf * interim[0]
-            }).collect();
+		let ps_val = -tau * interim[1] + tau * interim[0];
+		let tau_val = (1.0 - baf) * interim[1] + baf * interim[0];
 
-            row
+                (ps_val, tau_val)
+		
+            }).unzip();
 
-            }).collect::<Vec<Vec<f64>>>()
+            (ps_row, tau_row)
+	    
+        }).unzip()
     });
 
-    Ok((ps_result, tau_result))
+    Ok(result)
 }
 
 #[pymodule]
