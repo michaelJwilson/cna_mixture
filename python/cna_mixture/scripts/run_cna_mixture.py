@@ -368,7 +368,7 @@ class CNA_Sim:
         if title is not None:
             pl.title(title)
 
-        pl.show()
+        pl.savefig("rdr_baf_flat.pdf")
 
     def plot_realization_true_flat(self):
         """
@@ -814,6 +814,15 @@ class CNA_Sim:
             params, self.cna_mixture_em_cost, np.sqrt(np.finfo(float).eps)
         )
 
+        err = check_grad(self.cna_mixture_em_cost, self.cna_mixture_em_cost_grad, params)
+
+        assert err < 1.
+        
+        # print(em_cost_grad)
+        # print(approx_grad)
+        # print(err)        
+        # exit(0)
+
         for ii in range(maxiter):
             # TODO prior to prevent single-state occupancy.
             # TODO callback forward.
@@ -821,6 +830,7 @@ class CNA_Sim:
                 self.cna_mixture_em_cost,
                 params,
                 method=optimizer,
+                jac=self.cna_mixture_em_cost_grad,
                 bounds=bounds,
                 constraints=None,
                 options={"disp": True, "maxiter": 5},
