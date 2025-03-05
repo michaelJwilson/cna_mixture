@@ -597,11 +597,14 @@ class CNA_Sim:
 
         ks = self.get_data_bykey("read_coverage")
         result = np.zeros((len(ks), len(state_rs_ps)))
-
+        
         for col, (rr, pp) in enumerate(state_rs_ps):
+            phi = rdr_overdispersion
+            mu = state_read_depths[col]
+            
             for row, kk in enumerate(ks):
-                result[row, col] = - rr * rr * grad_ln_nb_r(kk, rr, pp) - (state_read_depths[col] / pp / pp) * grad_ln_nb_p(kk, rr, pp)
-    
+                result[row, col] = (-digamma(kk + rr) + digamma(rr)) / (phi * phi) + np.log(1.0 + phi * mu) / phi / phi + (kk - phi * mu * rr) / phi / (1.0 + phi * mu)
+                
         return -(np.exp(self.ln_state_posteriors) * result).sum()
     
     def update_message(self, params, cost):
