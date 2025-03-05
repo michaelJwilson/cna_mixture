@@ -8,8 +8,7 @@ import numpy.random as random
 from matplotlib.colors import LogNorm
 from scipy.stats import nbinom, betabinom, poisson
 from scipy.optimize import approx_fprime, check_grad, minimize
-from scipy.special import gamma
-from scipy.special import logsumexp as logsumexp
+from scipy.special import logsumexp, digamma
 from scipy.spatial import KDTree
 from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
@@ -579,6 +578,32 @@ class CNA_Sim:
 
         return cost
 
+    def grad_cna_mixture_em_cost_phi(self, params):
+        state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
+            params
+        )
+
+        # TODO does a non-linear transform in the cost trip the optimizer?                                                                                                                                                     
+        state_rs_ps = reparameterize_nbinom(
+            state_read_depths,
+            rdr_overdispersion,
+        )
+
+        def grad_ln_nb_r(k, r, p):
+            return digamma(k + r) - digamma(r) + np.log(p)
+
+        def grad_ln_nb_p(k, r, p):
+            return (r / p) - k / (1.0 - p)
+
+        ks = self.get_data_bykey("read_coverage")
+        result = np.zeros((len(ks), len(state_rs_ps)))
+
+        for col, (rr, pp) in enumerate(state_rs_ps):
+            for row, kk in enumerate(ks):
+                result[row, col] = - rr * rr * grad_ln_nb_r(kk, rr, pp) - (state_read_depths[col] / pp / pp) * grad_ln_nb_p(kk, rr, pp)
+    
+        return -(np.exp(self.ln_state_posteriors) * result).sum()
+    
     def update_message(self, params, cost):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
@@ -686,11 +711,15 @@ class CNA_Sim:
 
         cost = self.cna_mixture_em_cost(params, verbose=True)
         
-        # TODO test                                                                                                                                                                                                                                                            
-        approx_grad = approx_fprime(params, self.cna_mixture_em_cost, np.sqrt(np.finfo(float).eps))
-        print(approx_grad)
-        exit()
+        # TODO test
 
+        grad_cost = self.grad_cna_mixture_em_cost_phi(params)
+        approx_grad = approx_fprime(params, self.cna_mixture_em_cost, np.sqrt(np.finfo(float).eps))
+
+        print(self.grad_cna_mixture_em_cost_phi(params))
+        print(approx_grad)
+        
+        exit()
         
         for ii in range(maxiter):
             # TODO prior to prevent single-state occupancy.

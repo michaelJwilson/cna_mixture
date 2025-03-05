@@ -22,7 +22,6 @@ def nbinom_logpmf(ks, rs, ps):
 
         result = nbinom_logpmf_rs(ks, rs, ps)
         result = np.array(result)
-
     else:
         result = np.zeros(shape=(len(ks), len(rs)))
 
