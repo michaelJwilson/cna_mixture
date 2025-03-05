@@ -98,33 +98,6 @@ fn betabinom_logpmf<'py>(
     Ok(result)
 }
 
-
-/*
-mus_result = np.zeros((len(ks), len(state_rs_ps)))
-phi_result = np.zeros((len(ks), len(state_rs_ps)))
-
-for col, (rr, pp) in enumerate(state_rs_ps):
-    mu = state_read_depths[col]
-    phi = rdr_overdispersion
-
-    zero_point = digamma(rr) / (phi * phi)
-    zero_point += np.log(1.0 + phi * mu) / phi / phi
-    zero_point -= phi * mu * rr / phi / (1.0 + phi * mu)
-
-    for row, kk in enumerate(ks):
-        mus_result[row, col] = (kk - phi * mu * rr) / mu / (1.0 + phi * mu)
-        phi_result[row, col] = (
-                        zero_point
-                        - digamma(kk + rr) / (phi * phi)
-                        + kk / phi / (1.0 + phi * mu)
-        )
-
-    grad_mus = -(self.state_posteriors * mus_result).sum(axis=0)
-    grad_phi = -(self.state_posteriors * phi_result).sum()
-
-    return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
-*/
-
 #[pyfunction]
 fn grad_cna_mixture_em_cost_nb_rs<'py>(
     ks: PyReadonlyArray1<'_, f64>,
@@ -136,7 +109,6 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
     let mus = mus.to_vec()?;
     let rs = rs.to_vec()?;
 
-    // TODO define digamma
     let zero_points: Vec<f64> = mus.iter().zip(rs.iter()).map(|(&mu, &rr)| digamma(rr) / (phi * phi) + (1.0 + phi * mu).ln() / phi / phi - phi * mu * rr / phi / (1.0 + phi * mu)).collect();
 
     let mus_result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
@@ -164,11 +136,83 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
     Ok((mus_result, phi_result))
 }
 
+fn vector_sum(vec1: Vec<f64>, vec2: Vec<f64>) -> Vec<f64> {
+    vec1.iter().zip(vec2.iter()).map(|(a, b)| a + b).collect()
+}
+
+fn grad_ln_bb_ab_zeropoint(a: f64, b: f64) -> Vec<f64> {
+   let gab = digamma(a + b);
+   let ga = digamma(a);
+   let gb = digamma(b);
+
+   vec![gab - ga, gab - gb]
+}
+
+fn grad_ln_bb_ab_data(k: f64, n: f64, a: f64, b: f64) -> Vec<f64> {
+   let gka = digamma(k + a);
+   let gnab = digamma(n + a + b);
+   let gnkb = digamma(n - k + b);
+
+   vec![gka - gnab, gnkb - gnab]
+}
+
+#[pyfunction]
+fn grad_cna_mixture_em_cost_bb_rs<'py>(
+    ks: PyReadonlyArray1<'_, f64>,
+    ns: PyReadonlyArray1<'_, f64>,
+    alphas: PyReadonlyArray1<'_, f64>,
+    betas: PyReadonlyArray1<'_, f64>,
+) -> PyResult<(Vec<Vec<f64>>, Vec<Vec<f64>>)> {
+    let ks = ks.to_vec()?;
+    let ns = ns.to_vec()?;
+    let alphas = alphas.to_vec()?;
+    let betas = betas.to_vec()?;
+
+    let zero_points: Vec<Vec<f64>> = alphas.iter().zip(betas.iter()).map(|(&aa, &bb)| {
+    	grad_ln_bb_ab_zeropoint(bb, aa)
+    }).collect();
+
+    let ps_result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
+        ks.par_iter().enumerate().map(|(ii, &k_val)| {  
+            let row: Vec<f64> = alphas.iter().enumerate().map(|(ss, &aa)| {
+	    	let tau = aa + betas[ss];
+		let data_points = grad_ln_bb_ab_data(k_val, ns[ii], betas[ss], aa);
+	    	let interim = vector_sum(zero_points[ss].clone(), data_points); 
+
+		-tau * interim[1] + tau * interim[0]
+            }).collect();
+
+            row
+
+            }).collect::<Vec<Vec<f64>>>()
+    });
+
+    let tau_result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
+        ks.par_iter().enumerate().map(|(ii, &k_val)| {
+            let row: Vec<f64> = alphas.iter().enumerate().map(|(ss, &aa)| {
+            	let tau	= aa + betas[ss];
+		let baf = betas[ss] / tau;
+
+		let data_points	= grad_ln_bb_ab_data(k_val, ns[ii], betas[ss], aa);
+		let interim = vector_sum(zero_points[ss].clone(), data_points);
+
+		(1.0 - baf) * interim[1] + baf * interim[0]
+            }).collect();
+
+            row
+
+            }).collect::<Vec<Vec<f64>>>()
+    });
+
+    Ok((ps_result, tau_result))
+}
+
 #[pymodule]
 #[pyo3(name = "core")]
 fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(nbinom_logpmf, m)?)?;
     m.add_function(wrap_pyfunction!(betabinom_logpmf, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_nb_rs, m)?)?;
+    m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_bb_rs, m)?)?;
     Ok(())
 }
