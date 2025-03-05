@@ -169,5 +169,6 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
 fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(nbinom_logpmf, m)?)?;
     m.add_function(wrap_pyfunction!(betabinom_logpmf, m)?)?;
+    m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_nb_rs, m)?)?;
     Ok(())
 }

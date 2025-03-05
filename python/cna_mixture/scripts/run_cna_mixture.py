@@ -12,7 +12,7 @@ from scipy.special import logsumexp, digamma
 from scipy.spatial import KDTree
 from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
-from cna_mixture_rs.core import betabinom_logpmf, nbinom_logpmf
+from cna_mixture_rs.core import betabinom_logpmf, nbinom_logpmf, grad_cna_mixture_em_cost_nb_rs
 
 np.random.seed(1234)
 
@@ -590,13 +590,16 @@ class CNA_Sim:
 
         if RUST_BACKEND:
             ks = np.ascontiguousarray(ks)
-            mus = np.ascontiguousarray(mus)
+            mus = np.ascontiguousarray(state_read_depths)
+            rs = np.ascontiguousarray(state_rs_ps[:,0])
+            phi = rdr_overdispersion
+            
+            grad_cna_mixture_em_cost_nb = grad_cna_mixture_em_cost_nb_rs(ks, mus, rs, phi)
+            grad_cna_mixture_em_cost_nb = np.array(grad_cna_mixture_em_cost_nb)
+            
+            print(grad_cna_mixture_em_cost_nb)
 
-            grad_cna_mixture_em_cost_nb = grad_cna_mixture_em_cost_nb_rs(ks, mus, phi)
-
-            raise NotImplementedError()
-        
-            return np.array(grad_cna_mixture_em_cost_nb)
+            exit(0)
         else:        
             ## >>>>>>>>>  ks, ns, mus, phi.
             mus_result = np.zeros((len(ks), len(state_rs_ps)))
