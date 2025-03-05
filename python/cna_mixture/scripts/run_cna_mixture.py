@@ -616,16 +616,19 @@ class CNA_Sim:
         return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
 
     def grad_cna_mixture_em_cost_bb(self, params):
-        def grad_ln_bb_ab(a, b, k, n):
-            gka = digamma(k + a)
+        def grad_ln_bb_ab_zeropoint(a, b):
             gab = digamma(a + b)
-            gnab = digamma(n + a + b)
             ga = digamma(a)
-
-            gnkb = digamma(n - k + b)
             gb = digamma(b)
 
-            return np.array([gka + gab - gnab - ga, gnkb + gab - gnab - gb])
+            return np.array([gab - ga, gab - gb])
+        
+        def grad_ln_bb_ab_data(a, b, k, n):
+            gka = digamma(k + a)
+            gnab = digamma(n + a + b)
+            gnkb = digamma(n - k + b)
+
+            return np.array([gka - gnab, gnkb - gnab])
 
         _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
         state_alpha_betas = reparameterize_beta_binom(
@@ -639,11 +642,13 @@ class CNA_Sim:
         tau_result = np.zeros((len(ks), len(state_alpha_betas)))
         
         for col, (alpha, beta) in enumerate(state_alpha_betas):
-            for row, (k, n) in enumerate(zip(ks, ns)):
-                tau = alpha + beta
-                baf = beta / tau
+            tau = alpha + beta
+            baf = beta / tau
 
-                interim = grad_ln_bb_ab(beta, alpha, k, n)
+            zero_point = grad_ln_bb_ab_zeropoint(beta, alpha)
+            
+            for row, (k, n) in enumerate(zip(ks, ns)):
+                interim = zero_point + grad_ln_bb_ab_data(beta, alpha, k, n)
                 
                 ps_result[row, col] = -tau * interim[1] + tau * interim[0]
                 tau_result[row, col] = (1.0 - baf) * interim[1] + baf * interim[0]
@@ -782,10 +787,10 @@ class CNA_Sim:
 
         assert err < 1.0
 
-        print(em_cost_grad)
-        print(approx_grad)
-        print(err)
-        exit(0)
+        # print(em_cost_grad)
+        # print(approx_grad)
+        # print(err)
+        # exit(0)
 
         for ii in range(maxiter):
             # TODO prior to prevent single-state occupancy.
