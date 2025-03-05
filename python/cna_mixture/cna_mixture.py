@@ -26,7 +26,7 @@ class CNA_mixture:
     RUST_BACKEND = True
     
     def __init__(
-        self, rdr_baf, realized_genome_coverage, optimizer="L-BFGS-B", maxiter=100
+        self, data, rdr_baf, realized_genome_coverage, optimizer="L-BFGS-B", maxiter=100
     ):
         """
         Fit CNA mixture model via Expectation Maximization.
@@ -39,17 +39,19 @@ class CNA_mixture:
         # NB see e.g. https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
 
-        self.rdr_baf = rdr_baf
-        self.num_segments, self.num_states = rdr_baf.shape
-        self.realized_genome_coverage = realized_genome_coverage
-
-        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
+        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                                                                                                                                       
         mixture_params = CNA_mixture_params()
 
-        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
+	# NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
         mixture_params.rdr_baf_choice_update(rdr_baf)
 
         logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
+
+        self.data = data
+        self.rdr_baf = rdr_baf
+        self.num_segments = len(rdr_baf)
+        self.num_states = mixture_params.num_states
+        self.realized_genome_coverage = realized_genome_coverage
 
         # NB self.realized_genome_coverage == normal_coverage currently.
         state_read_depths = (
@@ -188,7 +190,7 @@ class CNA_mixture:
         num_states = self.num_states
 
         # NB read_depths + overdispersion + bafs + overdispersion
-        assert len(params) == num_states + 1 + num_states + 1
+        assert len(params) == num_states + 1 + num_states + 1, f"{params} does not satisy {num_states} states."
 
         state_read_depths = params[:num_states]
         rdr_overdispersion = params[num_states]
@@ -221,7 +223,7 @@ class CNA_mixture:
             baf_overdispersion,
         )
 
-        ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
+        ks, ns = self.data["b_reads"], self.data["snp_coverage"]
 
         if RUST_BACKEND:
             ks, ns = np.ascontiguousarray(ks), np.ascontiguousarray(ns)
@@ -255,7 +257,7 @@ class CNA_mixture:
             rdr_overdispersion,
         )
 
-        ks = self.get_data_bykey("read_coverage")
+        ks = self.data["read_coverage"]
 
         if RUST_BACKEND:
             ks = np.ascontiguousarray(ks)
@@ -324,7 +326,7 @@ class CNA_mixture:
             rdr_overdispersion,
         )
 
-        ks = self.get_data_bykey("read_coverage")
+        ks = self.data["read_coverage"]
 
         if RUST_BACKEND:
             ks = np.ascontiguousarray(ks)
@@ -372,7 +374,7 @@ class CNA_mixture:
             baf_overdispersion,
         )
 
-        ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
+        ks, ns = self.data["b_reads"], self.data["snp_coverage"]
 
         if RUST_BACKEND:
             ks = np.ascontiguousarray(ks)

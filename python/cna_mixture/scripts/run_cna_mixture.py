@@ -219,7 +219,15 @@ class CNA_Sim:
                 ]
             )
 
-        self.data = np.array(result)
+        dtype = [
+            ('state', np.int32),
+            ('read_coverage', np.float64),
+            ('true_read_coverage', np.float64),
+            ('b_reads', np.int32),
+            ('snp_coverage', np.int32)
+        ]
+   
+        self.data = np.array(result, dtype=dtype)
 
         # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage
         # TODO? biases RDR estimates, particularly if many CNAs.
@@ -227,7 +235,7 @@ class CNA_Sim:
         # self.realized_genome_coverage = np.sum(self.data[:,2]) / self.num_segments
 
         self.realized_genome_coverage = self.normal_genome_coverage
-
+    """
     def get_data_bykey(self, key):
         keys = {
             "state": 0,
@@ -240,11 +248,11 @@ class CNA_Sim:
         col = keys[key]
 
         return self.data[:, col]
-
+    """
     @property
     def rdr_baf(self):
-        rdr = self.get_data_bykey("read_coverage") / self.realized_genome_coverage
-        baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
+        rdr = self.data["read_coverage"] / self.realized_genome_coverage
+        baf = self.data["b_reads"] / self.data["snp_coverage"]
 
         return np.c_[rdr, baf]
     
@@ -252,7 +260,7 @@ class CNA_Sim:
         """
         BAF vs RDR for the assumed simulation.
         """
-        true_states = self.get_data_bykey("state")
+        true_states = self.data["state"]
 
         plot_rdr_baf_flat(
             "plots/truth_rdr_baf_flat.pdf",
@@ -304,7 +312,7 @@ class CNA_Sim:
             baf_overdispersion,
         )
 
-        ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
+        ks, ns = self.data["b_reads"], self.data["snp_coverage"]
 
         if RUST_BACKEND:
             ks, ns = np.ascontiguousarray(ks), np.ascontiguousarray(ns)
@@ -338,7 +346,7 @@ class CNA_Sim:
             rdr_overdispersion,
         )
 
-        ks = self.get_data_bykey("read_coverage")
+        ks = self.data["read_coverage"]
 
         if RUST_BACKEND:
             ks = np.ascontiguousarray(ks)
@@ -407,7 +415,7 @@ class CNA_Sim:
             rdr_overdispersion,
         )
 
-        ks = self.get_data_bykey("read_coverage")
+        ks = self.data["read_coverage"]
 
         if RUST_BACKEND:
             ks = np.ascontiguousarray(ks)
@@ -455,7 +463,7 @@ class CNA_Sim:
             baf_overdispersion,
         )
 
-        ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
+        ks, ns = self.data["b_reads"], self.data["snp_coverage"]
 
         if RUST_BACKEND:
             ks = np.ascontiguousarray(ks)
@@ -702,7 +710,7 @@ def main():
     # fit_gaussian_mixture(cna_sim.rdr_baf)
     # cna_sim.fit_cna_mixture()
 
-    cna_mixture = CNA_mixture(cna_sim.rdr_baf, cna_sim.realized_genome_coverage)
+    cna_mixture = CNA_mixture(cna_sim.data, cna_sim.rdr_baf, cna_sim.realized_genome_coverage)
     
     print(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
