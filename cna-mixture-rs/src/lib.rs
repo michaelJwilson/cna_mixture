@@ -112,7 +112,7 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
     let zero_points: Vec<f64> = mus.iter().zip(rs.iter()).map(|(&mu, &rr)| digamma(rr) / (phi * phi) + (1.0 + phi * mu).ln() / phi / phi - phi * mu * rr / phi / (1.0 + phi * mu)).collect();
 
     let mus_result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
-        ks.par_iter().enumerate().map(|(_ii, &k_val)| {
+        ks.par_iter().map(|&k_val| {
             let row: Vec<f64> = mus.iter().zip(rs.iter()).map(|(&mu, &rr)| {
                 (k_val - phi * mu * rr) / mu / (1.0 + phi * mu)
             }).collect();
@@ -123,7 +123,7 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
     });
 
     let phi_result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
-        ks.par_iter().enumerate().map(|(_ii, &k_val)| {
+        ks.par_iter().map(|&k_val| {
             let row: Vec<f64> = mus.iter().enumerate().map(|(ss, &mu)| {
 	    	zero_points[ss] - digamma(k_val + rs[ss]) / (phi * phi) + k_val / phi / (1.0 + phi * mu)
             }).collect();
