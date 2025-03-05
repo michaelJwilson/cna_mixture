@@ -16,6 +16,7 @@ from cna_mixture.cna_mixture_params import CNA_mixture_params
 from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
 from cna_mixture.encoding import onehot_encode_states
 from cna_mixture.gaussian_mixture import fit_gaussian_mixture
+from cna_mixture.cna_mixture import CNA_mixture
 from cna_mixture_rs.core import (
     betabinom_logpmf,
     nbinom_logpmf,
@@ -531,7 +532,7 @@ class CNA_Sim:
         initial_ln_lambdas = np.log(counts) - np.log(np.sum(counts))
 
         return initial_ln_lambdas
-
+    """
     def get_cna_mixture_bounds(self):
         # NB exp_read_depths > 0
         bounds = [(1.0e-6, None) for _ in range(self.num_states)]
@@ -547,7 +548,7 @@ class CNA_Sim:
         bounds = tuple(bounds)
 
         return bounds
-
+    
     def get_cna_mixture_constraints(self):
         # NB equality constaints to be zero.
         constraints = [
@@ -561,7 +562,7 @@ class CNA_Sim:
 
         # BUG sum of *realized* rdr values along genome should explain coverage??
         raise RuntimeError()
-
+    """
     def get_states_bag(self, params):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
@@ -699,8 +700,10 @@ def main():
     # plot_rdr_baf_genome("plots/rdr_baf_genome.pdf", cna_sim.rdr_baf)
     
     # fit_gaussian_mixture(cna_sim.rdr_baf)
-    cna_sim.fit_cna_mixture()
+    # cna_sim.fit_cna_mixture()
 
+    cna_mixture = CNA_mixture(cna_sim.rdr_baf, cna_sim.realized_genome_coverage)
+    
     print(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
 
