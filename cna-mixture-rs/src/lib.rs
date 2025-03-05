@@ -111,29 +111,21 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
 
     let zero_points: Vec<f64> = mus.iter().zip(rs.iter()).map(|(&mu, &rr)| digamma(rr) / (phi * phi) + (1.0 + phi * mu).ln() / phi / phi - phi * mu * rr / phi / (1.0 + phi * mu)).collect();
 
-    let mus_result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
+    let result: (Vec<Vec<f64>>, Vec<Vec<f64>>) = THREAD_POOL.install(|| {
         ks.par_iter().map(|&k_val| {
-            let row: Vec<f64> = mus.iter().zip(rs.iter()).map(|(&mu, &rr)| {
-                (k_val - phi * mu * rr) / mu / (1.0 + phi * mu)
-            }).collect();
+	   let (mus_row, phi_row): (Vec<f64>, Vec<f64>) = mus.iter().enumerate().map(|(ss, &mu)| {
+            	let mus_val = (k_val - phi * mu * rs[ss]) / mu / (1.0 + phi * mu);
+		let phi_val = zero_points[ss] - digamma(k_val + rs[ss]) / (phi * phi) + k_val / phi / (1.0 + phi * mu);
 
-            row
-
-            }).collect::<Vec<Vec<f64>>>()
+		(mus_val, phi_val)
+	    }).unzip();
+		
+	    (mus_row, phi_row)
+		
+	}).unzip()
     });
 
-    let phi_result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
-        ks.par_iter().map(|&k_val| {
-            let row: Vec<f64> = mus.iter().enumerate().map(|(ss, &mu)| {
-	    	zero_points[ss] - digamma(k_val + rs[ss]) / (phi * phi) + k_val / phi / (1.0 + phi * mu)
-            }).collect();
-
-            row
-
-            }).collect::<Vec<Vec<f64>>>()
-    });
-
-    Ok((mus_result, phi_result))
+    Ok(result)
 }
 
 fn vector_sum(vec1: Vec<f64>, vec2: Vec<f64>) -> Vec<f64> {

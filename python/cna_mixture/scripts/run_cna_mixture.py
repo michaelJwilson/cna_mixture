@@ -822,9 +822,12 @@ class CNA_Sim:
 
         print(em_cost_grad)
         print(approx_grad)
+        print(err)
         
         assert err < 1.0, f"{err}"
 
+        # exit(0)
+        
         for ii in range(maxiter):
             # TODO prior to prevent single-state occupancy.
             # TODO callback forward.
