@@ -13,6 +13,7 @@ from scipy.spatial import KDTree
 from scipy.optimize import minimize
 from sklearn.mixture import GaussianMixture
 from cna_mixture.cna_mixture_params import CNA_mixture_params
+from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
 from cna_mixture_rs.core import (
     betabinom_logpmf,
     nbinom_logpmf,
@@ -43,14 +44,6 @@ TODOs:
   - unit tests.
 
 """
-
-def tophat_smooth(data, window_size):
-    """
-    Top-hat convolution of a 1D signal.
-    """
-    kernel = np.ones(window_size) / window_size
-    return np.convolve(data, kernel, mode="same")
-
 
 def assign_closest(points, centers):
     """
@@ -265,58 +258,14 @@ class CNA_Sim:
         baf = self.get_data_bykey("b_reads") / self.get_data_bykey("snp_coverage")
 
         return np.c_[rdr, baf]
-
-    def plot_rdr_baf_flat(
-        self, fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None
-    ):
-        """
-        NB state_posteriors may be an integer, corresponding to a decoded state, or
-           the posterior probs. for up to four states, which are mapped to RGB +
-           alpha transparency.
-        """
-        if ln_state_posteriors is not None:
-            if ln_state_posteriors.ndim == 1:
-                rgb = np.exp(ln_state_posteriors)
-                alpha = 0.25
-                cmap = "viridis"
-
-            else:
-                assert ln_state_posteriors.shape[1] == 4
-
-                # NB assumed to be normal probability.
-                # alpha = 0.25 + 3.0 * (1.0 - state_posteriors[:, 0]) / 4.0
-                alpha = 0.25
-
-                rgb = np.exp(ln_state_posteriors[:, 1:4])
-                cmap = None
-
-        pl.axhline(0.5, c="k", lw=0.5)
-        plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
-
-        if states_bag is not None:
-            for rdr, baf in states_bag:
-                pl.scatter(
-                    rdr, baf, marker="*", edgecolors="black", facecolors="white", s=45
-                )
-
-        pl.xlim(-0.05, 15.0)
-        pl.ylim(-0.05, 1.05)
-
-        pl.xlabel(r"$\mu_{\rm RDR}$")
-        pl.ylabel(r"$p_{\rm BAF}$")
-
-        if title is not None:
-            pl.title(title)
-
-        pl.savefig(fpath)
-
+    
     def plot_realization_true_flat(self):
         """
         BAF vs RDR for the assumed simulation.
         """
         true_states = self.get_data_bykey("state")
 
-        self.plot_rdr_baf_flat(
+        plot_rdr_baf_flat(
             "plots/truth_rdr_baf_flat.pdf",
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
@@ -324,32 +273,6 @@ class CNA_Sim:
             states_bag=self.cna_states,
             title="CNA realizations - true states",
         )
-
-    def plot_realization_genome(
-        self, ln_state_posteriors=None, states_bag=None, title=None
-    ):
-        segment_index = np.arange(self.num_segments)
-
-        figsize = (15, 10)
-        fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=figsize)
-
-        rdr, baf = self.rdr_baf[:, 0], self.rdr_baf[:, 1]
-
-        smooth_rdr = tophat_smooth(rdr, window_size=100)
-        smooth_baf = tophat_smooth(baf, window_size=100)
-
-        axes[0].plot(segment_index, rdr)
-        axes[0].plot(segment_index, smooth_rdr)
-
-        axes[1].plot(segment_index, baf)
-        axes[1].plot(segment_index, smooth_baf)
-
-        axes[0].set_ylabel(r"read depth ratio")
-
-        axes[1].set_ylabel(r"$b$-allele frequency")
-        axes[1].set_xlabel("intervals")
-
-        pl.show()
 
     def fit_gaussian_mixture(
         self,
@@ -376,8 +299,8 @@ class CNA_Sim:
         samples, decoded_states = gmm.sample(n_samples=num_samples)
 
         logger.info(f"Fit Gaussian mixture means:\n{means}")
-
-        self.plot_rdr_baf_flat(
+        
+        plot_rdr_baf_flat(
             "plots/gmm_rdr_baf_flat.pdf",
             samples[:, 0],
             samples[:, 1],
@@ -746,7 +669,7 @@ class CNA_Sim:
 
         cost = self.cna_mixture_em_cost(params, verbose=True)
 
-        self.plot_rdr_baf_flat(
+        plot_rdr_baf_flat(
             "plots/initial_rdr_baf_flat.pdf",
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
@@ -809,8 +732,7 @@ class CNA_Sim:
 
         logger.info(f"Found best-fit CNA mixture params:\n{params}")
 
-        # title="Initial state posteriors (based on closest state lambdas).",
-        self.plot_rdr_baf_flat(
+        plot_rdr_baf_flat(
             "plots/final_rdr_baf_flat.pdf",
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
@@ -823,12 +745,12 @@ class CNA_Sim:
 def main():
     start = time.time()
     cna_sim = CNA_Sim()
-
     # cna_sim.plot_realization_true_flat()
-    # cna_sim.plot_realization_genome()
+    
+    plot_rdr_baf_genome("plots/rdr_baf_genome.pdf", cna_sim.rdr_baf)
+    
     # cna_sim.fit_gaussian_mixture()
-
-    cna_sim.fit_cna_mixture()
+    # cna_sim.fit_cna_mixture()
 
     print(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
