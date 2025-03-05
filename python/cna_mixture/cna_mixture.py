@@ -56,6 +56,8 @@ class CNA_mixture:
 
         self.data = data
         self.rdr_baf = rdr_baf
+        self.maxiter = maxiter
+        self.optimizer = optimizer
         self.num_segments = len(rdr_baf)
         self.num_states = mixture_params.num_states
         self.realized_genome_coverage = realized_genome_coverage
@@ -67,32 +69,33 @@ class CNA_mixture:
 
         bafs = mixture_params.cna_states[:, 1]
 
-        params = np.array(
+        self.initial_params = np.array(
             state_read_depths.tolist()
             + [mixture_params.overdisp_phi]
             + bafs.tolist()
             + [mixture_params.overdisp_tau]
         )
 
-        bounds = self.get_cna_mixture_bounds(self.num_states)
+        self.bounds = self.get_cna_mixture_bounds(self.num_states)
         
         # NB pre-populate terms to cost.
         self.ln_lambdas = self.initialize_ln_lambdas_closest(mixture_params)
         self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
-        self.ln_state_emission = self.cna_mixture_ln_emission_update(params)
+        self.ln_state_emission = self.cna_mixture_ln_emission_update(self.initial_params)
         self.ln_state_posteriors = self.estep(
             self.ln_state_emission, self.ln_state_prior
         )
+        
         self.state_posteriors = np.exp(self.ln_state_posteriors)
 
-        cost = self.cna_mixture_em_cost(params, verbose=True)
+        cost = self.cna_mixture_em_cost(self.initial_params, verbose=True)
 
         plot_rdr_baf_flat(
             "plots/initial_rdr_baf_flat.pdf",
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=self.ln_state_posteriors,
-            states_bag=self.get_states_bag(params),
+            states_bag=self.get_states_bag(self.initial_params),
             title="Initial state posteriors (based on closest state lambdas).",
         )
 
@@ -111,15 +114,18 @@ class CNA_mixture:
         assert err < 1.0, f"{err}"
         """
 
-        logger.info(f"Running optimization with optimizer {optimizer.upper()}")
+    def fit(self):
+        logger.info(f"Running optimization with optimizer {self.optimizer.upper()}")
+
+        params = self.initial_params
         
-        for ii in range(maxiter):
+        for ii in range(self.maxiter):
             res = minimize(
                 self.cna_mixture_em_cost,
                 params,
-                method=optimizer,
+                method=self.optimizer,
                 jac=self.cna_mixture_em_cost_grad,
-                bounds=bounds,
+                bounds=self.bounds,
                 constraints=None,
                 options={"disp": True, "maxiter": 5},
             )
