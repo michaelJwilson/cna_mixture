@@ -25,6 +25,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 RUST_BACKEND = True
 
+
 def tophat_smooth(data, window_size):
     """
     Top-hat convolution of a 1D signal.
@@ -578,35 +579,119 @@ class CNA_Sim:
 
         return cost
 
-    def grad_cna_mixture_em_cost_phi(self, params):
+    def grad_cna_mixture_em_cost_mu(self, params):
         state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
             params
         )
 
-        # TODO does a non-linear transform in the cost trip the optimizer?                                                                                                                                                     
+        # TODO does a non-linear transform in the cost trip the optimizer?
         state_rs_ps = reparameterize_nbinom(
             state_read_depths,
             rdr_overdispersion,
         )
 
-        def grad_ln_nb_r(k, r, p):
-            return digamma(k + r) - digamma(r) + np.log(p)
-
-        def grad_ln_nb_p(k, r, p):
-            return (r / p) - k / (1.0 - p)
-
         ks = self.get_data_bykey("read_coverage")
         result = np.zeros((len(ks), len(state_rs_ps)))
-        
+
         for col, (rr, pp) in enumerate(state_rs_ps):
             phi = rdr_overdispersion
             mu = state_read_depths[col]
-            
+
             for row, kk in enumerate(ks):
-                result[row, col] = (-digamma(kk + rr) + digamma(rr)) / (phi * phi) + np.log(1.0 + phi * mu) / phi / phi + (kk - phi * mu * rr) / phi / (1.0 + phi * mu)
-                
+                result[row, col] = (kk - phi * mu * rr) / mu / (1.0 + phi * mu)
+
+        return -(np.exp(self.ln_state_posteriors) * result).sum(axis=0)
+
+    def grad_cna_mixture_em_cost_phi(self, params):
+        state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
+            params
+        )
+
+        # TODO does a non-linear transform in the cost trip the optimizer?
+        state_rs_ps = reparameterize_nbinom(
+            state_read_depths,
+            rdr_overdispersion,
+        )
+
+        ks = self.get_data_bykey("read_coverage")
+        result = np.zeros((len(ks), len(state_rs_ps)))
+
+        for col, (rr, pp) in enumerate(state_rs_ps):
+            phi = rdr_overdispersion
+            mu = state_read_depths[col]
+
+            for row, kk in enumerate(ks):
+                result[row, col] = (
+                    (-digamma(kk + rr) + digamma(rr)) / (phi * phi)
+                    + np.log(1.0 + phi * mu) / phi / phi
+                    + (kk - phi * mu * rr) / phi / (1.0 + phi * mu)
+                )
+
+        return -(np.exp(self.ln_state_posteriors) * result).sum()
+
+    def grad_cna_mixture_em_cost_tau(self, params):
+        def grad_ln_bb_ab(a, b, k, n):
+            gka = digamma(k + a)
+            gab = digamma(a + b)
+            gnab = digamma(n + a + b)
+            ga = digamma(a)
+
+            gnkb = digamma(n - k + b)
+            gb = digamma(b)
+
+            return np.array([gka + gab - gnab - ga, gnkb + gab - gnab - gb])
+
+        _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
+        state_alpha_betas = reparameterize_beta_binom(
+            bafs,
+            baf_overdispersion,
+        )
+
+        ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
+        result = np.zeros((len(ks), len(state_alpha_betas)))
+
+        for col, (alpha, beta) in enumerate(state_alpha_betas):
+            for row, (k, n) in enumerate(zip(ks, ns)):
+                tau = alpha + beta
+                baf = beta / tau
+
+                interim = grad_ln_bb_ab(beta, alpha, k, n)
+                result[row, col] = (1. - baf) * interim[1] + baf * interim[0]
+
         return -(np.exp(self.ln_state_posteriors) * result).sum()
     
+
+    def grad_cna_mixture_em_cost_ps(self, params):
+        def grad_ln_bb_ab(a, b, k, n):
+            gka = digamma(k + a)
+            gab = digamma(a + b)
+            gnab = digamma(n + a + b)
+            ga = digamma(a)
+
+            gnkb = digamma(n - k + b)
+            gb = digamma(b)
+
+            return np.array([gka + gab - gnab - ga, gnkb + gab - gnab - gb])
+
+        _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
+        state_alpha_betas = reparameterize_beta_binom(
+            bafs,
+            baf_overdispersion,
+        )
+
+        ks, ns = self.get_data_bykey("b_reads"), self.get_data_bykey("snp_coverage")
+        result = np.zeros((len(ks), len(state_alpha_betas)))
+
+        for col, (alpha, beta) in enumerate(state_alpha_betas):
+            for row, (k, n) in enumerate(zip(ks, ns)):
+                tau = alpha + beta
+                baf = beta / tau
+
+                interim = grad_ln_bb_ab(beta, alpha, k, n)
+                result[row, col] = -tau * interim[1] + tau * interim[0]
+                    
+        return -(np.exp(self.ln_state_posteriors) * result).sum(axis=0)
+            
     def update_message(self, params, cost):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
@@ -713,17 +798,27 @@ class CNA_Sim:
         )
 
         cost = self.cna_mixture_em_cost(params, verbose=True)
-        
+
         # TODO test
 
-        grad_cost = self.grad_cna_mixture_em_cost_phi(params)
-        approx_grad = approx_fprime(params, self.cna_mixture_em_cost, np.sqrt(np.finfo(float).eps))
+        grad_mu_cost = self.grad_cna_mixture_em_cost_mu(params)
+        grad_phi_cost = self.grad_cna_mixture_em_cost_phi(params)
+        grad_ps_cost = self.grad_cna_mixture_em_cost_ps(params)
+        grad_tau_cost = self.grad_cna_mixture_em_cost_tau(params)
+        
+        approx_grad = approx_fprime(
+            params, self.cna_mixture_em_cost, np.sqrt(np.finfo(float).eps)
+        )
 
-        print(self.grad_cna_mixture_em_cost_phi(params))
+        print(grad_mu_cost)
+        print(grad_phi_cost)
+        print(grad_ps_cost)
+        print(grad_tau_cost)
+        
         print(approx_grad)
-        
+
         exit()
-        
+
         for ii in range(maxiter):
             # TODO prior to prevent single-state occupancy.
             # TODO callback forward.
