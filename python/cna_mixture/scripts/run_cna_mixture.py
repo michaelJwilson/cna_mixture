@@ -373,7 +373,7 @@ class CNA_Sim:
         if title is not None:
             pl.title(title)
 
-        pl.savefig("plots/rdr_baf_flat.pdf")
+        pl.savefig("plots/initial_rdr_baf_flat.pdf")
 
     def plot_realization_true_flat(self):
         """
@@ -778,6 +778,8 @@ class CNA_Sim:
 
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         mixture_params = CNA_mixture_params()
+
+        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
         mixture_params.rdr_baf_choice_update(self.rdr_baf)
 
         logging.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
@@ -798,9 +800,10 @@ class CNA_Sim:
 
         bounds = self.get_cna_mixture_bounds()
 
+        # NB pre-populate terms to cost.
         self.ln_lambdas = self.initialize_ln_lambdas_closest(mixture_params)
-        self.ln_state_emission = self.cna_mixture_ln_emission_update(params)
         self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
+        self.ln_state_emission = self.cna_mixture_ln_emission_update(params)
         self.ln_state_posteriors = self.estep(
             self.ln_state_emission, self.ln_state_prior
         )
@@ -808,6 +811,17 @@ class CNA_Sim:
 
         cost = self.cna_mixture_em_cost(params, verbose=True)
 
+        self.plot_rdr_baf_flat(
+            self.rdr_baf[:, 0],
+            self.rdr_baf[:, 1],
+            ln_state_posteriors=self.ln_state_posteriors,
+            states_bag=self.get_states_bag(params),
+            title="Initial state posteriors (based on closest state lambdas).",
+        )
+
+        exit()
+        
+        """
         # TODO test
         em_cost_grad = self.cna_mixture_em_cost_grad(params)
         approx_grad = approx_fprime(
@@ -818,14 +832,10 @@ class CNA_Sim:
             self.cna_mixture_em_cost, self.cna_mixture_em_cost_grad, params
         )
 
-        # print(em_cost_grad)
-        # print(approx_grad)
-        # print(err)
-
         # NB expect ~0.77
         assert err < 1.0, f"{err}"
-
-        logger.info("Running optimization with optimizer {optimizer.upper()}")
+        """
+        logger.info(f"Running optimization with optimizer {optimizer.upper()}")
         
         for ii in range(maxiter):
             # TODO prior to prevent single-state occupancy.
