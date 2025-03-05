@@ -382,12 +382,12 @@ class CNA_Sim:
         true_states = self.get_data_bykey("state")
 
         self.plot_rdr_baf_flat(
+            "plots/truth_rdr_baf_flat.pdf",
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=np.log(onehot_encode_states(true_states)),
             states_bag=self.cna_states,
             title="CNA realizations - true states",
-            fpath="plots/truth_rdr_baf_flat.pdf"
         )
 
     def plot_realization_genome(
@@ -443,12 +443,12 @@ class CNA_Sim:
         logger.info(f"Fit Gaussian mixture means:\n{means}")
 
         self.plot_rdr_baf_flat(
+            "plots/gmm_rdr_baf_flat.pdf",
             samples[:, 0],
             samples[:, 1],
             ln_state_posteriors=np.log(onehot_encode_states(decoded_states)),
             states_bag=means,
             title=r"Best-fit Gaussian Mixture Model samples",
-            fpath="plots/gmm_rdr_baf_flat.pdf"
         )
 
     def unpack_cna_mixture_params(self, params):
@@ -814,12 +814,12 @@ class CNA_Sim:
         cost = self.cna_mixture_em_cost(params, verbose=True)
 
         self.plot_rdr_baf_flat(
+            "plots/initial_rdr_baf_flat.pdf",
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=self.ln_state_posteriors,
             states_bag=self.get_states_bag(params),
             title="Initial state posteriors (based on closest state lambdas).",
-            fpath="plots/initial_rdr_baf_flat.pdf",
         )
         
         """
@@ -880,12 +880,12 @@ class CNA_Sim:
 
         # title="Initial state posteriors (based on closest state lambdas).",
         self.plot_rdr_baf_flat(
+            "plots/final_rdr_baf_flat.pdf",
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=self.ln_state_posteriors,
             states_bag=self.get_states_bag(params),
-            title="Final state posteriors"
-            fpath="plots/final_rdr_baf_flat.pdf",
+            title="Final state posteriors",
         )
 
 
