@@ -74,8 +74,8 @@ class CNA_mixture:
             + [mixture_params.overdisp_tau]
         )
 
-        bounds = self.get_cna_mixture_bounds(rdr_baf.shape[1])
-
+        bounds = self.get_cna_mixture_bounds(self.num_states)
+        
         # NB pre-populate terms to cost.
         self.ln_lambdas = self.initialize_ln_lambdas_closest(mixture_params)
         self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
