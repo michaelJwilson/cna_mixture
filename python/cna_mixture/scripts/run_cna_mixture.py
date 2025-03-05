@@ -814,13 +814,15 @@ class CNA_Sim:
             params, self.cna_mixture_em_cost, np.sqrt(np.finfo(float).eps)
         )
 
-        err = check_grad(self.cna_mixture_em_cost, self.cna_mixture_em_cost_grad, params)
+        err = check_grad(
+            self.cna_mixture_em_cost, self.cna_mixture_em_cost_grad, params
+        )
 
-        assert err < 1.
-        
+        assert err < 1.0
+
         # print(em_cost_grad)
         # print(approx_grad)
-        # print(err)        
+        # print(err)
         # exit(0)
 
         for ii in range(maxiter):
