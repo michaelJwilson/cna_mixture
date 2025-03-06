@@ -7,24 +7,22 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model,
     with shared overdispersions.
     """
-
-    def __init__(self):
+    def __init__(self, num_cna_states=3, tau=50., phi=2.e-2):
         """
         Initialize an instance of the class with random values in the assumed bounds.
         """
         # NB normal state is treated independently
-        self.num_cna_states = 3
-        self.num_states = 1 + self.num_cna_states
+        self.num_states = 1 + num_cna_states
 
         # NB BAF overdispersion.  Random between 25. and 55.
-        self.overdisp_tau = 50.0
+        self.overdisp_tau = tau
 
         # NB RDR overdispersion.  Random between 1e-2 and 4e-2
-        self.overdisp_phi = 2.0e-2
+        self.overdisp_phi = phi
 
         # NB list of (baf, rdr) for k=4 states, without replacement.
         integers = np.random.choice(
-            np.arange(3, 10), size=self.num_cna_states, replace=False
+            np.arange(3, 10), size=num_cna_states, replace=False
         )
         integers = np.sort(integers)
 
@@ -57,16 +55,16 @@ class CNA_mixture_params:
             value = params_dict[key]
             setattr(self, key, value)
 
+            # NB fails if input_params_dict missing required key.
             params_dict.pop(key)
-
-        assert (
-            not params_dict
-        ), f"Input params dict must include all of {keys}. Found {input_params_dict.keys()}"
-
+            
+        if params_dict:
+            f"Skipping additional params in dict={params_dict}"
+            
         self.cna_states = np.array(self.cna_states)
         self.num_states = len(self.cna_states)
         self.__verify()
-
+        
     def rdr_baf_choice_update(self, rdr_baf):
         non_normal = rdr_baf[rdr_baf[:, 0] > 1.0]
 
@@ -74,3 +72,4 @@ class CNA_mixture_params:
         idx = random.choice(xx, size=self.num_states - 1, replace=False)
 
         self.cna_states = np.vstack([self.normal_state, non_normal[idx]])
+
