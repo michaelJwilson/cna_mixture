@@ -19,10 +19,11 @@ from cna_mixture_rs.core import (
 
 logger = logging.getLogger(__name__)
 
+
 class CNA_hmm:
     # NB call the rust backend.
     RUST_BACKEND = True
-    
+
     def __init__(
         self, data, rdr_baf, realized_genome_coverage, optimizer="L-BFGS-B", maxiter=100
     ):
@@ -37,10 +38,10 @@ class CNA_hmm:
         # NB see e.g. https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
 
-        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                                                                                                                                       
+        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         hmm_params = CNA_hmm_params()
 
-	# NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
+        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
         hmm_params.rdr_baf_choice_update(rdr_baf)
 
         logger.info(f"Initializing CNA states:\n{hmm_params.cna_states}\n")
@@ -68,14 +69,14 @@ class CNA_hmm:
         )
 
         self.bounds = self.get_cna_hmm_bounds(self.num_states)
-        
-        # NB pre-populate terms to cost.
-        self.ln_state_emission = self.cna_mixture_ln_emission_update(self.initial_params)
 
-        self.estep(
-            self.ln_state_emission, self.ln_state_prior
+        # NB pre-populate terms to cost.
+        self.ln_state_emission = self.cna_mixture_ln_emission_update(
+            self.initial_params
         )
-        
+
+        self.estep(self.ln_state_emission, self.ln_state_prior)
+
         cost = self.cna_mixture_em_cost(self.initial_params)
 
         """
@@ -88,32 +89,38 @@ class CNA_hmm:
             title="Initial state posteriors (based on closest state lambdas).",
         )
         """
-        
+
     def callback(self, intermediate_result: OptimizeResult):
         """
         Callable after each iteration of optimizer.  e.g. benefits from preserving Hessian.
         """
-        PTOL = 1.e-2
-        
+        PTOL = 1.0e-2
+
         self.nit += 1
 
         if self.nit > self.maxiter:
             logger.info(f"Failed to converge in {self.maxiter}")
             raise StopIteration
-        
+
         new_params, new_cost = intermediate_result.x, intermediate_result.fun
 
-        self.update_message(self.nit, self.last_params, self.params, new_params, new_cost)
-       
+        self.update_message(
+            self.nit, self.last_params, self.params, new_params, new_cost
+        )
+
         # NB converged with respect to last posterior?
         if self.param_diff(self.last_params, new_params) < PTOL:
-            logger.info(f"Converged to {100 * PTOL}% wrt last state posteriors.  Complete.")                
+            logger.info(
+                f"Converged to {100 * PTOL}% wrt last state posteriors.  Complete."
+            )
             raise StopIteration
 
-        if (self.param_diff(self.params, new_params) < PTOL):
-            logger.info(f"Converged to {100 * PTOL}% wrt current state posteriors.  Updating posteriors.")
+        if self.param_diff(self.params, new_params) < PTOL:
+            logger.info(
+                f"Converged to {100 * PTOL}% wrt current state posteriors.  Updating posteriors."
+            )
 
-            # TODO may not be necessary?  Depends how solver calls cost (emission update) vs grad.                                                                                                                   
+            # TODO may not be necessary?  Depends how solver calls cost (emission update) vs grad.
             self.ln_state_emission = self.cna_mixture_ln_emission_update(new_params)
 
             self.estep(self.ln_state_emission, self.ln_state_prior)
@@ -121,7 +128,7 @@ class CNA_hmm:
             self.last_params = new_params
 
         self.params = new_params.copy()
-            
+
     def fit(self):
         logger.info(f"Running optimization with optimizer {self.optimizer.upper()}")
 
@@ -138,7 +145,7 @@ class CNA_hmm:
             constraints=None,
             options={"disp": True, "maxiter": self.maxiter},
         )
-        
+
         logger.info(
             f"minimization success with best-fit CNA mixture params=\n{res.x}\n"
         )
@@ -176,7 +183,9 @@ class CNA_hmm:
         num_states = self.num_states
 
         # NB read_depths + overdispersion + bafs + overdispersion
-        assert len(params) == num_states + 1 + num_states + 1, f"{params} does not satisy {num_states} states."
+        assert (
+            len(params) == num_states + 1 + num_states + 1
+        ), f"{params} does not satisy {num_states} states."
 
         state_read_depths = params[:num_states]
         rdr_overdispersion = params[num_states]
@@ -273,20 +282,18 @@ class CNA_hmm:
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
 
         return ln_state_posterior_betabinom + ln_state_posterior_nbinom
-    
+
     def estep(self, ln_state_emission, ln_state_prior):
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
         """
-        self.ln_state_posteriors = normalize_ln_posteriors(ln_state_emission + ln_state_prior)
-
-        self.state_posteriors = np.exp(
-            self.ln_state_posteriors
+        self.ln_state_posteriors = normalize_ln_posteriors(
+            ln_state_emission + ln_state_prior
         )
 
-        self.ln_lambdas = self.cna_mixture_ln_lambdas_update(
-            self.ln_state_posteriors
-        )
+        self.state_posteriors = np.exp(self.ln_state_posteriors)
+
+        self.ln_lambdas = self.cna_mixture_ln_lambdas_update(self.ln_state_posteriors)
 
         self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
 
@@ -440,7 +447,7 @@ class CNA_hmm:
         msg += f"lambdas={np.exp(self.ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
         msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
         msg += f"\nMax. frac. parameter diff. compared to last and current state posterior: {self.param_diff(last_params, new_params)}, {self.param_diff(params, new_params)}"
-        
+
         logger.info(msg)
 
     def initialize_ln_lambdas_equal(self, init_mixture_params):

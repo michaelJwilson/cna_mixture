@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def reparameterize_nbinom(means, overdisp):
     """
     Reparameterize negative binomial from per-state means
@@ -15,6 +16,7 @@ def reparameterize_nbinom(means, overdisp):
     rs = np.ones_like(means) / overdisp
 
     return np.c_[rs, ps]
+
 
 def poisson_state_logprobs(state_mus, ks):
     """

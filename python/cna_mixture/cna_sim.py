@@ -8,44 +8,48 @@ from cna_mixture.negative_binomial import reparameterize_nbinom
 
 logger = logging.getLogger(__name__)
 
-class CNA_sim:
-    def __init__(self):
-        self.num_segments = 10_000
-        self.jump_rate = 1.0e-1
 
-        # NB normal coverage per segment, i.e. for RDR=1.
-        self.min_snp_coverage, self.max_snp_coverage, self.normal_genome_coverage = (
-            100,
-            1_000,
-            500,
-        )
+def get_sim_params():
+    return {
+        "num_segments": 10_000,
+        "num_states": 4,
+        "jump_rate": 0.1,
+        "normal_state": np.array([1.0, 0.5]),
+        "cna_states": np.array([
+            [1.0, 0.5],
+            [3.0, 0.33],
+            [4.0, 0.25],
+            [10.0, 0.1],
+        ]),
+        "overdisp_tau": 45.0,
+        "overdisp_phi": 1.0e-2,
+        "min_snp_coverage": 100,
+        "max_snp_coverage": 1_000,
+        "normal_genome_coverage": 500 # NB normal coverage per segment, i.e. for RDR=1.
+    }
 
-        self.assumed_cna_mixture_params = {
-            "overdisp_tau": 45.0,
-            "overdisp_phi": 1.0e-2,
-            "cna_states": [
-                [3.0, 0.33],
-                [4.0, 0.25],
-                [10.0, 0.1],
-            ],
-            "normal_state": [1.0, 0.5],
-        }
 
-        for key, value in self.assumed_cna_mixture_params.items():
-            setattr(self, key, value)
-
-        self.cna_states = [self.normal_state] + self.cna_states
-
-        self.cna_states = np.array(self.cna_states)
-        self.normal_state = np.array(self.normal_state)
-        self.num_states = len(self.cna_states)
-
+class CNA_transfer:
+    def __init__(self, jump_rate=0.1, num_states=4):
+        self.jump_rate = jump_rate
+        self.num_states = num_states
         self.jump_rate_per_state = self.jump_rate / (self.num_states - 1.0)
-        self.transfer = self.jump_rate_per_state * np.ones(
+
+        self.transfer_matrix = self.jump_rate_per_state * np.ones(
             shape=(self.num_states, self.num_states)
         )
-        self.transfer -= self.jump_rate_per_state * np.eye(self.num_states)
-        self.transfer += (1.0 - self.jump_rate) * np.eye(self.num_states)
+        self.transfer_matrix -= self.jump_rate_per_state * np.eye(self.num_states)
+        self.transfer_matrix += (1.0 - self.jump_rate) * np.eye(self.num_states)
+
+
+class CNA_sim:
+    def __init__(self):
+        super().__init__()
+
+        self.transfer = CNA_transfer()
+    
+        for key, value in get_sim_params().items():
+            setattr(self, key, value)
 
         self.realize()
 
@@ -68,8 +72,8 @@ class CNA_sim:
         # NB we loop over genomic segments, sampling a state and assigning appropriate
         #    emission values.
         for ii in range(self.num_segments):
-            state_probs = self.transfer[state]
-            state = np.random.choice(np.arange(self.num_states), size=1, p=state_probs)[
+            transfer_probs = self.transfer.transfer_matrix[state]
+            state = np.random.choice(np.arange(self.num_states), size=1, p=transfer_probs)[
                 0
             ]
 
@@ -107,15 +111,15 @@ class CNA_sim:
             )
 
         dtype = [
-            ('state', np.float64),
-            ('read_coverage', np.float64),
-            ('true_read_coverage', np.float64),
-            ('b_reads', np.float64),
-            ('snp_coverage', np.float64)
+            ("state", np.float64),
+            ("read_coverage", np.float64),
+            ("true_read_coverage", np.float64),
+            ("b_reads", np.float64),
+            ("snp_coverage", np.float64),
         ]
-   
+
         self.data = np.array(result, dtype=dtype)
-        
+
         # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage
         # TODO? biases RDR estimates, particularly if many CNAs.
         #
@@ -123,13 +127,14 @@ class CNA_sim:
 
         self.realized_genome_coverage = self.normal_genome_coverage
 
+    # TODO independent rdr and baf properties.
     @property
     def rdr_baf(self):
         rdr = self.data["read_coverage"] / self.realized_genome_coverage
         baf = self.data["b_reads"] / self.data["snp_coverage"]
-        
+
         return np.c_[rdr, baf]
-    
+
     def plot_realization_true_flat(self):
         """
         BAF vs RDR for the assumed simulation.

@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import logsumexp
 
+
 def normalize_ln_posteriors(ln_posteriors):
     """
     Return the normalized log posteriors.
@@ -12,6 +13,7 @@ def normalize_ln_posteriors(ln_posteriors):
     norm = np.broadcast_to(norm.reshape(num_samples, 1), (num_samples, num_states))
 
     return ln_posteriors.copy() - norm
+
 
 def param_diff(params, new_params):
     if params is None:

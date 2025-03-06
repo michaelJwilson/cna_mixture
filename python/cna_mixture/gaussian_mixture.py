@@ -6,8 +6,9 @@ from cna_mixture.encoding import onehot_encode_states
 
 logger = logging.getLogger(__name__)
 
+
 def fit_gaussian_mixture(
-    rdr_baf, 
+    rdr_baf,
     num_samples=100_000,
     num_components=4,
     random_state=0,
@@ -31,7 +32,7 @@ def fit_gaussian_mixture(
     samples, decoded_states = gmm.sample(n_samples=num_samples)
 
     logger.info(f"Fit Gaussian mixture means:\n{means}")
-        
+
     plot_rdr_baf_flat(
         "plots/gmm_rdr_baf_flat.pdf",
         samples[:, 0],

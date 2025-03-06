@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def reparameterize_beta_binom(input_bafs, overdispersion):
     """
     Given the array of BAFs for all states and a shared overdispersion,

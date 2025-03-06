@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def onehot_encode_states(state_array):
     """
     Given an index array of categorical states,
