@@ -61,7 +61,7 @@ def main():
     
     CNA_mixture(cna_sim.realized_genome_coverage, cna_sim.data).fit()
     
-    print(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
+    logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
 
 if __name__ == "__main__":

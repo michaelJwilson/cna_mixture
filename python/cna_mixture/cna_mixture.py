@@ -22,7 +22,6 @@ class CNA_categorical_prior:
     def __init__(self, mixture_params, rdr_baf):
         self.num_states = mixture_params.num_states
         self.cna_states = mixture_params.cna_states
-
         self.ln_lambdas = self.ln_lambdas_closest(rdr_baf, self.cna_states)
 
     @staticmethod
