@@ -30,6 +30,7 @@ def assign_closest(points, centers):
     return idx
 
 class CNA_mixture:
+    # NB call the rust backend.
     RUST_BACKEND = True
     
     def __init__(
