@@ -20,15 +20,19 @@ logger = logging.getLogger(__name__)
 
 
 class CNA_categorical_prior:
-    def __init__(self, mixture_params):
+    def __init__(self, mixture_params, rdr_baf):
         self.num_states = mixture_params.num_states
         self.cna_states = mixture_params.cna_states
 
-    def ln_lambdas_equal(self):
-        return (1.0 / self.num_states) * np.ones(self.num_states)
+        self.ln_lambdas = self.ln_lambdas_closest(rdr_baf, self.cna_states)
 
-    def ln_lambdas_closest(self, rdr_baf):
-        decoded_states = assign_closest(rdr_baf, self.cna_states)
+    @staticmethod
+    def ln_lambdas_equal(self, num_states):
+        return (1.0 / num_states) * np.ones(num_states)
+
+    @staticmethod
+    def ln_lambdas_closest(self, rdr_baf, cna_states):
+        decoded_states = assign_closest(rdr_baf, cna_states)
 
         # NB categorical prior on state fractions
         _, counts = np.unique(decoded_states, return_counts=True)
@@ -36,22 +40,24 @@ class CNA_categorical_prior:
 
         return ln_lambdas
 
-    def ln_lambdas_update(self, ln_state_posteriors):
+    def update(self, ln_state_posteriors):
         """
         Given updated ln_state_posteriors, calculate the updated ln_lambdas.
         """
-        return logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
+        self.ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
+            ln_state_posteriors
+        )
 
-    def state_priors(self, ln_lambdas):
+    def get_state_priors(self):
         """
         Broadcast per-state categorical priors to equivalent (samples x state)
         Prior array.
         """
-        ln_norm = logsumexp(ln_lambdas)
+        ln_norm = logsumexp(self.ln_lambdas)
 
         # NB ensure normalized.
         return np.broadcast_to(
-            ln_lambdas - ln_norm, (self.num_segments, len(ln_lambdas))
+            self.ln_lambdas - ln_norm, (self.num_segments, len(self.ln_lambdas))
         ).copy()
 
 
@@ -101,12 +107,13 @@ class CNA_mixture:
         self.bounds = self.get_cna_mixture_bounds()
 
         # NB pre-populate terms to cost.
-        self.ln_lambdas = self.initialize_ln_lambdas_closest(mixture_params)
-        self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
-
         self.ln_state_emission = self.cna_mixture_ln_emission_update(
             self.initial_params
         )
+
+        self.state_prior_model = CNA_categorical_prior(mixture_params)
+
+        self.ln_state_prior = self.state_prior_model.get_state_priors()
 
         self.estep(self.ln_state_emission, self.ln_state_prior)
 
@@ -182,6 +189,10 @@ class CNA_mixture:
 
             self.estep(self.ln_state_emission, self.ln_state_prior)
 
+            self.pstep()
+
+            self.estep(self.ln_state_emission, self.ln_state_prior)
+            
             self.last_params = new_params
 
         self.params = new_params.copy()
@@ -209,8 +220,8 @@ class CNA_mixture:
 
         plot_rdr_baf_flat(
             "plots/final_rdr_baf_flat.pdf",
-            self.rdr_baf[:, 0],
-            self.rdr_baf[:, 1],
+            self.rdr,
+            self.baf,
             ln_state_posteriors=self.ln_state_posteriors,
             states_bag=self.get_states_bag(res.x),
             title="Final state posteriors",
@@ -339,10 +350,11 @@ class CNA_mixture:
 
         self.state_posteriors = np.exp(self.ln_state_posteriors)
 
-        self.ln_lambdas = self.cna_mixture_ln_lambdas_update(self.ln_state_posteriors)
-
-        self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
-
+    def pstep(self):
+        self.state_prior_model.update(self.ln_state_posteriors)
+        
+        self.ln_state_prior = self.state_prior_model.get_state_priors()
+        
     def cna_mixture_em_cost(self, params, verbose=False):
         """
         if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
