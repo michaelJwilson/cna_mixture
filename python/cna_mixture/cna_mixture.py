@@ -60,6 +60,207 @@ class CNA_categorical_prior:
             self.ln_lambdas - ln_norm, (self.num_segments, len(self.ln_lambdas))
         ).copy()
 
+class CNA_markov_prior:
+    def __init__(self):
+        raise NotImplementedError()
+
+class CNA_emission:
+    def __init__(self, ks, xs, ns):
+        self.ks = ks
+        self.xs = xs
+        self.ns = ns
+        
+    def cna_mixture_betabinom_update(self, params):
+        """                                                                                                                                                                                                                                                                   
+        Evaluate log prob. under BetaBinom model.                                                                                                                                                                                                                             
+        Returns (# sample, # state) array.                                                                                                                                                                                                                                    
+        """
+        _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
+        state_alpha_betas = reparameterize_beta_binom(
+            bafs,
+            baf_overdispersion,
+        )
+
+        ks, ns = self.data["b_reads"], self.data["snp_coverage"]
+
+        if self.RUST_BACKEND:
+            ks, ns = np.ascontiguousarray(ks), np.ascontiguousarray(ns)
+
+            alphas = np.ascontiguousarray(state_alpha_betas[:, 0].copy())
+            betas = np.ascontiguousarray(state_alpha_betas[:, 1].copy())
+
+            result = betabinom_logpmf(ks, ns, betas, alphas)
+            result = np.array(result)
+        else:
+            result = np.zeros((len(ks), len(state_alpha_betas)))
+
+            for col, (alpha, beta) in enumerate(state_alpha_betas):
+                for row, (k, n) in enumerate(zip(ks, ns)):
+                    result[row, col] = betabinom.logpmf(k, n, beta, alpha)
+
+        return result, state_alpha_betas
+
+    def cna_mixture_nbinom_update(self, params):
+        """                                                                                                                                                                                                                                                                   
+        Evaluate log prob. under NegativeBinom model.                                                                                                                                                                                                                         
+        Return (# sample, # state) array.                                                                                                                                                                                                                                     
+        """
+        state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
+            params
+        )
+
+        # TODO does a non-linear transform in the cost trip the optimizer?                                                                                                                                                                                                    
+        state_rs_ps = reparameterize_nbinom(
+            state_read_depths,
+            rdr_overdispersion,
+        )
+
+        ks = self.data["read_coverage"]
+
+        if self.RUST_BACKEND:
+            ks = np.ascontiguousarray(ks)
+
+            rs = np.ascontiguousarray(state_rs_ps[:, 0].copy())
+            ps = np.ascontiguousarray(state_rs_ps[:, 1].copy())
+
+            result = nbinom_logpmf(ks, rs, ps)
+            result = np.array(result)
+	else:
+            result = np.zeros((len(ks), len(state_rs_ps)))
+
+            for col, (rr, pp) in enumerate(state_rs_ps):
+                for row, kk in enumerate(ks):
+                    result[row, col] = nbinom.logpmf(kk, rr, pp)
+
+        return result, state_rs_ps
+    
+    def get_ln_state_emission(self, params):
+	ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
+        ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
+
+        return ln_state_posterior_betabinom + ln_state_posterior_nbinom
+
+    def grad_em_cost_nb(self, params, state_posteriors):
+        # TODO
+        ks = self.ks        
+        state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
+            params
+        )
+
+        # TODO does a non-linear transform in the cost trip the optimizer?                                                                                                                                                                                                    
+        state_rs_ps = reparameterize_nbinom(
+            state_read_depths,
+            rdr_overdispersion,
+        )
+
+        if self.RUST_BACKEND:
+            ks = np.ascontiguousarray(ks)
+            mus = np.ascontiguousarray(state_read_depths)
+            rs = np.ascontiguousarray(state_rs_ps[:, 0])
+            phi = rdr_overdispersion
+
+            sample_grad_mus, sample_grad_phi = grad_cna_mixture_em_cost_nb_rs(
+                ks, mus, rs, phi
+            )
+
+            sample_grad_mus = np.array(sample_grad_mus)
+            sample_grad_phi = np.array(sample_grad_phi)
+        else:
+            sample_grad_mus = np.zeros((len(ks), len(state_rs_ps)))
+            sample_grad_phi = np.zeros((len(ks), len(state_rs_ps)))
+
+            for col, (rr, pp) in enumerate(state_rs_ps):
+                mu = state_read_depths[col]
+		phi = rdr_overdispersion
+
+                zero_point = digamma(rr) / (phi * phi)
+                zero_point += np.log(1.0 + phi * mu) / phi / phi
+                zero_point -= phi * mu * rr / phi / (1.0 + phi * mu)
+
+                for row, kk in enumerate(ks):
+                    sample_grad_mus[row, col] = (
+                        (kk - phi * mu * rr) / mu / (1.0 + phi * mu)
+                    )
+                    sample_grad_phi[row, col] = (
+                        zero_point
+                        - digamma(kk + rr) / (phi * phi)
+                        + kk / phi / (1.0 + phi * mu)
+                    )
+
+        grad_mus = -(self.state_posteriors * sample_grad_mus).sum(axis=0)
+        grad_phi = -(self.state_posteriors * sample_grad_phi).sum()
+
+        return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
+
+    def grad_em_cost_bb(self, params, state_posteriors):
+        # TODO
+        ks = self.xs
+        ns = self.ns
+        
+        _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
+        state_alpha_betas = reparameterize_beta_binom(
+            bafs,
+            baf_overdispersion,
+        )
+
+        if self.RUST_BACKEND:
+            xs = np.ascontiguousarray(xs)
+            ns = np.ascontiguousarray(ns)
+
+            alphas = np.ascontiguousarray(state_alpha_betas[:, 0])
+            betas = np.ascontiguousarray(state_alpha_betas[:, 1])
+
+            sample_grad_ps, sample_grad_tau = grad_cna_mixture_em_cost_bb_rs(
+                xs, ns, alphas, betas
+            )
+
+            sample_grad_ps = np.array(sample_grad_ps)
+            sample_grad_tau = np.array(sample_grad_tau)
+        else:
+            def grad_ln_bb_ab_zeropoint(a, b):
+                gab = digamma(a + b)
+                ga = digamma(a)
+                gb = digamma(b)
+
+                return np.array([gab - ga, gab - gb])
+
+            def grad_ln_bb_ab_data(a, b, x, n):
+                gxa = digamma(x + a)
+                gnab = digamma(n + a + b)
+                gnxb = digamma(n - x + b)
+
+                return np.array([gxa - gnab, gnxb - gnab])
+
+            sample_grad_ps = np.zeros((len(xs), len(state_alpha_betas)))
+            sample_grad_tau = np.zeros((len(xs), len(state_alpha_betas)))
+
+            for col, (alpha, beta) in enumerate(state_alpha_betas):
+                tau = alpha + beta
+                baf = beta / tau
+
+                zero_point = grad_ln_bb_ab_zeropoint(beta, alpha)
+
+                for row, (x, n) in enumerate(zip(xs, ns)):
+                    interim = zero_point + grad_ln_bb_ab_data(beta, alpha, x, n)
+
+                    sample_grad_ps[row, col] = -tau * interim[1] + tau * interim[0]
+                    sample_grad_tau[row, col] = (1.0 - baf) * interim[
+                        1
+                    ] + baf * interim[0]
+
+        grad_ps = -(self.state_posteriors * sample_grad_ps).sum(axis=0)
+        grad_tau = -(self.state_posteriors * sample_grad_tau).sum()
+
+        return np.concatenate([grad_ps, np.atleast_1d(grad_tau)])
+
+    def grad_em_cost_grad(self, params):
+        return np.concatenate(
+            [
+                self.grad_cna_mixture_em_cost_nb(params),
+                self.grad_cna_mixture_em_cost_bb(params),
+            ]
+        )
+    
 
 class CNA_mixture:
     # NB call the rust backend.
@@ -106,14 +307,12 @@ class CNA_mixture:
 
         self.bounds = self.get_cna_mixture_bounds()
 
-        # NB pre-populate terms to cost.
-        self.ln_state_emission = self.cna_mixture_ln_emission_update(
-            self.initial_params
-        )
-
         self.state_prior_model = CNA_categorical_prior(mixture_params)
-
+        self.emission_model = CNA_emission(data["read_coverage"], data["b_reads"], data["snp_coverage"])
+        
+        # NB pre-populate terms to cost.
         self.ln_state_prior = self.state_prior_model.get_state_priors()
+        self.ln_state_emission = self.emission_model.get_ln_state_emission(self.initial_params)
 
         self.estep(self.ln_state_emission, self.ln_state_prior)
 
@@ -270,76 +469,6 @@ class CNA_mixture:
 
         return state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
 
-    def cna_mixture_betabinom_update(self, params):
-        """
-        Evaluate log prob. under BetaBinom model.
-        Returns (# sample, # state) array.
-        """
-        _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
-        state_alpha_betas = reparameterize_beta_binom(
-            bafs,
-            baf_overdispersion,
-        )
-
-        ks, ns = self.data["b_reads"], self.data["snp_coverage"]
-
-        if self.RUST_BACKEND:
-            ks, ns = np.ascontiguousarray(ks), np.ascontiguousarray(ns)
-
-            alphas = np.ascontiguousarray(state_alpha_betas[:, 0].copy())
-            betas = np.ascontiguousarray(state_alpha_betas[:, 1].copy())
-
-            result = betabinom_logpmf(ks, ns, betas, alphas)
-            result = np.array(result)
-        else:
-            result = np.zeros((len(ks), len(state_alpha_betas)))
-
-            for col, (alpha, beta) in enumerate(state_alpha_betas):
-                for row, (k, n) in enumerate(zip(ks, ns)):
-                    result[row, col] = betabinom.logpmf(k, n, beta, alpha)
-
-        return result, state_alpha_betas
-
-    def cna_mixture_nbinom_update(self, params):
-        """
-        Evaluate log prob. under NegativeBinom model.
-        Return (# sample, # state) array.
-        """
-        state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
-            params
-        )
-
-        # TODO does a non-linear transform in the cost trip the optimizer?
-        state_rs_ps = reparameterize_nbinom(
-            state_read_depths,
-            rdr_overdispersion,
-        )
-
-        ks = self.data["read_coverage"]
-
-        if self.RUST_BACKEND:
-            ks = np.ascontiguousarray(ks)
-
-            rs = np.ascontiguousarray(state_rs_ps[:, 0].copy())
-            ps = np.ascontiguousarray(state_rs_ps[:, 1].copy())
-
-            result = nbinom_logpmf(ks, rs, ps)
-            result = np.array(result)
-        else:
-            result = np.zeros((len(ks), len(state_rs_ps)))
-
-            for col, (rr, pp) in enumerate(state_rs_ps):
-                for row, kk in enumerate(ks):
-                    result[row, col] = nbinom.logpmf(kk, rr, pp)
-
-        return result, state_rs_ps
-
-    def cna_mixture_ln_emission_update(self, params):
-        ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
-        ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
-
-        return ln_state_posterior_betabinom + ln_state_posterior_nbinom
-
     def estep(self, ln_state_emission, ln_state_prior):
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
@@ -376,126 +505,6 @@ class CNA_mixture:
             self.update_message(-1, params, cost)
 
         return cost
-
-    def grad_cna_mixture_em_cost_nb(self, params):
-        state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
-            params
-        )
-
-        # TODO does a non-linear transform in the cost trip the optimizer?
-        state_rs_ps = reparameterize_nbinom(
-            state_read_depths,
-            rdr_overdispersion,
-        )
-
-        ks = self.data["read_coverage"]
-
-        if self.RUST_BACKEND:
-            ks = np.ascontiguousarray(ks)
-            mus = np.ascontiguousarray(state_read_depths)
-            rs = np.ascontiguousarray(state_rs_ps[:, 0])
-            phi = rdr_overdispersion
-
-            sample_grad_mus, sample_grad_phi = grad_cna_mixture_em_cost_nb_rs(
-                ks, mus, rs, phi
-            )
-
-            sample_grad_mus = np.array(sample_grad_mus)
-            sample_grad_phi = np.array(sample_grad_phi)
-        else:
-            sample_grad_mus = np.zeros((len(ks), len(state_rs_ps)))
-            sample_grad_phi = np.zeros((len(ks), len(state_rs_ps)))
-
-            for col, (rr, pp) in enumerate(state_rs_ps):
-                mu = state_read_depths[col]
-                phi = rdr_overdispersion
-
-                zero_point = digamma(rr) / (phi * phi)
-                zero_point += np.log(1.0 + phi * mu) / phi / phi
-                zero_point -= phi * mu * rr / phi / (1.0 + phi * mu)
-
-                for row, kk in enumerate(ks):
-                    sample_grad_mus[row, col] = (
-                        (kk - phi * mu * rr) / mu / (1.0 + phi * mu)
-                    )
-                    sample_grad_phi[row, col] = (
-                        zero_point
-                        - digamma(kk + rr) / (phi * phi)
-                        + kk / phi / (1.0 + phi * mu)
-                    )
-
-        grad_mus = -(self.state_posteriors * sample_grad_mus).sum(axis=0)
-        grad_phi = -(self.state_posteriors * sample_grad_phi).sum()
-
-        return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
-
-    def grad_cna_mixture_em_cost_bb(self, params):
-        _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
-        state_alpha_betas = reparameterize_beta_binom(
-            bafs,
-            baf_overdispersion,
-        )
-
-        ks, ns = self.data["b_reads"], self.data["snp_coverage"]
-
-        if self.RUST_BACKEND:
-            ks = np.ascontiguousarray(ks)
-            ns = np.ascontiguousarray(ns)
-
-            alphas = np.ascontiguousarray(state_alpha_betas[:, 0])
-            betas = np.ascontiguousarray(state_alpha_betas[:, 1])
-
-            sample_grad_ps, sample_grad_tau = grad_cna_mixture_em_cost_bb_rs(
-                ks, ns, alphas, betas
-            )
-
-            sample_grad_ps = np.array(sample_grad_ps)
-            sample_grad_tau = np.array(sample_grad_tau)
-        else:
-
-            def grad_ln_bb_ab_zeropoint(a, b):
-                gab = digamma(a + b)
-                ga = digamma(a)
-                gb = digamma(b)
-
-                return np.array([gab - ga, gab - gb])
-
-            def grad_ln_bb_ab_data(a, b, k, n):
-                gka = digamma(k + a)
-                gnab = digamma(n + a + b)
-                gnkb = digamma(n - k + b)
-
-                return np.array([gka - gnab, gnkb - gnab])
-
-            sample_grad_ps = np.zeros((len(ks), len(state_alpha_betas)))
-            sample_grad_tau = np.zeros((len(ks), len(state_alpha_betas)))
-
-            for col, (alpha, beta) in enumerate(state_alpha_betas):
-                tau = alpha + beta
-                baf = beta / tau
-
-                zero_point = grad_ln_bb_ab_zeropoint(beta, alpha)
-
-                for row, (k, n) in enumerate(zip(ks, ns)):
-                    interim = zero_point + grad_ln_bb_ab_data(beta, alpha, k, n)
-
-                    sample_grad_ps[row, col] = -tau * interim[1] + tau * interim[0]
-                    sample_grad_tau[row, col] = (1.0 - baf) * interim[
-                        1
-                    ] + baf * interim[0]
-
-        grad_ps = -(self.state_posteriors * sample_grad_ps).sum(axis=0)
-        grad_tau = -(self.state_posteriors * sample_grad_tau).sum()
-
-        return np.concatenate([grad_ps, np.atleast_1d(grad_tau)])
-
-    def cna_mixture_em_cost_grad(self, params, verbose=False):
-        return np.concatenate(
-            [
-                self.grad_cna_mixture_em_cost_nb(params),
-                self.grad_cna_mixture_em_cost_bb(params),
-            ]
-        )
 
     def update_message(self, nit, last_params, params, new_params, cost):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
