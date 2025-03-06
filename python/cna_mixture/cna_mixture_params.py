@@ -7,7 +7,6 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model,
     with shared overdispersions.
     """
-
     def __init__(self):
         """
         Initialize an instance of the class with random values in the assumed bounds.
@@ -33,9 +32,7 @@ class CNA_mixture_params:
             [1.0 * int_sample, 1.0 / int_sample] for int_sample in integers
         ]
 
-        self.cna_states = [self.normal_state] + self.cna_states
-
-        self.cna_states = np.array(self.cna_states)
+        self.cna_states = np.array([self.normal_state] + self.cna_states)
         self.normal_state = np.array(self.normal_state)
 
         self.__verify()
@@ -48,7 +45,7 @@ class CNA_mixture_params:
     def __str__(self):
         return ",  ".join([f"{key}: {value}" for key, value in self.__dict__.items()])
 
-    def update(self, input_params_dict):
+    def dict_update(self, input_params_dict):
         """
         Update an instance of CNA_mixture_params to the input key: value dict.
         """
