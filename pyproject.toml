@@ -17,7 +17,7 @@ scipy = "*"
 scikit-learn = "*"
 
 [tool.poetry.scripts]
-run_cna_mixture = 'cna_mixture.scripts.run_cna_mixture:main'
+run_model = 'cna_mixture.scripts.run_model:main'
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

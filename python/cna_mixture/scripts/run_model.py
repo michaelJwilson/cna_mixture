@@ -59,7 +59,7 @@ def main():
     
     # fit_gaussian_mixture(cna_sim.rdr_baf)
     
-    CNA_mixture(cna_sim.data, cna_sim.rdr_baf, cna_sim.realized_genome_coverage).fit()
+    # CNA_mixture(cna_sim.data, cna_sim.rdr_baf, cna_sim.realized_genome_coverage).fit()
     
     print(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
