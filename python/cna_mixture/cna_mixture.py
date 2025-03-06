@@ -253,7 +253,7 @@ class CNA_emission:
 
         return np.concatenate([grad_ps, np.atleast_1d(grad_tau)])
 
-    def grad_em_cost_grad(self, params):
+    def grad_em_cost(self, params):
         return np.concatenate(
             [
                 self.grad_cna_mixture_em_cost_nb(params),
@@ -384,7 +384,7 @@ class CNA_mixture:
             )
 
             # TODO may not be necessary?  Depends how solver calls cost (emission update) vs grad.
-            self.ln_state_emission = self.cna_mixture_ln_emission_update(new_params)
+            self.ln_state_emission = self.emission_model.get_ln_state_emission(new_params)
 
             self.estep(self.ln_state_emission, self.ln_state_prior)
 
@@ -406,7 +406,7 @@ class CNA_mixture:
             self.cna_mixture_em_cost,
             self.params.copy(),
             method=self.optimizer,
-            jac=self.cna_mixture_em_cost_grad,
+            jac=self.emission_model.grad_em_cost
             bounds=self.bounds,
             callback=self.callback,
             constraints=None,
@@ -425,13 +425,6 @@ class CNA_mixture:
             states_bag=self.get_states_bag(res.x),
             title="Final state posteriors",
         )
-
-    def get_states_bag(self, params):
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-            self.unpack_cna_mixture_params(params)
-        )
-
-        return np.c_[state_read_depths / self.genome_coverage, bafs]
 
     @staticmethod
     def get_cna_mixture_bounds():
@@ -469,6 +462,13 @@ class CNA_mixture:
 
         return state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
 
+    def get_states_bag(self, params):
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+            self.unpack_cna_mixture_params(params)
+        )
+
+        return np.c_[state_read_depths / self.genome_coverage, bafs]
+    
     def estep(self, ln_state_emission, ln_state_prior):
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
@@ -481,7 +481,6 @@ class CNA_mixture:
 
     def pstep(self):
         self.state_prior_model.update(self.ln_state_posteriors)
-        
         self.ln_state_prior = self.state_prior_model.get_state_priors()
         
     def cna_mixture_em_cost(self, params, verbose=False):
@@ -491,8 +490,8 @@ class CNA_mixture:
 
         NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
         """
-        self.ln_state_emission = self.cna_mixture_ln_emission_update(params)
-
+        self.ln_state_emission = self.emission_model.get_ln_state_emission(params)
+        
         # NB responsibilites rik, where i is the sample and k is the state.
         # NB this is *not* state-posterior weighted log-likelihood.
         # NB sum over samples and states.  Maximization -> minimization.
