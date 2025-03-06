@@ -5,7 +5,6 @@ from cna_mixture.plotting import plot_rdr_baf_flat
 from cna_mixture.utils import normalize_ln_posteriors, param_diff, assign_closest
 from cna_mixture.negative_binomial import reparameterize_nbinom
 from cna_mixture.beta_binomial import reparameterize_beta_binom
-from scipy.spatial import KDTree
 from scipy.optimize import minimize, check_grad, approx_fprime, OptimizeResult
 from scipy.special import digamma, logsumexp
 from cna_mixture_rs.core import (
@@ -27,11 +26,11 @@ class CNA_categorical_prior:
         self.ln_lambdas = self.ln_lambdas_closest(rdr_baf, self.cna_states)
 
     @staticmethod
-    def ln_lambdas_equal(self, num_states):
+    def ln_lambdas_equal(num_states):
         return (1.0 / num_states) * np.ones(num_states)
 
     @staticmethod
-    def ln_lambdas_closest(self, rdr_baf, cna_states):
+    def ln_lambdas_closest(rdr_baf, cna_states):
         decoded_states = assign_closest(rdr_baf, cna_states)
 
         # NB categorical prior on state fractions
@@ -48,7 +47,7 @@ class CNA_categorical_prior:
             ln_state_posteriors
         )
 
-    def get_state_priors(self):
+    def get_state_priors(self, num_segments):
         """
         Broadcast per-state categorical priors to equivalent (samples x state)
         Prior array.
@@ -57,65 +56,99 @@ class CNA_categorical_prior:
 
         # NB ensure normalized.
         return np.broadcast_to(
-            self.ln_lambdas - ln_norm, (self.num_segments, len(self.ln_lambdas))
+            self.ln_lambdas - ln_norm, (num_segments, len(self.ln_lambdas))
         ).copy()
+
+    def __str__(self):
+        return f"lambdas={np.exp(self.ln_lambdas)}"
 
 class CNA_markov_prior:
     def __init__(self):
         raise NotImplementedError()
 
+
 class CNA_emission:
-    def __init__(self, ks, xs, ns):
+    RUST_BACKEND = True
+
+    def __init__(self, num_states, genome_coverage, ks, xs, ns):
         self.ks = ks
         self.xs = xs
         self.ns = ns
-        
-    def cna_mixture_betabinom_update(self, params):
-        """                                                                                                                                                                                                                                                                   
-        Evaluate log prob. under BetaBinom model.                                                                                                                                                                                                                             
-        Returns (# sample, # state) array.                                                                                                                                                                                                                                    
+
+        # TODO?
+        self.num_states = num_states
+        self.genome_coverage = genome_coverage
+
+    def unpack_params(self, params):
         """
-        _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
+        Given a cost parameter vector, unpack into named cna mixture
+        parameters.
+        """
+        num_states = self.num_states
+
+        # NB read_depths + overdispersion + bafs + overdispersion
+        assert (
+            len(params) == num_states + 1 + num_states + 1
+        ), f"{params} does not satisy {num_states} states."
+
+        state_read_depths = params[:num_states]
+        rdr_overdispersion = params[num_states]
+
+        bafs = params[num_states + 1 : 2 * num_states + 1]
+        baf_overdispersion = params[2 * num_states + 1]
+
+        return state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
+
+    def get_states_bag(self, params):
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+            self.unpack_params(params)
+        )
+
+        return np.c_[state_read_depths / self.genome_coverage, bafs]
+
+    def cna_mixture_betabinom_update(self, params):
+        """
+        Evaluate log prob. under BetaBinom model.
+        Returns (# sample, # state) array.
+        """
+        xs, ns = self.xs, self.ns
+
+        _, _, bafs, baf_overdispersion = self.unpack_params(params)
         state_alpha_betas = reparameterize_beta_binom(
             bafs,
             baf_overdispersion,
         )
 
-        ks, ns = self.data["b_reads"], self.data["snp_coverage"]
-
         if self.RUST_BACKEND:
-            ks, ns = np.ascontiguousarray(ks), np.ascontiguousarray(ns)
+            xs, ns = np.ascontiguousarray(xs), np.ascontiguousarray(ns)
 
             alphas = np.ascontiguousarray(state_alpha_betas[:, 0].copy())
             betas = np.ascontiguousarray(state_alpha_betas[:, 1].copy())
 
-            result = betabinom_logpmf(ks, ns, betas, alphas)
+            result = betabinom_logpmf(xs, ns, betas, alphas)
             result = np.array(result)
         else:
-            result = np.zeros((len(ks), len(state_alpha_betas)))
+            result = np.zeros((len(xs), len(state_alpha_betas)))
 
             for col, (alpha, beta) in enumerate(state_alpha_betas):
-                for row, (k, n) in enumerate(zip(ks, ns)):
-                    result[row, col] = betabinom.logpmf(k, n, beta, alpha)
+                for row, (x, n) in enumerate(zip(xs, ns)):
+                    result[row, col] = betabinom.logpmf(x, n, beta, alpha)
 
         return result, state_alpha_betas
 
     def cna_mixture_nbinom_update(self, params):
-        """                                                                                                                                                                                                                                                                   
-        Evaluate log prob. under NegativeBinom model.                                                                                                                                                                                                                         
-        Return (# sample, # state) array.                                                                                                                                                                                                                                     
         """
-        state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
-            params
-        )
+        Evaluate log prob. under NegativeBinom model.
+        Return (# sample, # state) array.
+        """
+        ks = self.ks
+        state_read_depths, rdr_overdispersion, _, _ = self.unpack_params(params)
 
-        # TODO does a non-linear transform in the cost trip the optimizer?                                                                                                                                                                                                    
+        # TODO does a non-linear transform in the cost trip the optimizer?
         state_rs_ps = reparameterize_nbinom(
             state_read_depths,
             rdr_overdispersion,
         )
-
-        ks = self.data["read_coverage"]
 
         if self.RUST_BACKEND:
             ks = np.ascontiguousarray(ks)
@@ -125,7 +158,7 @@ class CNA_emission:
 
             result = nbinom_logpmf(ks, rs, ps)
             result = np.array(result)
-	else:
+        else:
             result = np.zeros((len(ks), len(state_rs_ps)))
 
             for col, (rr, pp) in enumerate(state_rs_ps):
@@ -133,21 +166,19 @@ class CNA_emission:
                     result[row, col] = nbinom.logpmf(kk, rr, pp)
 
         return result, state_rs_ps
-    
+
     def get_ln_state_emission(self, params):
-	ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
+        ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
 
         return ln_state_posterior_betabinom + ln_state_posterior_nbinom
 
     def grad_em_cost_nb(self, params, state_posteriors):
         # TODO
-        ks = self.ks        
-        state_read_depths, rdr_overdispersion, _, _ = self.unpack_cna_mixture_params(
-            params
-        )
+        ks = self.ks
+        state_read_depths, rdr_overdispersion, _, _ = self.unpack_params(params)
 
-        # TODO does a non-linear transform in the cost trip the optimizer?                                                                                                                                                                                                    
+        # TODO does a non-linear transform in the cost trip the optimizer?
         state_rs_ps = reparameterize_nbinom(
             state_read_depths,
             rdr_overdispersion,
@@ -171,7 +202,7 @@ class CNA_emission:
 
             for col, (rr, pp) in enumerate(state_rs_ps):
                 mu = state_read_depths[col]
-		phi = rdr_overdispersion
+                phi = rdr_overdispersion
 
                 zero_point = digamma(rr) / (phi * phi)
                 zero_point += np.log(1.0 + phi * mu) / phi / phi
@@ -187,17 +218,17 @@ class CNA_emission:
                         + kk / phi / (1.0 + phi * mu)
                     )
 
-        grad_mus = -(self.state_posteriors * sample_grad_mus).sum(axis=0)
-        grad_phi = -(self.state_posteriors * sample_grad_phi).sum()
+        grad_mus = -(state_posteriors * sample_grad_mus).sum(axis=0)
+        grad_phi = -(state_posteriors * sample_grad_phi).sum()
 
         return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
 
     def grad_em_cost_bb(self, params, state_posteriors):
         # TODO
-        ks = self.xs
+        xs = self.xs
         ns = self.ns
-        
-        _, _, bafs, baf_overdispersion = self.unpack_cna_mixture_params(params)
+
+        _, _, bafs, baf_overdispersion = self.unpack_params(params)
         state_alpha_betas = reparameterize_beta_binom(
             bafs,
             baf_overdispersion,
@@ -217,6 +248,7 @@ class CNA_emission:
             sample_grad_ps = np.array(sample_grad_ps)
             sample_grad_tau = np.array(sample_grad_tau)
         else:
+
             def grad_ln_bb_ab_zeropoint(a, b):
                 gab = digamma(a + b)
                 ga = digamma(a)
@@ -248,24 +280,21 @@ class CNA_emission:
                         1
                     ] + baf * interim[0]
 
-        grad_ps = -(self.state_posteriors * sample_grad_ps).sum(axis=0)
-        grad_tau = -(self.state_posteriors * sample_grad_tau).sum()
+        grad_ps = -(state_posteriors * sample_grad_ps).sum(axis=0)
+        grad_tau = -(state_posteriors * sample_grad_tau).sum()
 
         return np.concatenate([grad_ps, np.atleast_1d(grad_tau)])
 
-    def grad_em_cost(self, params):
+    def grad_em_cost(self, params, state_posteriors):
         return np.concatenate(
             [
-                self.grad_cna_mixture_em_cost_nb(params),
-                self.grad_cna_mixture_em_cost_bb(params),
+                self.grad_em_cost_nb(params, state_posteriors),
+                self.grad_em_cost_bb(params, state_posteriors),
             ]
         )
-    
+
 
 class CNA_mixture:
-    # NB call the rust backend.
-    RUST_BACKEND = True
-
     def __init__(self, genome_coverage, data, optimizer="L-BFGS-B", maxiter=100):
         """
         Fit CNA mixture model via Expectation Maximization.
@@ -278,15 +307,15 @@ class CNA_mixture:
         # NB see e.g. https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
 
+        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
+        mixture_params = CNA_mixture_params()
+
         self.data = data
         self.maxiter = maxiter
         self.optimizer = optimizer
-        self.num_segments = len(rdr_baf)
+        self.num_segments = len(self.baf)
         self.num_states = mixture_params.num_states
         self.genome_coverage = genome_coverage
-
-        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
-        mixture_params = CNA_mixture_params()
 
         # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
         mixture_params.rdr_baf_choice_update(self.rdr_baf)
@@ -307,12 +336,20 @@ class CNA_mixture:
 
         self.bounds = self.get_cna_mixture_bounds()
 
-        self.state_prior_model = CNA_categorical_prior(mixture_params)
-        self.emission_model = CNA_emission(data["read_coverage"], data["b_reads"], data["snp_coverage"])
-        
+        self.state_prior_model = CNA_categorical_prior(mixture_params, self.rdr_baf)
+        self.emission_model = CNA_emission(
+            self.num_states,
+            self.genome_coverage,
+            data["read_coverage"],
+            data["b_reads"],
+            data["snp_coverage"],
+        )
+
         # NB pre-populate terms to cost.
-        self.ln_state_prior = self.state_prior_model.get_state_priors()
-        self.ln_state_emission = self.emission_model.get_ln_state_emission(self.initial_params)
+        self.ln_state_prior = self.state_prior_model.get_state_priors(self.num_segments)
+        self.ln_state_emission = self.emission_model.get_ln_state_emission(
+            self.initial_params
+        )
 
         self.estep(self.ln_state_emission, self.ln_state_prior)
 
@@ -321,7 +358,7 @@ class CNA_mixture:
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=self.ln_state_posteriors,
-            states_bag=self.get_states_bag(self.initial_params),
+            states_bag=self.emission_model.get_states_bag(self.initial_params),
             title="Initial state posteriors (based on closest state lambdas).",
         )
 
@@ -384,18 +421,23 @@ class CNA_mixture:
             )
 
             # TODO may not be necessary?  Depends how solver calls cost (emission update) vs grad.
-            self.ln_state_emission = self.emission_model.get_ln_state_emission(new_params)
+            self.ln_state_emission = self.emission_model.get_ln_state_emission(
+                new_params
+            )
 
             self.estep(self.ln_state_emission, self.ln_state_prior)
 
             self.pstep()
 
             self.estep(self.ln_state_emission, self.ln_state_prior)
-            
+
             self.last_params = new_params
 
         self.params = new_params.copy()
 
+    def jac(self, params):
+        return self.emission_model.grad_em_cost(params, self.state_posteriors)
+        
     def fit(self):
         logger.info(f"Running optimization with optimizer {self.optimizer.upper()}")
 
@@ -406,7 +448,7 @@ class CNA_mixture:
             self.cna_mixture_em_cost,
             self.params.copy(),
             method=self.optimizer,
-            jac=self.emission_model.grad_em_cost
+            jac=self.jac,
             bounds=self.bounds,
             callback=self.callback,
             constraints=None,
@@ -422,53 +464,25 @@ class CNA_mixture:
             self.rdr,
             self.baf,
             ln_state_posteriors=self.ln_state_posteriors,
-            states_bag=self.get_states_bag(res.x),
+            states_bag=self.emission_model.get_states_bag(res.x),
             title="Final state posteriors",
         )
 
-    @staticmethod
-    def get_cna_mixture_bounds():
+    def get_cna_mixture_bounds(self):
         # NB exp_read_depths > 0
-        bounds = [(1.0e-6, None) for _ in range(num_states)]
+        bounds = [(1.0e-6, None) for _ in range(self.num_states)]
 
         # NB RDR overdispersion > 0
         bounds += [(1.0e-6, None)]
 
         # NB bafs - note, not limited to 0.5
-        bounds += [(1.0e-6, 1.0) for _ in range(num_states)]
+        bounds += [(1.0e-6, 1.0) for _ in range(self.num_states)]
 
         # NB baf overdispersion > 0
         bounds += [(1.0e-6, None)]
 
         return tuple(bounds)
 
-    def unpack_cna_mixture_params(self, params):
-        """
-        Given a cost parameter vector, unpack into named cna mixture
-        parameters.
-        """
-        num_states = self.num_states
-
-        # NB read_depths + overdispersion + bafs + overdispersion
-        assert (
-            len(params) == num_states + 1 + num_states + 1
-        ), f"{params} does not satisy {num_states} states."
-
-        state_read_depths = params[:num_states]
-        rdr_overdispersion = params[num_states]
-
-        bafs = params[num_states + 1 : 2 * num_states + 1]
-        baf_overdispersion = params[2 * num_states + 1]
-
-        return state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
-
-    def get_states_bag(self, params):
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-            self.unpack_cna_mixture_params(params)
-        )
-
-        return np.c_[state_read_depths / self.genome_coverage, bafs]
-    
     def estep(self, ln_state_emission, ln_state_prior):
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
@@ -481,8 +495,8 @@ class CNA_mixture:
 
     def pstep(self):
         self.state_prior_model.update(self.ln_state_posteriors)
-        self.ln_state_prior = self.state_prior_model.get_state_priors()
-        
+        self.ln_state_prior = self.state_prior_model.get_state_priors(self.num_segments)
+
     def cna_mixture_em_cost(self, params, verbose=False):
         """
         if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
@@ -491,7 +505,7 @@ class CNA_mixture:
         NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
         """
         self.ln_state_emission = self.emission_model.get_ln_state_emission(params)
-        
+
         # NB responsibilites rik, where i is the sample and k is the state.
         # NB this is *not* state-posterior weighted log-likelihood.
         # NB sum over samples and states.  Maximization -> minimization.
@@ -507,11 +521,11 @@ class CNA_mixture:
 
     def update_message(self, nit, last_params, params, new_params, cost):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-            self.unpack_cna_mixture_params(params)
+            self.emission_model.unpack_params(params)
         )
 
         msg = f"Iteration {nit}:  Minimizing cost to value: {cost} for:\n"
-        msg += f"lambdas={np.exp(self.ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
+        msg += f"{self.state_prior_model}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
         msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
         msg += f"\nMax. frac. parameter diff. compared to last and current state posterior: {param_diff(last_params, new_params)}, {param_diff(params, new_params)}"
 
