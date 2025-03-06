@@ -11,6 +11,8 @@ def plot_rdr_baf_flat(
        the posterior probs. for up to four states, which are mapped to RGB +
        alpha transparency.
     """
+    pl.clf()
+    
     if ln_state_posteriors is not None:
         if ln_state_posteriors.ndim == 1:
             rgb = np.exp(ln_state_posteriors)
@@ -59,6 +61,8 @@ def tophat_smooth(data, window_size):
 def plot_rdr_baf_genome(
     fpath, rdr_baf, ln_state_posteriors=None, states_bag=None, title=None
 ):
+    pl.clf()
+    
     segment_index = np.arange(len(rdr_baf))
 
     figsize = (15, 10)

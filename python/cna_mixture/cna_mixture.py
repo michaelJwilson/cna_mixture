@@ -129,7 +129,7 @@ class CNA_mixture:
         """
         Callable after each iteration of optimizer.  e.g. benefits from preserving Hessian.
         """
-        PTOL = 1.e-3
+        PTOL = 1.e-2
         
         self.nit += 1
 
@@ -143,14 +143,14 @@ class CNA_mixture:
        
         # NB converged with respect to last posterior?
         if self.param_diff(self.last_params, new_params) < PTOL:
-            logger.info(f"Converged to {100 * PTOL}% with last posterior.  Complete.")                
+            logger.info(f"Converged to {100 * PTOL}% wrt last state posteriors.  Complete.")                
             raise StopIteration
 
         if self.param_diff(self.params, new_params) < PTOL:
-            logger.info(f"Converged to {100 * PTOL}% with current posterior.  Updating posterior.")
+            logger.info(f"Converged to {100 * PTOL}% wrt current state posteriors.  Updating posteriors.")
 
             # TODO may not be necessary?  Depends how solver calls cost (emission update) vs grad.                                                                                                                   
-            self.ln_state_emission = self.cna_mixture_ln_emission_update(self.params)
+            self.ln_state_emission = self.cna_mixture_ln_emission_update(new_params)
 
             self.estep(self.ln_state_emission, self.ln_state_prior)
 
@@ -178,7 +178,7 @@ class CNA_mixture:
         logger.info(
             f"minimization success with best-fit CNA mixture params=\n{res.x}\n"
         )
-        
+
         plot_rdr_baf_flat(
             "plots/final_rdr_baf_flat.pdf",
             self.rdr_baf[:, 0],
