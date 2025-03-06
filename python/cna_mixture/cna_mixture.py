@@ -307,35 +307,35 @@ class CNA_mixture:
         assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
 
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
-        mixture_params = CNA_mixture_params()
+        self.mixture_params = CNA_mixture_params()
 
         self.data = data
         self.maxiter = maxiter
         self.optimizer = optimizer
         self.num_segments = len(self.baf)
-        self.num_states = mixture_params.num_states
+        self.num_states = self.mixture_params.num_states
         self.genome_coverage = genome_coverage
 
         # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
-        mixture_params.rdr_baf_choice_update(self.rdr_baf)
+        self.mixture_params.rdr_baf_choice_update(self.rdr_baf)
 
-        logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
+        logger.info(f"Initializing CNA states:\n{self.mixture_params.cna_states}\n")
 
         # NB self.genome_coverage == normal_coverage currently.
-        state_read_depths = self.genome_coverage * mixture_params.cna_states[:, 0]
+        state_read_depths = self.genome_coverage * self.mixture_params.cna_states[:, 0]
 
-        bafs = mixture_params.cna_states[:, 1]
+        bafs = self.mixture_params.cna_states[:, 1]
 
         self.initial_params = np.array(
             state_read_depths.tolist()
-            + [mixture_params.overdisp_phi]
+            + [self.mixture_params.overdisp_phi]
             + bafs.tolist()
-            + [mixture_params.overdisp_tau]
+            + [self.mixture_params.overdisp_tau]
         )
 
         self.bounds = self.get_cna_mixture_bounds()
 
-        self.state_prior_model = CNA_categorical_prior(mixture_params, self.rdr_baf)
+        self.state_prior_model = CNA_categorical_prior(self.mixture_params, self.rdr_baf)
         self.emission_model = CNA_emission(
             self.num_states,
             self.genome_coverage,
@@ -360,21 +360,6 @@ class CNA_mixture:
             states_bag=self.emission_model.get_states_bag(self.initial_params),
             title="Initial state posteriors (based on closest state lambdas).",
         )
-
-        """
-        # TODO test
-        em_cost_grad = self.cna_mixture_em_cost_grad(params)
-        approx_grad = approx_fprime(
-            params, self.cna_mixture_em_cost, np.sqrt(np.finfo(float).eps)
-        )
-
-        err = check_grad(
-            self.cna_mixture_em_cost, self.cna_mixture_em_cost_grad, params
-        )
-
-        # NB expect ~0.77
-        assert err < 1.0, f"{err}"
-        """
 
     @property
     def rdr(self):
@@ -449,7 +434,7 @@ class CNA_mixture:
         self.callback = None
         
         res = minimize(
-            self.cna_mixture_em_cost,
+            self.em_cost,
             self.params.copy(),
             method=self.optimizer,
             jac=self.jac,
@@ -501,7 +486,7 @@ class CNA_mixture:
         self.state_prior_model.update(self.ln_state_posteriors)
         self.ln_state_prior = self.state_prior_model.get_state_priors(self.num_segments)
 
-    def cna_mixture_em_cost(self, params, verbose=False):
+    def em_cost(self, params, verbose=False):
         """
         if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
         the current params values and the assumed state_posteriors.
