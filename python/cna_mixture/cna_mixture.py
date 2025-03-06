@@ -154,7 +154,7 @@ class CNA_mixture:
 
             self.estep(self.ln_state_emission, self.ln_state_prior)
 
-            self.last_params = self.params.copy()
+            self.last_params = new_params
 
         self.params = new_params.copy()
             
