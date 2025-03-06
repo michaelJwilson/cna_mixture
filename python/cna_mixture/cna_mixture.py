@@ -126,15 +126,20 @@ class CNA_mixture:
         
     def callback(self, intermediate_result: OptimizeResult):
         """
-        Callable after each iteration.  Benefits from preserving Hessian.
+        Callable after each iteration of optimizer.  e.g. benefits from preserving Hessian.
         """
+        PTOL = 1.e-3
+        
         self.nit += 1
+
+        if self.nit > self.maxiter:
+            logger.info(f"Failed to converge in {self.maxiter}")
+            raise StopIteration
+        
         new_params, new_cost = intermediate_result.x, intermediate_result.fun
 
         self.update_message(self.nit, self.last_params, self.params, new_params, new_cost)
-
-        PTOL = 1.e-3
-        
+       
         # NB converged with respect to last posterior?
         if self.param_diff(self.last_params, new_params) < PTOL:
             logger.info(f"Converged to {100 * PTOL}% with last posterior.  Complete.")                
@@ -155,8 +160,7 @@ class CNA_mixture:
     def fit(self):
         logger.info(f"Running optimization with optimizer {self.optimizer.upper()}")
 
-        self.last_params = None
-        self.params = self.initial_params
+        self.last_params, self.params = None, self.initial_params
         self.nit = 0
 
         res = minimize(
