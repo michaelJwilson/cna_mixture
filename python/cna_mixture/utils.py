@@ -22,3 +22,15 @@ def param_diff(params, new_params):
         return np.inf
     else:
         return np.max(np.abs((1.0 - new_params / params)))
+
+
+def assign_closest(points, centers):
+    """
+    Assign points to the closest center.
+    """
+    assert len(points) > len(centers)
+
+    tree = KDTree(centers)
+    distances, idx = tree.query(points)
+
+    return idx

@@ -2,7 +2,7 @@ import logging
 import numpy as np
 from cna_mixture.cna_mixture_params import CNA_mixture_params
 from cna_mixture.plotting import plot_rdr_baf_flat
-from cna_mixture.utils import normalize_ln_posteriors, param_diff
+from cna_mixture.utils import normalize_ln_posteriors, param_diff, assign_closest
 from cna_mixture.negative_binomial import reparameterize_nbinom
 from cna_mixture.beta_binomial import reparameterize_beta_binom
 from scipy.spatial import KDTree
@@ -19,25 +19,47 @@ from cna_mixture_rs.core import (
 logger = logging.getLogger(__name__)
 
 
-def assign_closest(points, centers):
-    """
-    Assign points to the closest center.
-    """
-    assert len(points) > len(centers)
+class CNA_categorical_prior:
+    def __init__(self, mixture_params):
+        self.num_states = mixture_params.num_states
+        self.cna_states = mixture_params.cna_states
 
-    tree = KDTree(centers)
-    distances, idx = tree.query(points)
+    def ln_lambdas_equal(self):
+        return (1.0 / self.num_states) * np.ones(self.num_states)
 
-    return idx
+    def ln_lambdas_closest(self, rdr_baf):
+        decoded_states = assign_closest(rdr_baf, self.cna_states)
+
+        # NB categorical prior on state fractions
+        _, counts = np.unique(decoded_states, return_counts=True)
+        ln_lambdas = np.log(counts) - np.log(np.sum(counts))
+
+        return ln_lambdas
+
+    def ln_lambdas_update(self, ln_state_posteriors):
+        """
+        Given updated ln_state_posteriors, calculate the updated ln_lambdas.
+        """
+        return logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
+
+    def state_priors(self, ln_lambdas):
+        """
+        Broadcast per-state categorical priors to equivalent (samples x state)
+        Prior array.
+        """
+        ln_norm = logsumexp(ln_lambdas)
+
+        # NB ensure normalized.
+        return np.broadcast_to(
+            ln_lambdas - ln_norm, (self.num_segments, len(ln_lambdas))
+        ).copy()
 
 
 class CNA_mixture:
     # NB call the rust backend.
     RUST_BACKEND = True
 
-    def __init__(
-        self, data, rdr_baf, realized_genome_coverage, optimizer="L-BFGS-B", maxiter=100
-    ):
+    def __init__(self, genome_coverage, data, optimizer="L-BFGS-B", maxiter=100):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -49,26 +71,23 @@ class CNA_mixture:
         # NB see e.g. https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
 
-        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
-        mixture_params = CNA_mixture_params()
-
-        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
-        mixture_params.rdr_baf_choice_update(rdr_baf)
-
-        logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
-
         self.data = data
-        self.rdr_baf = rdr_baf
         self.maxiter = maxiter
         self.optimizer = optimizer
         self.num_segments = len(rdr_baf)
         self.num_states = mixture_params.num_states
-        self.realized_genome_coverage = realized_genome_coverage
+        self.genome_coverage = genome_coverage
 
-        # NB self.realized_genome_coverage == normal_coverage currently.
-        state_read_depths = (
-            self.realized_genome_coverage * mixture_params.cna_states[:, 0]
-        )
+        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
+        mixture_params = CNA_mixture_params()
+
+        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
+        mixture_params.rdr_baf_choice_update(self.rdr_baf)
+
+        logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
+
+        # NB self.genome_coverage == normal_coverage currently.
+        state_read_depths = self.genome_coverage * mixture_params.cna_states[:, 0]
 
         bafs = mixture_params.cna_states[:, 1]
 
@@ -79,20 +98,17 @@ class CNA_mixture:
             + [mixture_params.overdisp_tau]
         )
 
-        self.bounds = self.get_cna_mixture_bounds(self.num_states)
+        self.bounds = self.get_cna_mixture_bounds()
 
         # NB pre-populate terms to cost.
         self.ln_lambdas = self.initialize_ln_lambdas_closest(mixture_params)
         self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
+
         self.ln_state_emission = self.cna_mixture_ln_emission_update(
             self.initial_params
         )
 
         self.estep(self.ln_state_emission, self.ln_state_prior)
-
-        self.state_posteriors = np.exp(self.ln_state_posteriors)
-
-        cost = self.cna_mixture_em_cost(self.initial_params)
 
         plot_rdr_baf_flat(
             "plots/initial_rdr_baf_flat.pdf",
@@ -118,23 +134,36 @@ class CNA_mixture:
         assert err < 1.0, f"{err}"
         """
 
+    @property
+    def rdr(self):
+        return self.data["read_coverage"] / self.genome_coverage
+
+    @property
+    def baf(self):
+        return self.data["b_reads"] / self.data["snp_coverage"]
+
+    @property
+    def rdr_baf(self):
+        return np.c_[self.rdr, self.baf]
+
     def callback(self, intermediate_result: OptimizeResult):
         """
         Callable after each iteration of optimizer.  e.g. benefits from preserving Hessian.
         """
+        # NB assumed convergence tolerance for *fractional* change in parameter.
         PTOL = 1.0e-2
 
         self.nit += 1
-
-        if self.nit > self.maxiter:
-            logger.info(f"Failed to converge in {self.maxiter}")
-            raise StopIteration
 
         new_params, new_cost = intermediate_result.x, intermediate_result.fun
 
         self.update_message(
             self.nit, self.last_params, self.params, new_params, new_cost
         )
+
+        if self.nit > self.maxiter:
+            logger.info(f"Failed to converge in {self.maxiter}")
+            raise StopIteration
 
         # NB converged with respect to last posterior?
         if param_diff(self.last_params, new_params) < PTOL:
@@ -187,8 +216,15 @@ class CNA_mixture:
             title="Final state posteriors",
         )
 
+    def get_states_bag(self, params):
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+            self.unpack_cna_mixture_params(params)
+        )
+
+        return np.c_[state_read_depths / self.genome_coverage, bafs]
+
     @staticmethod
-    def get_cna_mixture_bounds(num_states):
+    def get_cna_mixture_bounds():
         # NB exp_read_depths > 0
         bounds = [(1.0e-6, None) for _ in range(num_states)]
 
@@ -222,18 +258,6 @@ class CNA_mixture:
         baf_overdispersion = params[2 * num_states + 1]
 
         return state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
-
-    def cna_mixture_categorical_update(self, ln_lambdas):
-        """
-        Broadcast per-state categorical priors to equivalent (samples x state)
-        array.
-        """
-        ln_norm = logsumexp(ln_lambdas)
-
-        # NB ensure normalized.
-        return np.broadcast_to(
-            ln_lambdas - ln_norm, (self.num_segments, len(ln_lambdas))
-        ).copy()
 
     def cna_mixture_betabinom_update(self, params):
         """
@@ -298,12 +322,6 @@ class CNA_mixture:
                     result[row, col] = nbinom.logpmf(kk, rr, pp)
 
         return result, state_rs_ps
-
-    def cna_mixture_ln_lambdas_update(self, ln_state_posteriors):
-        """
-        Given updated ln_state_posteriors, calculate the updated ln_lambdas.
-        """
-        return logsumexp(ln_state_posteriors, axis=0) - logsumexp(ln_state_posteriors)
 
     def cna_mixture_ln_emission_update(self, params):
         ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
@@ -460,11 +478,12 @@ class CNA_mixture:
         return np.concatenate([grad_ps, np.atleast_1d(grad_tau)])
 
     def cna_mixture_em_cost_grad(self, params, verbose=False):
-        result = []
-        result += self.grad_cna_mixture_em_cost_nb(params).tolist()
-        result += self.grad_cna_mixture_em_cost_bb(params).tolist()
-
-        return np.array(result)
+        return np.concatenate(
+            [
+                self.grad_cna_mixture_em_cost_nb(params),
+                self.grad_cna_mixture_em_cost_bb(params),
+            ]
+        )
 
     def update_message(self, nit, last_params, params, new_params, cost):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
@@ -477,22 +496,3 @@ class CNA_mixture:
         msg += f"\nMax. frac. parameter diff. compared to last and current state posterior: {param_diff(last_params, new_params)}, {param_diff(params, new_params)}"
 
         logger.info(msg)
-
-    def initialize_ln_lambdas_equal(self, init_mixture_params):
-        return (1.0 / self.num_states) * np.ones(self.num_states)
-
-    def initialize_ln_lambdas_closest(self, init_mixture_params):
-        decoded_states = assign_closest(self.rdr_baf, init_mixture_params.cna_states)
-
-        # NB categorical prior on state fractions
-        _, counts = np.unique(decoded_states, return_counts=True)
-        initial_ln_lambdas = np.log(counts) - np.log(np.sum(counts))
-
-        return initial_ln_lambdas
-
-    def get_states_bag(self, params):
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-            self.unpack_cna_mixture_params(params)
-        )
-
-        return np.c_[state_read_depths / self.realized_genome_coverage, bafs]
