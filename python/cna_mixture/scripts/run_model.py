@@ -48,19 +48,20 @@ TODOs:
   - unit tests.
 
 """
-        
+
+
 def main():
     start = time.time()
-    
+
     cna_sim = CNA_sim()
     # cna_sim.plot_realization_true_flat("plots/truth_rdr_baf_flat.pdf")
-    
+
     # plot_rdr_baf_genome("plots/rdr_baf_genome.pdf", cna_sim.rdr_baf)
-    
+
     # fit_gaussian_mixture(cna_sim.rdr_baf)
-    
+
     CNA_mixture(cna_sim.realized_genome_coverage, cna_sim.data).fit()
-    
+
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
 

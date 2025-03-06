@@ -7,7 +7,8 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model,
     with shared overdispersions.
     """
-    def __init__(self, num_cna_states=3, tau=50., phi=2.e-2):
+
+    def __init__(self, num_cna_states=3, tau=50.0, phi=2.0e-2):
         """
         Initialize an instance of the class with random values in the assumed bounds.
         """
@@ -57,14 +58,14 @@ class CNA_mixture_params:
 
             # NB fails if input_params_dict missing required key.
             params_dict.pop(key)
-            
+
         if params_dict:
             f"Skipping additional params in dict={params_dict}"
-            
+
         self.cna_states = np.array(self.cna_states)
         self.num_states = len(self.cna_states)
         self.__verify()
-        
+
     def rdr_baf_choice_update(self, rdr_baf):
         non_normal = rdr_baf[rdr_baf[:, 0] > 1.0]
 
@@ -73,4 +74,3 @@ class CNA_mixture_params:
 
         self.cna_states = np.vstack([self.normal_state, non_normal[idx]])
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
-        

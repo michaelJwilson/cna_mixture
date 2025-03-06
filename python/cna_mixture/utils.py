@@ -2,6 +2,7 @@ import numpy as np
 from scipy.special import logsumexp
 from scipy.spatial import KDTree
 
+
 def normalize_ln_posteriors(ln_posteriors):
     """
     Return the normalized log posteriors.

@@ -61,6 +61,7 @@ class CNA_categorical_prior:
     def __str__(self):
         return f"lambdas={np.exp(self.ln_lambdas)}"
 
+
 class CNA_markov_prior:
     def __init__(self):
         raise NotImplementedError()
@@ -335,7 +336,9 @@ class CNA_mixture:
 
         self.bounds = self.get_cna_mixture_bounds()
 
-        self.state_prior_model = CNA_categorical_prior(self.mixture_params, self.rdr_baf)
+        self.state_prior_model = CNA_categorical_prior(
+            self.mixture_params, self.rdr_baf
+        )
         self.emission_model = CNA_emission(
             self.num_states,
             self.genome_coverage,
@@ -412,7 +415,7 @@ class CNA_mixture:
             self.estep(self.ln_state_emission, self.ln_state_prior)
 
             self.pstep()
-            
+
             self.estep(self.ln_state_emission, self.ln_state_prior)
 
             self.last_params = new_params
@@ -421,7 +424,7 @@ class CNA_mixture:
 
     def jac(self, params):
         return self.emission_model.grad_em_cost(params, self.state_posteriors)
-        
+
     def fit(self):
         logger.info(f"Running optimization with optimizer {self.optimizer.upper()}")
 
@@ -432,7 +435,7 @@ class CNA_mixture:
         self.optimizer = "nelder-mead"
         self.jac = None
         self.callback = None
-        
+
         res = minimize(
             self.em_cost,
             self.params.copy(),
