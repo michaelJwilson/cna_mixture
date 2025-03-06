@@ -1,3 +1,4 @@
+import warnings
 import logging
 import numpy as np
 
@@ -126,25 +127,29 @@ class CNA_sim:
         # self.realized_genome_coverage = np.sum(self.data[:,2]) / self.num_segments
 
         self.realized_genome_coverage = self.normal_genome_coverage
+        
+    @property
+    def rdr(self):
+        return self.data["read_coverage"] / self.realized_genome_coverage
 
-    # TODO independent rdr and baf properties.
+    @property
+    def baf(self):
+        return self.data["b_reads"] / self.data["snp_coverage"]
+        
     @property
     def rdr_baf(self):
-        rdr = self.data["read_coverage"] / self.realized_genome_coverage
-        baf = self.data["b_reads"] / self.data["snp_coverage"]
-
-        return np.c_[rdr, baf]
+        return np.c_[self.rdr, self.baf]
 
     def plot_realization_true_flat(self):
         """
         BAF vs RDR for the assumed simulation.
         """
         true_states = self.data["state"]
-
+        
         plot_rdr_baf_flat(
             "plots/truth_rdr_baf_flat.pdf",
-            self.rdr_baf[:, 0],
-            self.rdr_baf[:, 1],
+            self.rdr,
+            self.baf,
             ln_state_posteriors=np.log(onehot_encode_states(true_states)),
             states_bag=self.cna_states,
             title="CNA realizations - true states",
