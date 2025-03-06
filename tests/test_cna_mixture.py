@@ -9,16 +9,11 @@ from scipy.optimize import approx_fprime, check_grad
 np.random.seed(314)
 
 
-def test_cna_mixture_params(mixture_params):
+def test_cna_mixture_params_dict_update(mixture_params):
     assert mixture_params.num_states == len(mixture_params.cna_states)
     assert np.array_equal(mixture_params.cna_states[0], np.array([1.0, 0.5]))
 
-    sim_params = get_sim_params()
-
-    print("\n", sim_params)
-    print("\n", mixture_params)
-
-    mixture_params.dict_update(sim_params)
+    mixture_params.dict_update(get_sim_params())
 
     exp = np.array([[1.0, 0.5], [3.0, 0.33], [4.0, 0.25], [10.0, 0.1]])
 
@@ -30,6 +25,22 @@ def test_cna_mixture_params(mixture_params):
         atol=1e-1,
     )
 
+
+def test_test_cna_mixture_params_rdr_baf_choice_update(mixture_params):
+    rdr_baf = 5 * (1.0 + np.random.uniform(size=(3, 2)))
+
+    mixture_params.rdr_baf_choice_update(rdr_baf)
+
+    # NB matches rdr_baf realization
+    exp = [6.30240212, 8.9160269, 9.13677506]
+
+    assert np.allclose(
+        mixture_params.cna_states[1:, 0],
+        exp,
+        atol=1e-2,
+    )
+
+
 def test_em_cost_grad():
     cna_sim = CNA_sim()
     cna_model = CNA_mixture(cna_sim.realized_genome_coverage, cna_sim.data)
@@ -38,12 +49,5 @@ def test_em_cost_grad():
     approx_grad = approx_fprime(
         cna_model.initial_params, cna_model.em_cost, np.sqrt(np.finfo(float).eps)
     )
-
-    err = check_grad(cna_model.em_cost, cna_model.jac, cna_model.initial_params)
-
-    # print()
-    # print(grad)
-    # print(approx_grad)
-    # print(err)
-
-    assert err < 0.51
+    
+    assert np.allclose(approx_grad, grad, atol=3e-1)
