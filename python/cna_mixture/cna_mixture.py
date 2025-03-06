@@ -6,7 +6,7 @@ from cna_mixture.utils import normalize_ln_posteriors
 from cna_mixture.negative_binomial import reparameterize_nbinom
 from cna_mixture.beta_binomial import reparameterize_beta_binom
 from scipy.spatial import KDTree
-from scipy.optimize import minimize, check_grad, approx_fprime
+from scipy.optimize import minimize, check_grad, approx_fprime, OptimizeResult
 from scipy.special import digamma, logsumexp
 from cna_mixture_rs.core import (
     betabinom_logpmf,
@@ -82,13 +82,14 @@ class CNA_mixture:
         self.ln_lambdas = self.initialize_ln_lambdas_closest(mixture_params)
         self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
         self.ln_state_emission = self.cna_mixture_ln_emission_update(self.initial_params)
-        self.ln_state_posteriors = self.estep(
+
+        self.estep(
             self.ln_state_emission, self.ln_state_prior
         )
         
         self.state_posteriors = np.exp(self.ln_state_posteriors)
 
-        cost = self.cna_mixture_em_cost(self.initial_params, verbose=True)
+        cost = self.cna_mixture_em_cost(self.initial_params)
 
         plot_rdr_baf_flat(
             "plots/initial_rdr_baf_flat.pdf",
@@ -114,55 +115,71 @@ class CNA_mixture:
         assert err < 1.0, f"{err}"
         """
 
+    @staticmethod
+    def param_diff(params, new_params):
+        if params is None:
+            return np.inf
+        elif new_params is None:
+            return np.inf
+        else:
+            return np.max(np.abs((1.0 - new_params / params)))
+        
+    def callback(self, intermediate_result: OptimizeResult):
+        """
+        Callable after each iteration.  Benefits from preserving Hessian.
+        """
+        self.nit += 1
+        new_params, new_cost = intermediate_result.x, intermediate_result.fun
+
+        self.update_message(self.nit, self.last_params, self.params, new_params, new_cost)
+
+        PTOL = 1.e-3
+        
+        # NB converged with respect to last posterior?
+        if self.param_diff(self.last_params, new_params) < PTOL:
+            logger.info(f"Converged to {100 * PTOL}% with last posterior.  Complete.")                
+            raise StopIteration
+
+        if self.param_diff(self.params, new_params) < PTOL:
+            logger.info(f"Converged to {100 * PTOL}% with current posterior.  Updating posterior.")
+
+            # TODO may not be necessary?  Depends how solver calls cost (emission update) vs grad.                                                                                                                   
+            self.ln_state_emission = self.cna_mixture_ln_emission_update(self.params)
+
+            self.estep(self.ln_state_emission, self.ln_state_prior)
+
+            self.last_params = self.params.copy()
+
+        self.params = new_params.copy()
+            
     def fit(self):
         logger.info(f"Running optimization with optimizer {self.optimizer.upper()}")
 
-        params = self.initial_params
+        self.last_params = None
+        self.params = self.initial_params
+        self.nit = 0
+
+        res = minimize(
+            self.cna_mixture_em_cost,
+            self.params.copy(),
+            method=self.optimizer,
+            jac=self.cna_mixture_em_cost_grad,
+            bounds=self.bounds,
+            callback=self.callback,
+            constraints=None,
+            options={"disp": True, "maxiter": self.maxiter},
+        )
         
-        for ii in range(self.maxiter):
-            res = minimize(
-                self.cna_mixture_em_cost,
-                params,
-                method=self.optimizer,
-                jac=self.cna_mixture_em_cost_grad,
-                bounds=self.bounds,
-                constraints=None,
-                options={"disp": True, "maxiter": 5},
-            )
-
-            max_frac_shift = np.max(np.abs((1.0 - res.x / params)))
-
-            params, cost = res.x, res.fun
-
-            self.ln_state_posteriors = self.estep(
-                self.ln_state_emission, self.ln_state_prior
-            )
-
-            self.state_posteriors = np.exp(self.ln_state_posteriors)
-
-            self.ln_lambdas = self.cna_mixture_ln_lambdas_update(
-                self.ln_state_posteriors
-            )
-
-            self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
-
-            logger.info(
-                f"minimization success={res.success}, with max parameter frac. update: {max_frac_shift} and message={res.message}\n"
-            )
-
-            self.update_message(params, cost)
-
-            if max_frac_shift < 0.01:
-                break
-
-        logger.info(f"Found best-fit CNA mixture params:\n{params}")
-
+        logger.info(
+            f"minimization success with best-fit CNA mixture params=\n{res.x}\n"
+        )
+        
         plot_rdr_baf_flat(
             "plots/final_rdr_baf_flat.pdf",
             self.rdr_baf[:, 0],
             self.rdr_baf[:, 1],
             ln_state_posteriors=self.ln_state_posteriors,
-            states_bag=self.get_states_bag(params),
+            states_bag=self.get_states_bag(res.x),
             title="Final state posteriors",
         )
 
@@ -300,12 +317,22 @@ class CNA_mixture:
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
 
         return ln_state_posterior_betabinom + ln_state_posterior_nbinom
-
+    
     def estep(self, ln_state_emission, ln_state_prior):
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
         """
-        return normalize_ln_posteriors(ln_state_emission + ln_state_prior)
+        self.ln_state_posteriors = normalize_ln_posteriors(ln_state_emission + ln_state_prior)
+
+        self.state_posteriors = np.exp(
+            self.ln_state_posteriors
+        )
+
+        self.ln_lambdas = self.cna_mixture_ln_lambdas_update(
+            self.ln_state_posteriors
+        )
+
+        self.ln_state_prior = self.cna_mixture_categorical_update(self.ln_lambdas)
 
     def cna_mixture_em_cost(self, params, verbose=False):
         """
@@ -324,7 +351,7 @@ class CNA_mixture:
         ).sum()
 
         if verbose:
-            self.update_message(params, cost)
+            self.update_message(-1, params, cost)
 
         return cost
 
@@ -447,15 +474,16 @@ class CNA_mixture:
 
         return np.array(result)
 
-    def update_message(self, params, cost):
+    def update_message(self, nit, last_params, params, new_params, cost):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_cna_mixture_params(params)
         )
 
-        msg = f"Minimizing cost to value: {cost} for:\n"
+        msg = f"Iteration {nit}:  Minimizing cost to value: {cost} for:\n"
         msg += f"lambdas={np.exp(self.ln_lambdas)}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
         msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
-
+        msg += f"\nMax. frac. parameter diff. compared to last and current state posterior: {self.param_diff(last_params, new_params)}, {self.param_diff(params, new_params)}"
+        
         logger.info(msg)
 
     def initialize_ln_lambdas_equal(self, init_mixture_params):
