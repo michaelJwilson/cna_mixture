@@ -146,7 +146,7 @@ class CNA_mixture:
             logger.info(f"Converged to {100 * PTOL}% wrt last state posteriors.  Complete.")                
             raise StopIteration
 
-        if self.param_diff(self.params, new_params) < PTOL:
+        if (self.param_diff(self.params, new_params) < PTOL):
             logger.info(f"Converged to {100 * PTOL}% wrt current state posteriors.  Updating posteriors.")
 
             # TODO may not be necessary?  Depends how solver calls cost (emission update) vs grad.                                                                                                                   
