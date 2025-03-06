@@ -8,12 +8,42 @@ from scipy.optimize import approx_fprime, check_grad
 
 np.random.seed(314)
 
+
+def reduce_by_state(states, values):
+    ustates, state_counts = np.unique(states, return_counts=True)
+    result = np.zeros_like(ustates)
+
+    for s, v in zip(states, values):
+        result[int(s)] += v
+
+    return result / state_counts
+
+
 def test_transfer_matrix():
     transfer_matrix = CNA_transfer(jump_rate=0.1, num_states=4).transfer_matrix
 
-    assert transfer_matrix[0,1] == 0.1 / 3.
+    assert transfer_matrix[0, 1] == 0.1 / 3.0
     assert np.array_equal(np.diag(transfer_matrix), 0.9 * np.ones(4))
 
     assert np.array_equal(transfer_matrix.sum(axis=0), np.ones(4))
     assert np.array_equal(transfer_matrix.sum(axis=1), np.ones(4))
 
+
+@pytest.mark.legacy
+def test_cna_sim_states(cna_sim):
+    ustates, state_counts = np.unique(cna_sim.data["state"], return_counts=True)
+
+    # NB approx. equal state distribution
+    assert np.array_equal(state_counts, [2751, 2473, 2207, 2569])
+
+
+def test_cna_sim_rdr_baf(cna_sim):
+    state_rdrs = reduce_by_state(cna_sim.data["state"], cna_sim.rdr)
+    state_bafs = reduce_by_state(cna_sim.data["state"], cna_sim.baf)
+
+    assert np.allclose(state_rdrs, np.array([1.0, 3.0, 4.0, 10.0]), atol=1e-1)
+    assert np.allclose(state_bafs, np.array([0.5, 0.33, 0.25, 0.1]), atol=1e-2)
+
+
+def test_cna_sim_plot(cna_sim, tmp_path):
+    cna_sim.plot_realization_true_flat(tmp_path)

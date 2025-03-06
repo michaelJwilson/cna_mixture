@@ -53,7 +53,7 @@ def main():
     start = time.time()
     
     cna_sim = CNA_sim()
-    # cna_sim.plot_realization_true_flat()
+    # cna_sim.plot_realization_true_flat("plots/truth_rdr_baf_flat.pdf")
     
     # plot_rdr_baf_genome("plots/rdr_baf_genome.pdf", cna_sim.rdr_baf)
     

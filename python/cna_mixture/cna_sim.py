@@ -52,7 +52,7 @@ class CNA_sim:
         for key, value in get_sim_params().items():
             setattr(self, key, value)
 
-        self.transfer = CNA_transfer(self.jump_rate, self.num_states)            
+        self.transfer = CNA_transfer(self.jump_rate, self.num_states)
         self.realize()
 
     def realize(self):
@@ -68,8 +68,8 @@ class CNA_sim:
 
         result = []
 
-        # NB start in a normal state
-        state = 0
+        # NB Equal-probability for categorical states: {0, .., K-1}.
+        state = np.random.randint(0, self.num_states)
 
         # NB we loop over genomic segments, sampling a state and assigning appropriate
         #    emission values.
@@ -84,7 +84,8 @@ class CNA_sim:
             # NB overdisp_tau parameterizes the degree of deviations from the mean baf.
             alpha, beta = reparameterize_beta_binom([baf], self.overdisp_tau)[0]
 
-            # NB simulate variation in realized BAF according to betabinom model.
+            # NB simulate variation in realized BAF according to betabinom model;
+            #    b_reads have an expected BAF, as encoded by beta.
             b_reads = betabinom.rvs(self.snp_coverages[ii], beta, alpha)
 
             # NB we expect for baf ~0.5, some baf estimate to NOT be the minor allele,
@@ -141,14 +142,14 @@ class CNA_sim:
     def rdr_baf(self):
         return np.c_[self.rdr, self.baf]
 
-    def plot_realization_true_flat(self):
+    def plot_realization_true_flat(self, fpath):
         """
         BAF vs RDR for the assumed simulation.
         """
         true_states = self.data["state"]
 
         plot_rdr_baf_flat(
-            "plots/truth_rdr_baf_flat.pdf",
+            fpath,
             self.rdr,
             self.baf,
             ln_state_posteriors=np.log(onehot_encode_states(true_states)),
