@@ -52,8 +52,7 @@ class CNA_sim:
         for key, value in get_sim_params().items():
             setattr(self, key, value)
 
-        self.transfer = CNA_transfer(self.jump_rate, self.num_states)
-            
+        self.transfer = CNA_transfer(self.jump_rate, self.num_states)            
         self.realize()
 
     def realize(self):
