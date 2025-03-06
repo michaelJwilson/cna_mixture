@@ -16,17 +16,19 @@ def get_sim_params():
         "num_states": 4,
         "jump_rate": 0.1,
         "normal_state": np.array([1.0, 0.5]),
-        "cna_states": np.array([
-            [1.0, 0.5],
-            [3.0, 0.33],
-            [4.0, 0.25],
-            [10.0, 0.1],
-        ]),
+        "cna_states": np.array(
+            [
+                [1.0, 0.5],
+                [3.0, 0.33],
+                [4.0, 0.25],
+                [10.0, 0.1],
+            ]
+        ),
         "overdisp_tau": 45.0,
         "overdisp_phi": 1.0e-2,
         "min_snp_coverage": 100,
         "max_snp_coverage": 1_000,
-        "normal_genome_coverage": 500 # NB normal coverage per segment, i.e. for RDR=1.
+        "normal_genome_coverage": 500,  # NB normal coverage per segment, i.e. for RDR=1.
     }
 
 
@@ -47,11 +49,11 @@ class CNA_sim:
     def __init__(self):
         super().__init__()
 
-        self.transfer = CNA_transfer()
-    
         for key, value in get_sim_params().items():
             setattr(self, key, value)
 
+        self.transfer = CNA_transfer(self.jump_rate, self.num_states)
+            
         self.realize()
 
     def realize(self):
@@ -67,16 +69,16 @@ class CNA_sim:
 
         result = []
 
-        # NB Equal-probability for categorical states: {0, .., K-1}.
-        state = np.random.randint(0, self.num_states)
+        # NB start in a normal state
+        state = 0
 
         # NB we loop over genomic segments, sampling a state and assigning appropriate
         #    emission values.
         for ii in range(self.num_segments):
             transfer_probs = self.transfer.transfer_matrix[state]
-            state = np.random.choice(np.arange(self.num_states), size=1, p=transfer_probs)[
-                0
-            ]
+            state = np.random.choice(
+                np.arange(self.num_states), size=1, p=transfer_probs
+            )[0]
 
             rdr, baf = self.cna_states[state]
 
@@ -127,7 +129,7 @@ class CNA_sim:
         # self.realized_genome_coverage = np.sum(self.data[:,2]) / self.num_segments
 
         self.realized_genome_coverage = self.normal_genome_coverage
-        
+
     @property
     def rdr(self):
         return self.data["read_coverage"] / self.realized_genome_coverage
@@ -135,7 +137,7 @@ class CNA_sim:
     @property
     def baf(self):
         return self.data["b_reads"] / self.data["snp_coverage"]
-        
+
     @property
     def rdr_baf(self):
         return np.c_[self.rdr, self.baf]
@@ -145,7 +147,7 @@ class CNA_sim:
         BAF vs RDR for the assumed simulation.
         """
         true_states = self.data["state"]
-        
+
         plot_rdr_baf_flat(
             "plots/truth_rdr_baf_flat.pdf",
             self.rdr,
