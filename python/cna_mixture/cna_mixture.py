@@ -394,7 +394,7 @@ class CNA_mixture:
         Callable after each iteration of optimizer.  e.g. benefits from preserving Hessian.
         """
         # NB assumed convergence tolerance for *fractional* change in parameter.
-        PTOL = 1.0e-2
+        PTOL = 1.0e-3
 
         self.nit += 1
 
@@ -428,7 +428,7 @@ class CNA_mixture:
             self.estep(self.ln_state_emission, self.ln_state_prior)
 
             self.pstep()
-
+            
             self.estep(self.ln_state_emission, self.ln_state_prior)
 
             self.last_params = new_params
