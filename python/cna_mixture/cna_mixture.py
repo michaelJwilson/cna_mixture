@@ -443,6 +443,11 @@ class CNA_mixture:
         self.last_params, self.params = None, self.initial_params
         self.nit = 0
 
+        # HACK - no posterior updates.
+        self.optimizer = "nelder-mead"
+        self.jac = None
+        self.callback = None
+        
         res = minimize(
             self.cna_mixture_em_cost,
             self.params.copy(),
@@ -455,7 +460,7 @@ class CNA_mixture:
         )
 
         logger.info(
-            f"minimization success with best-fit CNA mixture params=\n{res.x}\n"
+            f"minimization finished with message={res.message} and best-fit CNA mixture params=\n{res.x}\n"
         )
 
         plot_rdr_baf_flat(
