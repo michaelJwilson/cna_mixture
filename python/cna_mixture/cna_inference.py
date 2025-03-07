@@ -63,24 +63,7 @@ class CNA_inference:
             data["b_reads"],
             data["snp_coverage"],
         )
-
-        # NB pre-populate terms to cost.
-        self.ln_state_prior = self.state_prior_model.get_state_priors(self.num_segments)
-        self.ln_state_emission = self.emission_model.get_ln_state_emission(
-            self.initial_params
-        )
-
-        self.estep(self.ln_state_emission, self.ln_state_prior)
-
-        plot_rdr_baf_flat(
-            "plots/initial_rdr_baf_flat.pdf",
-            self.rdr_baf[:, 0],
-            self.rdr_baf[:, 1],
-            ln_state_posteriors=self.ln_state_posteriors,
-            states_bag=self.emission_model.get_states_bag(self.initial_params),
-            title="Initial state posteriors (based on closest state lambdas).",
-        )
-
+        
     @property
     def rdr(self):
         return self.data["read_coverage"] / self.genome_coverage
@@ -93,9 +76,63 @@ class CNA_inference:
     def rdr_baf(self):
         return np.c_[self.rdr, self.baf]
 
+    def initialize(self):
+        # NB pre-populate terms to cost.
+        self.ln_state_prior = self.state_prior_model.get_state_priors(self.num_segments)
+        self.ln_state_emission = self.emission_model.get_ln_state_emission(
+            self.initial_params
+        )
+
+        # NB sets state ln posteriors.
+        self.estep()
+
+    def estep(self):
+        """
+        Calculate normalized state posteriors based on current parameter + lambda settings.
+        """
+        self.ln_state_posteriors = normalize_ln_posteriors(
+            self.ln_state_emission + self.ln_state_prior
+        )
+
+        self.state_posteriors = np.exp(self.ln_state_posteriors)
+
+    def em_cost(self, params, verbose=False):
+        """
+        if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
+        the current params values and the assumed state_posteriors.
+
+        NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
+        """
+        self.ln_state_emission = self.emission_model.get_ln_state_emission(params)
+
+        # NB responsibilites rik, where i is the sample and k is the state.
+        # NB this is *not* state-posterior weighted log-likelihood.
+        # NB sum over samples and states.  Maximization -> minimization.
+        cost = -(
+            self.state_posteriors * (self.ln_state_prior + self.ln_state_emission)
+        ).sum()
+
+        if verbose:
+            # TODO
+            self.update_message(-1, self.last_params, self.params, params, cost)
+
+        return cost
+
+    def jac(self, params):
+        return self.emission_model.grad_em_cost(params, self.state_posteriors)
+    
+    def pstep(self):
+        """
+        Update the state prior model based on the current state posteriors,
+        and re-compute the ln_state_priors.
+        """
+        self.state_prior_model.update(self.ln_state_posteriors)
+        self.ln_state_prior = self.state_prior_model.get_state_priors(self.num_segments)
+
     def callback(self, intermediate_result: OptimizeResult):
         """
-        Callable after each iteration of optimizer.  e.g. benefits from preserving Hessian.
+        Callable after each M-step iteration of optimizer.  
+        e.g. this approach benefits from 'preserving' Hessian.
         """
         # NB assumed convergence tolerance for *fractional* change in parameter.
         PTOL = 1.0e-3
@@ -115,7 +152,7 @@ class CNA_inference:
         # NB converged with respect to last posterior?
         if param_diff(self.last_params, new_params) < PTOL:
             logger.info(
-                f"Converged to {100 * PTOL}% wrt last state posteriors.  Complete."
+                f"Converged to {100 * PTOL}% wrt last state posteriors.  Optimization complete."
             )
             raise StopIteration
 
@@ -129,29 +166,36 @@ class CNA_inference:
                 new_params
             )
 
-            self.estep(self.ln_state_emission, self.ln_state_prior)
+            # NB update ln/state posteriors based on new emission.
+            self.estep()
 
+            # NB update state priors based on new state posteriors.
             self.pstep()
 
-            self.estep(self.ln_state_emission, self.ln_state_prior)
+            # TODO skippable?
+            # NB update ln/state posteriors based on new state priors.
+            self.estep()
 
             self.last_params = new_params
 
         self.params = new_params.copy()
 
-    def jac(self, params):
-        return self.emission_model.grad_em_cost(params, self.state_posteriors)
-
     def fit(self):
-        logger.info(f"Running optimization with optimizer {self.optimizer.upper()}")
-
         self.last_params, self.params = None, self.initial_params
         self.nit = 0
 
-        # HACK - no posterior updates.
-        self.optimizer = "nelder-mead"
-        self.jac = None
-        self.callback = None
+        self.initialize()
+        self.em_cost(self.params, verbose=True)
+
+        plot_rdr_baf_flat(
+            "plots/initial_rdr_baf_flat.pdf",                                                                                                                                                                      
+            self.rdr,                                                                                                                                                                                              
+            self.baf,                                                                                                                                                                                              
+            ln_state_posteriors=self.ln_state_posteriors,                                                                                                                                                          
+            states_bag=self.emission_model.get_states_bag(self.initial_params),                                                                                                                                    
+            title="Initial state posteriors (based on closest state lambdas).",                                                                                                                                    
+        )                                                                                                                                                                                                                  
+        logger.info(f"Running {self.optimizer.upper()} optimization for {self.maxiter} max. iterations")
 
         res = minimize(
             self.em_cost,
@@ -177,6 +221,8 @@ class CNA_inference:
             title="Final state posteriors",
         )
 
+        return res
+
     def get_cna_mixture_bounds(self):
         # NB exp_read_depths > 0
         bounds = [(1.0e-6, None) for _ in range(self.num_states)]
@@ -192,48 +238,12 @@ class CNA_inference:
 
         return tuple(bounds)
 
-    def estep(self, ln_state_emission, ln_state_prior):
-        """
-        Calculate normalized state posteriors based on current parameter + lambda settings.
-        """
-        self.ln_state_posteriors = normalize_ln_posteriors(
-            ln_state_emission + ln_state_prior
-        )
-
-        self.state_posteriors = np.exp(self.ln_state_posteriors)
-
-    def pstep(self):
-        self.state_prior_model.update(self.ln_state_posteriors)
-        self.ln_state_prior = self.state_prior_model.get_state_priors(self.num_segments)
-
-    def em_cost(self, params, verbose=False):
-        """
-        if state_posteriors is provided, resulting EM-cost is a lower bound to the log likelihood at
-        the current params values and the assumed state_posteriors.
-
-        NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
-        """
-        self.ln_state_emission = self.emission_model.get_ln_state_emission(params)
-
-        # NB responsibilites rik, where i is the sample and k is the state.
-        # NB this is *not* state-posterior weighted log-likelihood.
-        # NB sum over samples and states.  Maximization -> minimization.
-        cost = -(
-            self.state_posteriors * (self.ln_state_prior + self.ln_state_emission)
-        ).sum()
-
-        if verbose:
-            # TODO
-            self.update_message(-1, params, cost)
-
-        return cost
-
     def update_message(self, nit, last_params, params, new_params, cost):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
             self.emission_model.unpack_params(params)
         )
 
-        msg = f"Iteration {nit}:  Minimizing cost to value: {cost} for:\n"
+        msg = f"Iteration {nit}:  Minimized cost to value: {cost:.6f} for:\n"
         msg += f"{self.state_prior_model}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
         msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
         msg += f"\nMax. frac. parameter diff. compared to last and current state posterior: {param_diff(last_params, new_params)}, {param_diff(params, new_params)}"
