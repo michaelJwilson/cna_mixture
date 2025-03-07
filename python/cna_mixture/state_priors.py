@@ -21,7 +21,7 @@ class CNA_categorical_prior:
         # NB categorical prior on state fractions
         ustates, counts = np.unique(decoded_states, return_counts=True)
 
-        counts = {state: count for state, count in zip(ustates, counts)}
+        counts = dict(zip(ustates, counts))
         counts = [counts.get(ii, 0) for ii in range(len(cna_states))]
                 
         # NB i.e. ln_lambdas
