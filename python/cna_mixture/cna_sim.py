@@ -3,8 +3,7 @@ import logging
 import numpy as np
 
 from scipy.stats import nbinom, betabinom, poisson
-from cna_mixture.beta_binomial import reparameterize_beta_binom
-from cna_mixture.negative_binomial import reparameterize_nbinom
+from cna_mixture.cna_emission import reparameterize_beta_binom, reparameterize_nbinom
 from cna_mixture.plotting import plot_rdr_baf_flat
 from cna_mixture.encoding import onehot_encode_states
 

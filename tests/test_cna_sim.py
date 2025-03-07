@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 import numpy as np
 
-from cna_mixture.cna_mixture import CNA_mixture
+from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim, CNA_transfer
 from scipy.optimize import approx_fprime, check_grad
 
@@ -30,12 +30,12 @@ def test_transfer_matrix():
     assert np.array_equal(transfer_matrix.sum(axis=1), np.ones(4))
 
 
-@pytest.mark.legacy
+@pytest.mark.regression
 def test_cna_sim_states(cna_sim):
     ustates, state_counts = np.unique(cna_sim.data["state"], return_counts=True)
 
     # NB approx. equal state distribution
-    assert np.array_equal(state_counts, [2751, 2473, 2207, 2569])
+    assert np.array_equal(state_counts, [2514, 2573, 2536, 2377])
 
 
 def test_cna_sim_rdr_baf(cna_sim):

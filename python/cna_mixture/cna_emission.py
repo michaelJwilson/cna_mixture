@@ -1,8 +1,6 @@
 import numpy as np
 
 from scipy.special import digamma
-from cna_mixture.negative_binomial import reparameterize_nbinom
-from cna_mixture.beta_binomial import reparameterize_beta_binom
 from cna_mixture_rs.core import (
     betabinom_logpmf,
     nbinom_logpmf,
