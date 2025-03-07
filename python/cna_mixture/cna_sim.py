@@ -3,6 +3,7 @@ import logging
 import numpy as np
 from scipy.stats import betabinom, nbinom
 
+from cna_mixture.transfer import CNA_transfer
 from cna_mixture.cna_emission import reparameterize_beta_binom, reparameterize_nbinom
 from cna_mixture.encoding import onehot_encode_states
 from cna_mixture.plotting import plot_rdr_baf_flat
@@ -30,20 +31,6 @@ def get_sim_params():
         "max_snp_coverage": 1_000,
         "normal_genome_coverage": 500,  # NB normal coverage per segment, i.e. for RDR=1.
     }
-
-
-class CNA_transfer:
-    def __init__(self, jump_rate=0.1, num_states=4):
-        self.jump_rate = jump_rate
-        self.num_states = num_states
-        self.jump_rate_per_state = self.jump_rate / (self.num_states - 1.0)
-
-        self.transfer_matrix = self.jump_rate_per_state * np.ones(
-            shape=(self.num_states, self.num_states)
-        )
-        self.transfer_matrix -= self.jump_rate_per_state * np.eye(self.num_states)
-        self.transfer_matrix += (1.0 - self.jump_rate) * np.eye(self.num_states)
-
 
 class CNA_sim:
     def __init__(self):
