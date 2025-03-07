@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import numpy as np
 import numpy.testing as npt
-
-from scipy.special import logsumexp
-from scipy.stats import nbinom, betabinom
-from cna_mixture.cna_emission import CNA_emission, reparameterize_beta_binom, reparameterize_nbinom
+from cna_mixture.cna_emission import (
+    CNA_emission,
+    reparameterize_beta_binom,
+    reparameterize_nbinom,
+)
+from scipy.stats import betabinom, nbinom
 
 np.random.seed(314)
 

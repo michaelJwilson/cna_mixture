@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from cna_mixture.cna_inference import CNA_inference
-from cna_mixture.cna_sim import CNA_sim, get_sim_params
-from scipy.optimize import approx_fprime
+from cna_mixture.cna_sim import get_sim_params
 
 np.random.seed(314)
 

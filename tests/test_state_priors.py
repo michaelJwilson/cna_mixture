@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 import numpy.testing as npt
-
-from scipy.special import logsumexp
 from cna_mixture.state_priors import CNA_categorical_prior
+from scipy.special import logsumexp
 
 np.random.seed(314)
 

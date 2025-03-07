@@ -1,6 +1,6 @@
 import logging
-import numpy as np
 
+import numpy as np
 from scipy.spatial import KDTree
 from scipy.special import logsumexp
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import pytest
 import numpy as np
+import pytest
 from cna_mixture.cna_mixture_params import CNA_mixture_params
 from cna_mixture.cna_sim import CNA_sim
 
