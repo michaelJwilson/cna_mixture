@@ -1,12 +1,12 @@
 import numpy as np
-
-from scipy.special import digamma
 from cna_mixture_rs.core import (
     betabinom_logpmf,
-    nbinom_logpmf,
-    grad_cna_mixture_em_cost_nb_rs,
     grad_cna_mixture_em_cost_bb_rs,
+    grad_cna_mixture_em_cost_nb_rs,
+    nbinom_logpmf,
 )
+from scipy.special import digamma
+from scipy.stats import betabinom, nbinom, poisson
 
 
 def reparameterize_beta_binom(bafs, overdispersion):
@@ -189,7 +189,7 @@ class CNA_emission:
             sample_grad_mus = np.zeros((len(ks), len(state_rs_ps)))
             sample_grad_phi = np.zeros((len(ks), len(state_rs_ps)))
 
-            for col, (rr, pp) in enumerate(state_rs_ps):
+            for col, (rr, _) in enumerate(state_rs_ps):
                 mu = state_read_depths[col]
                 phi = rdr_overdispersion
 

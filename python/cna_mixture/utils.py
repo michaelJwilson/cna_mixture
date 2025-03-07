@@ -1,6 +1,6 @@
 import numpy as np
-from scipy.special import logsumexp
 from scipy.spatial import KDTree
+from scipy.special import logsumexp
 
 
 def normalize_ln_posteriors(ln_posteriors):
@@ -17,12 +17,10 @@ def normalize_ln_posteriors(ln_posteriors):
 
 
 def param_diff(params, new_params):
-    if params is None:
+    if (params is None) or (new_params is None):
         return np.inf
-    elif new_params is None:
-        return np.inf
-    else:
-        return np.max(np.abs((1.0 - new_params / params)))
+
+    return np.max(np.abs(1.0 - new_params / params))
 
 
 def assign_closest(points, centers):

@@ -1,11 +1,11 @@
 import time
+
 import numpy as np
 import pylab as pl
-
-from scipy.stats import nbinom, betabinom
-from scipy.special import digamma
-from scipy.optimize import approx_fprime, check_grad, minimize
 from cna_mixture_rs.core import nbinom_logpmf as nbinom_logpmf_rs
+from scipy.optimize import approx_fprime, check_grad, minimize
+from scipy.special import digamma
+from scipy.stats import nbinom
 
 RUST_BACKEND = True
 

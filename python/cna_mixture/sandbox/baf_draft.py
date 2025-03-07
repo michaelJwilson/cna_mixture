@@ -1,6 +1,5 @@
 import numpy as np
 import pylab as pl
-
 from scipy.stats import betabinom
 
 pp = 0.45

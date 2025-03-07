@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 
 
 def negative_binomial_log_pmf(k, r, p):

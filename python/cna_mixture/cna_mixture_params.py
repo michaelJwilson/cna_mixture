@@ -1,5 +1,5 @@
 import numpy as np
-import numpy.random as random
+from numpy import random
 
 
 class CNA_mixture_params:
@@ -31,7 +31,7 @@ class CNA_mixture_params:
             [1.0 * int_sample, 1.0 / int_sample] for int_sample in integers
         ]
 
-        self.cna_states = np.array([self.normal_state] + self.cna_states)
+        self.cna_states = np.array([self.normal_state, *self.cna_states])
         self.normal_state = np.array(self.normal_state)
 
         self.__verify()

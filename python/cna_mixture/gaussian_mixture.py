@@ -1,8 +1,10 @@
 import logging
+
 import numpy as np
 from sklearn.mixture import GaussianMixture
-from cna_mixture.plotting import plot_rdr_baf_flat
+
 from cna_mixture.encoding import onehot_encode_states
+from cna_mixture.plotting import plot_rdr_baf_flat
 
 logger = logging.getLogger(__name__)
 

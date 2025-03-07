@@ -1,11 +1,13 @@
 import logging
+
 import numpy as np
+from scipy.optimize import OptimizeResult, minimize
+
+from cna_mixture.cna_emission import CNA_emission
 from cna_mixture.cna_mixture_params import CNA_mixture_params
 from cna_mixture.plotting import plot_rdr_baf_flat
-from cna_mixture.utils import normalize_ln_posteriors, param_diff, assign_closest
-from cna_mixture.state_priors import CNA_categorical_prior, CNA_markov_prior
-from cna_mixture.cna_emission import CNA_emission
-from scipy.optimize import minimize, check_grad, approx_fprime, OptimizeResult
+from cna_mixture.state_priors import CNA_categorical_prior
+from cna_mixture.utils import normalize_ln_posteriors, param_diff
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +44,12 @@ class CNA_inference:
 
         bafs = self.mixture_params.cna_states[:, 1]
 
-        self.initial_params = np.array(
-            state_read_depths.tolist()
-            + [self.mixture_params.overdisp_phi]
-            + bafs.tolist()
-            + [self.mixture_params.overdisp_tau]
-        )
+        self.initial_params = np.array([
+            *state_read_depths.tolist(),
+            self.mixture_params.overdisp_phi,
+            *bafs.tolist(),
+            self.mixture_params.overdisp_tau
+        ])
 
         self.bounds = self.get_cna_mixture_bounds()
 

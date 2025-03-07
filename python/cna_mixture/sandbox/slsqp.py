@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import minimize, rosen, rosen_der
+from scipy.optimize import minimize
 
 fun = lambda x: (x[0] - 1) ** 2 + (x[1] - 2.5) ** 2
 

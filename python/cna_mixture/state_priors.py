@@ -1,6 +1,8 @@
 import numpy as np
-from cna_mixture.utils import assign_closest
 from scipy.special import logsumexp
+
+from cna_mixture.utils import assign_closest
+
 
 class CNA_categorical_prior:
     def __init__(self, mixture_params, rdr_baf):
@@ -18,9 +20,9 @@ class CNA_categorical_prior:
 
         # NB categorical prior on state fractions
         _, counts = np.unique(decoded_states, return_counts=True)
-        ln_lambdas = np.log(counts) - np.log(np.sum(counts))
 
-        return ln_lambdas
+        # NB i.e. ln_lambdas
+        return np.log(counts) - np.log(np.sum(counts))
 
     def update(self, ln_state_posteriors):
         """

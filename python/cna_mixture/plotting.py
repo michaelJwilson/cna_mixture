@@ -1,6 +1,6 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pylab as pl
-import matplotlib.pyplot as plt
 
 
 def plot_rdr_baf_flat(
@@ -33,7 +33,7 @@ def plot_rdr_baf_flat(
     plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
 
     if states_bag is not None:
-        for rdr, baf in states_bag:
+        for (rdr, baf) in states_bag:
             pl.scatter(
                 rdr, baf, marker="*", edgecolors="black", facecolors="white", s=45
             )

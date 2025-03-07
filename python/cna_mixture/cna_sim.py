@@ -1,12 +1,11 @@
-import warnings
 import logging
+
 import numpy as np
+from scipy.stats import betabinom, nbinom
 
-from scipy.stats import nbinom, betabinom, poisson
 from cna_mixture.cna_emission import reparameterize_beta_binom, reparameterize_nbinom
-from cna_mixture.plotting import plot_rdr_baf_flat
 from cna_mixture.encoding import onehot_encode_states
-
+from cna_mixture.plotting import plot_rdr_baf_flat
 
 logger = logging.getLogger(__name__)
 

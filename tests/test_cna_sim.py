@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import pytest
 import numpy as np
-
-from cna_mixture.cna_inference import CNA_inference
-from cna_mixture.cna_sim import CNA_sim, CNA_transfer
-from scipy.optimize import approx_fprime, check_grad
+import pytest
+from cna_mixture.cna_sim import CNA_transfer
 
 np.random.seed(314)
 

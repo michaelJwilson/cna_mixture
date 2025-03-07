@@ -1,8 +1,7 @@
 import numpy as np
-
-from scipy.stats import nbinom, betabinom, poisson
-from scipy.optimize import approx_fprime, check_grad, minimize
-from scipy.special import logsumexp, digamma, loggamma
+from scipy.optimize import approx_fprime
+from scipy.special import digamma
+from scipy.stats import nbinom
 
 
 def cost(x, k):

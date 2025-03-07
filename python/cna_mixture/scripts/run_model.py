@@ -1,31 +1,9 @@
-import time
 import logging
-import numpy as np
-import pylab as pl
-import matplotlib.pyplot as plt
-import numpy.random as random
+import time
 
-from matplotlib.colors import LogNorm
-from scipy.stats import nbinom, betabinom, poisson
-from scipy.optimize import approx_fprime, check_grad, minimize
-from scipy.special import logsumexp, digamma
-from scipy.spatial import KDTree
-from scipy.optimize import minimize
-from sklearn.mixture import GaussianMixture
-from cna_mixture.cna_sim import CNA_sim
-from cna_mixture.cna_mixture_params import CNA_mixture_params
-from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
-from cna_mixture.encoding import onehot_encode_states
-from cna_mixture.gaussian_mixture import fit_gaussian_mixture
+import numpy as np
 from cna_mixture.cna_mixture import CNA_inference
-from cna_mixture.negative_binomial import reparameterize_nbinom
-from cna_mixture.beta_binomial import reparameterize_beta_binom
-from cna_mixture_rs.core import (
-    betabinom_logpmf,
-    nbinom_logpmf,
-    grad_cna_mixture_em_cost_nb_rs,
-    grad_cna_mixture_em_cost_bb_rs,
-)
+from cna_mixture.cna_sim import CNA_sim
 
 np.random.seed(1234)
 
