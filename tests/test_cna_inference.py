@@ -7,9 +7,22 @@ from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim
 from scipy.optimize import approx_fprime
 
-np.random.seed(314)
+np.random.seed(1234)
 
-def test_em_cost_grad():
+@pytest.mark.regression
+def test_cna_inference():
+    cna_sim = CNA_sim()
+    cna_model = CNA_inference(cna_sim.realized_genome_coverage, cna_sim.data)
+
+    res = cna_model.fit()
+    params = cna_model.emission_model.unpack_params(res.x)
+
+    exp = np.array([0.50015511, 0.28714097, 0.09091853, 0.10101394])
+    bafs = params[2]
+    
+    npt.assert_allclose(bafs, exp, rtol=1.e-2, atol=2.3) 
+    
+def test_cna_inference_grad():
     cna_sim = CNA_sim()
     cna_model = CNA_inference(cna_sim.realized_genome_coverage, cna_sim.data)
     
@@ -35,10 +48,5 @@ def test_em_cost_grad():
         params, cna_model.em_cost, np.sqrt(np.finfo(float).eps)
     )
     
-    npt.assert_allclose(approx_grad, grad, rtol=1.e-2, atol=2.3)
+    npt.assert_allclose(approx_grad, grad, rtol=1.e-2, atol=2.3)    
 
-    res = cna_model.fit()
-    params = cna_model.emission_model.unpack_params(res.x)
-
-    print("\n", params)
-    
