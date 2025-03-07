@@ -25,9 +25,7 @@ def test_cna_mixture_params_dict_update(mixture_params):
     )
 
 
-def test_cna_mixture_params_rdr_baf_choice_update(mixture_params):
-    rdr_baf = 5 * (1.0 + np.random.uniform(size=(3, 2)))
-    
+def test_cna_mixture_params_rdr_baf_choice_update(mixture_params, rdr_baf):    
     mixture_params.rdr_baf_choice_update(rdr_baf)
 
     # TODO exp changes whether the test is run individually, or all tests run.

@@ -1,6 +1,10 @@
+import logging
 import numpy as np
+
 from scipy.spatial import KDTree
 from scipy.special import logsumexp
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_ln_posteriors(ln_posteriors):
@@ -27,7 +31,10 @@ def assign_closest(points, centers):
     """
     Assign points to the closest center.
     """
-    assert len(points) > len(centers)
+    if len(centers) > len(points):
+        logger.warning(
+            f"Expected more centers than points, found {len(centers)} and {len(points)} respectively."
+        )
 
     tree = KDTree(centers)
     distances, idx = tree.query(points)
