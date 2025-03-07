@@ -12,15 +12,18 @@ class CNA_categorical_prior:
 
     @staticmethod
     def ln_lambdas_equal(num_states):
-        return (1.0 / num_states) * np.ones(num_states)
+        return np.log((1.0 / num_states) * np.ones(num_states))
 
     @staticmethod
     def ln_lambdas_closest(rdr_baf, cna_states):
         decoded_states = assign_closest(rdr_baf, cna_states)
 
         # NB categorical prior on state fractions
-        _, counts = np.unique(decoded_states, return_counts=True)
+        ustates, counts = np.unique(decoded_states, return_counts=True)
 
+        counts = {state: count for state, count in zip(ustates, counts)}
+        counts = [counts.get(ii, 0) for ii in range(len(cna_states))]
+                
         # NB i.e. ln_lambdas
         return np.log(counts) - np.log(np.sum(counts))
 
@@ -28,6 +31,8 @@ class CNA_categorical_prior:
         """
         Given updated ln_state_posteriors, calculate the updated ln_lambdas.
         """
+        assert ln_state_posteriors.ndim == 2
+
         self.ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
             ln_state_posteriors
         )
