@@ -12,7 +12,7 @@ from cna_mixture.utils import normalize_ln_posteriors, param_diff
 logger = logging.getLogger(__name__)
 
 class CNA_inference:
-    def __init__(self, genome_coverage, data, optimizer="L-BFGS-B", maxiter=100):
+    def __init__(self, genome_coverage, data, optimizer="L-BFGS-B", maxiter=250):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
