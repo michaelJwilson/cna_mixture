@@ -3,13 +3,9 @@ import numpy as np
 from cna_mixture.cna_mixture_params import CNA_mixture_params
 from cna_mixture.plotting import plot_rdr_baf_flat
 from cna_mixture.utils import normalize_ln_posteriors, param_diff, assign_closest
-# from cna_mixture.negative_binomial import reparameterize_nbinom
-# from cna_mixture.beta_binomial import reparameterize_beta_binom
 from cna_mixture.state_priors import CNA_categorical_prior, CNA_markov_prior
 from cna_mixture.cna_emission import CNA_emission
 from scipy.optimize import minimize, check_grad, approx_fprime, OptimizeResult
-# from scipy.special import digamma, logsumexp
-
 
 logger = logging.getLogger(__name__)
 
