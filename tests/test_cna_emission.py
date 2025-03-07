@@ -16,14 +16,14 @@ def test_cna_emission():
     # NB nbinom.rvs(lost_reads, dropout_rate, size=1)[0]
     means, phi = np.array(num_states * [100]), 1.e-2
     
-    rr_pp = reparameterize_nbinom(means, phi)
-    ks = nbinom.rvs(rr_pp[:,0], rr_pp[:,1], size=10_000)
+    rr_pp = reparameterize_nbinom(normal_coverage * means, phi)
+    ks = nbinom.rvs(rr_pp[:,0], rr_pp[:,1], size=10_000).astype(np.float64)
 
     bafs, tau = np.array(num_states * [0.2]), 10.
     pseudo_counts = reparameterize_beta_binom(bafs, tau)
     
-    xs = betabinom.rvs(snp_coverage, pseudo_counts[:,1], pseudo_counts[:,0], size=10_000)
-    ns = snp_coverage * np.ones_like(xs)
+    xs = betabinom.rvs(snp_coverage, pseudo_counts[:,1], pseudo_counts[:,0], size=10_000).astype(np.float64)
+    ns = snp_coverage * np.ones_like(xs).astype(np.float64)
 
     # NB RDR-like params are read depths, not RDR.
     params = np.array([*(normal_coverage * means), phi, *bafs, tau])
@@ -34,5 +34,38 @@ def test_cna_emission():
 
     assert np.array_equal(states_bag, np.array([[100., 0.2]]))
     assert unpacked == (normal_coverage * means, phi,bafs, tau)
+
+    # NB >>>>>>  beta-binomial checks.
+    rust_bb_update, rust_state_alpha_betas = emission.cna_mixture_betabinom_update(params)
+
+    assert np.array_equal(rust_state_alpha_betas, pseudo_counts)
+
+    emission.RUST_BACKEND = False
+
+    bb_update, state_alpha_betas = emission.cna_mixture_betabinom_update(params)
+    
+    npt.assert_allclose(rust_bb_update, bb_update, rtol=1.e-5, atol=1.e-8)
+
+    # NB all log probabilites should be <= 0 
+    assert np.all(bb_update <= 0.)
+
+    # NB >>>>>>  nbinom checks.
+    emission.RUST_BACKEND = True
+
+    rust_nb_update, rust_state_rs_ps = emission.cna_mixture_nbinom_update(params)
+
+    assert np.array_equal(rust_state_rs_ps, rr_pp)
+    
+    emission.RUST_BACKEND = False
+
+    nb_update, state_rs_ps = emission.cna_mixture_nbinom_update(params)
+
+    npt.assert_allclose(rust_nb_update, nb_update, rtol=1.e-5, atol=1.e-8)
+
+    # NB all log probabilites should be <= 0                                                                                                                     
+    assert np.all(nb_update <= 0.)
+    
+    
+    
 
     

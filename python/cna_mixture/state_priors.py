@@ -33,6 +33,10 @@ class CNA_categorical_prior:
         """
         assert ln_state_posteriors.ndim == 2
 
+        # NB guard against being passed probabilities, instead of log probs.
+        assert np.all(ln_state_posteriors <= 0.)
+
+
         self.ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
             ln_state_posteriors
         )
