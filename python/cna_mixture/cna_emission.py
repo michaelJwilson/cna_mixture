@@ -60,6 +60,7 @@ class CNA_emission:
     RUST_BACKEND = True
 
     def __init__(self, num_states, genome_coverage, ks, xs, ns):
+        # NB ks are NB derived, xs and ns are BB derived.
         self.ks = ks
         self.xs = xs
         self.ns = ns
@@ -275,6 +276,9 @@ class CNA_emission:
         return np.concatenate([grad_ps, np.atleast_1d(grad_tau)])
 
     def grad_em_cost(self, params, state_posteriors):
+        # HACK *slow* guard against log probs.
+        assert np.all(state_posteriors > 0.0)
+
         return np.concatenate(
             [
                 self.grad_em_cost_nb(params, state_posteriors),

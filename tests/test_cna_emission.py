@@ -9,7 +9,6 @@ from cna_mixture.cna_emission import CNA_emission, reparameterize_beta_binom, re
 
 np.random.seed(314)
 
-
 def test_cna_emission():
     num_states, normal_coverage, snp_coverage = 1, 10, 100
     
@@ -65,7 +64,18 @@ def test_cna_emission():
     # NB all log probabilites should be <= 0                                                                                                                     
     assert np.all(nb_update <= 0.)
     
+    # NB >>>>>>  beta-binomial grad checks.
+    state_posteriors = np.ones(shape=(10_000, 1))
     
+    emission.RUST_BACKEND = True
+    rust_grad = emission.grad_em_cost(params, state_posteriors)
     
 
+    emission.RUST_BACKEND = False
+    grad = emission.grad_em_cost(params, state_posteriors)
+
+    npt.assert_allclose(rust_grad, grad, rtol=1.e-5, atol=1.e-8)
+
+    
+    
     
