@@ -11,6 +11,10 @@ class CNA_categorical_prior:
         self.num_states = mixture_params.num_states
         self.cna_states = mixture_params.cna_states
 
+    def __str__(self):
+        return f"lambdas={np.exp(self.ln_lambdas)}"
+    
+        
     def ln_lambdas_equal(self):
         self.ln_lambdas = np.log((1.0 / self.num_states) * np.ones(self.num_states))
 
@@ -26,19 +30,6 @@ class CNA_categorical_prior:
         # NB i.e. ln_lambdas
         self.ln_lambdas = np.log(counts) - np.log(np.sum(counts))
 
-    def update(self, ln_state_posteriors):
-        """
-        Given updated ln_state_posteriors, calculate the updated ln_lambdas.
-        """
-        assert ln_state_posteriors.ndim == 2
-
-        # HACK *slow* guard against being passed probabilities, instead of log probs.
-        assert np.all(ln_state_posteriors <= 0.0)
-
-        self.ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
-            ln_state_posteriors
-        )
-
     def get_ln_state_priors(self):
         ln_norm = logsumexp(self.ln_lambdas)
         
@@ -51,8 +42,18 @@ class CNA_categorical_prior:
             self.ln_state_emission + self.ln_state_prior
         )
 
-    def __str__(self):
-        return f"lambdas={np.exp(self.ln_lambdas)}"
+    def update(self, ln_state_posteriors):
+        """                                                                                                                                                                                                                            
+        Given updated ln_state_posteriors, calculate the updated ln_lambdas.                                                                                                                                                           
+        """
+        assert ln_state_posteriors.ndim == 2
+
+        # HACK *slow* guard against being passed probabilities, instead of log probs.                                                                                                                                                  
+        assert np.all(ln_state_posteriors <= 0.0)
+
+        self.ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
+            ln_state_posteriors
+        )
 
 
 class CNA_markov_prior:
@@ -98,3 +99,6 @@ class CNA_markov_prior:
 
         norm = logsumexp(self.ln_fs + self.ln_bs, axis=1)
         return -norm[:, None] + (self.ln_fs + self.ln_bs)
+
+    def update(self):
+        raise NotImplementedError()

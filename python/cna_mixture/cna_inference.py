@@ -81,7 +81,7 @@ class CNA_inference:
         # NB pre-populate terms to cost.
         self.state_prior_model.ln_lambdas_closest(self.rdr_baf)
         
-        self.ln_state_prior = self.state_prior_model.get_state_priors()
+        self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
         self.ln_state_emission = self.emission_model.get_ln_state_emission(
             self.initial_params
         )
@@ -130,7 +130,7 @@ class CNA_inference:
         and re-compute the ln_state_priors.
         """
         self.state_prior_model.update(self.ln_state_posteriors)
-        self.ln_state_prior = self.state_prior_model.get_state_priors()
+        self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
 
     def callback(self, intermediate_result: OptimizeResult):
         """

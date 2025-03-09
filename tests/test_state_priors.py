@@ -33,10 +33,10 @@ def test_CNA_categorical_prior(mixture_params, rdr_baf):
 
     assert np.abs(logsumexp(state_priors.ln_lambdas)) < 1.5e-16
 
-    state_priors = state_priors.get_state_priors()
+    ln_state_priors = state_priors.get_ln_state_priors()
 
     npt.assert_allclose(
-        np.tile(ln_state_posteriors, (10, 1)), state_priors, rtol=1e-5, atol=1e-8
+        np.tile(ln_state_posteriors, (10, 1)), ln_state_priors, rtol=1e-5, atol=1e-8
     )
 
 
