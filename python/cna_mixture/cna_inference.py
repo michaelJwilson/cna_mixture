@@ -52,10 +52,17 @@ class CNA_inference:
         ])
 
         self.bounds = self.get_cna_mixture_bounds()
-
+        
         self.state_prior_model = CNA_categorical_prior(
-            self.mixture_params, self.rdr_baf
+            self.mixture_params
         )
+        
+        """
+        self.state_prior_model = CNA_markov_prior(
+            self.num_segments, 0.1, self.num_states,
+        )
+        """
+        
         self.emission_model = CNA_emission(
             self.num_states,
             self.genome_coverage,
@@ -78,7 +85,9 @@ class CNA_inference:
 
     def initialize(self):
         # NB pre-populate terms to cost.
-        self.ln_state_prior = self.state_prior_model.get_state_priors(self.num_segments)
+        self.state_prior_model.ln_lambdas_closest(self.rdr_baf)
+        
+        self.ln_state_prior = self.state_prior_model.get_state_priors()
         self.ln_state_emission = self.emission_model.get_ln_state_emission(
             self.initial_params
         )

@@ -6,27 +6,25 @@ from cna_mixture.utils import assign_closest, logmatexp
 
 
 class CNA_categorical_prior:
-    def __init__(self, mixture_params, rdr_baf):
+    def __init__(self, num_segments, mixture_params):
+        self.num_segments = num_segments
         self.num_states = mixture_params.num_states
         self.cna_states = mixture_params.cna_states
-        self.ln_lambdas = self.ln_lambdas_closest(rdr_baf, self.cna_states)
 
-    @staticmethod
-    def ln_lambdas_equal(num_states):
-        return np.log((1.0 / num_states) * np.ones(num_states))
+    def ln_lambdas_equal(self):
+        self.ln_lambdas = np.log((1.0 / self.num_states) * np.ones(self.num_states))
 
-    @staticmethod
-    def ln_lambdas_closest(rdr_baf, cna_states):
-        decoded_states = assign_closest(rdr_baf, cna_states)
+    def ln_lambdas_closest(self, rdr_baf):
+        decoded_states = assign_closest(rdr_baf, self.cna_states)
 
         # NB categorical prior on state fractions
         ustates, counts = np.unique(decoded_states, return_counts=True)
 
         counts = dict(zip(ustates, counts))
-        counts = [counts.get(ii, 0) for ii in range(len(cna_states))]
+        counts = [counts.get(ii, 0) for ii in range(len(self.cna_states))]
 
         # NB i.e. ln_lambdas
-        return np.log(counts) - np.log(np.sum(counts))
+        self.ln_lambdas = np.log(counts) - np.log(np.sum(counts))
 
     def update(self, ln_state_posteriors):
         """
@@ -41,16 +39,11 @@ class CNA_categorical_prior:
             ln_state_posteriors
         )
 
-    def get_state_priors(self, num_segments):
-        """
-        Broadcast per-state categorical priors to equivalent (samples x state)
-        Prior array.
-        """
+    def get_state_priors(self):
         ln_norm = logsumexp(self.ln_lambdas)
-
-        # NB ensure normalized.
+        
         return np.broadcast_to(
-            self.ln_lambdas - ln_norm, (num_segments, len(self.ln_lambdas))
+            self.ln_lambdas - ln_norm, (self.num_segments, len(self.ln_lambdas))
         ).copy()
 
     def __str__(self):
@@ -90,9 +83,5 @@ class CNA_markov_prior:
         self.forward(ln_state_emission)
         self.backward(ln_state_emission)
 
-    def get_state_priors(self):
-        self.forward(ln_state_emission)
-        self.backward(ln_state_emission)
-        
-        norm = logsumexp(self.ln_fs + self.ln_bs, axis=1)        
-        return -norm[:,None] + (self.ln_fs + self.ln_bs)
+        norm = logsumexp(self.ln_fs + self.ln_bs, axis=1)
+        self.ln_state_posteriors = -norm[:, None] + (self.ln_fs + self.ln_bs)

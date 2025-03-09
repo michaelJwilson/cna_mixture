@@ -3,6 +3,7 @@ import logging
 import numpy as np
 from scipy.spatial import KDTree
 from scipy.special import logsumexp
+from numba import njit
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,6 @@ def assign_closest(points, centers):
 
     return idx
 
-
 def logmatexp(transfer, ln_probs):
-    max_ln_probs = np.max(ln_probs, keepdims=True)
+    max_ln_probs = np.max(ln_probs)
     return max_ln_probs + np.log(np.dot(transfer, np.exp(ln_probs - max_ln_probs)))
