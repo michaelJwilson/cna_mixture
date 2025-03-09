@@ -2,7 +2,7 @@ import numpy as np
 from scipy.special import logsumexp
 
 from cna_mixture.transfer import CNA_transfer
-from cna_mixture.utils import assign_closest
+from cna_mixture.utils import assign_closest, logmatexp
 
 
 class CNA_categorical_prior:
@@ -71,23 +71,18 @@ class CNA_markov_prior:
         self.ln_fs = np.zeros(shape=(num_segments, num_states))
         self.ln_bs = np.zeros(shape=(num_segments, num_states))
 
-    @staticmethod
-    def logTexp(transfer, ln_probs):
-        max_ln_probs = np.max(ln_probs, keepdims=True)
-        return max_ln_probs + np.log(np.dot(transfer, np.exp(ln_probs - max_ln_probs)))
-
     def forward(self, ln_state_emission):
         self.ln_fs[0, :] = self.ln_start_prior + ln_state_emission[0, :]
 
         for ii in range(1, self.num_segments):
             self.ln_fs[ii, :] = ln_state_emission[ii, :]
-            self.ln_fs[ii, :] += self.logTexp(self.transfer, self.ln_fs[ii - 1, :].T)
+            self.ln_fs[ii, :] += logmatexp(self.transfer, self.ln_fs[ii - 1, :].T)
 
     def backward(self, ln_state_emission):
         self.ln_bs[-1, :] = self.ln_start_prior
 
         for ii in range(self.num_segments - 2, -1, -1):
-            self.ln_bs[ii, :] = self.logTexp(
+            self.ln_bs[ii, :] = logmatexp(
                 self.transfer.T, self.ln_bs[ii + 1, :] + ln_state_emission[ii + 1, :]
             )
 
@@ -96,5 +91,8 @@ class CNA_markov_prior:
         self.backward(ln_state_emission)
 
     def get_state_priors(self):
+        self.forward(ln_state_emission)
+        self.backward(ln_state_emission)
+        
         norm = logsumexp(self.ln_fs + self.ln_bs, axis=1)        
         return -norm[:,None] + (self.ln_fs + self.ln_bs)

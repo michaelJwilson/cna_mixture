@@ -40,3 +40,8 @@ def assign_closest(points, centers):
     distances, idx = tree.query(points)
 
     return idx
+
+
+def logmatexp(transfer, ln_probs):
+    max_ln_probs = np.max(ln_probs, keepdims=True)
+    return max_ln_probs + np.log(np.dot(transfer, np.exp(ln_probs - max_ln_probs)))

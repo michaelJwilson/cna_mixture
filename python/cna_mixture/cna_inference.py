@@ -6,7 +6,7 @@ from scipy.optimize import OptimizeResult, minimize
 from cna_mixture.cna_emission import CNA_emission
 from cna_mixture.cna_mixture_params import CNA_mixture_params
 from cna_mixture.plotting import plot_rdr_baf_flat
-from cna_mixture.state_priors import CNA_categorical_prior
+from cna_mixture.state_priors import CNA_categorical_prior, CNA_markov_prior
 from cna_mixture.utils import normalize_ln_posteriors, param_diff
 
 logger = logging.getLogger(__name__)
