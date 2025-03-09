@@ -8,17 +8,17 @@ from numba import njit
 logger = logging.getLogger(__name__)
 
 
-def normalize_ln_posteriors(ln_posteriors):
+def normalize_ln_probs(ln_probs):
     """
-    Return the normalized log posteriors.
+    Return the normalized log probs (# samples, # states).
     """
-    num_samples, num_states = ln_posteriors.shape
+    num_samples, num_states = ln_probs.shape
 
     # NB natural logarithm by definition;
-    norm = logsumexp(ln_posteriors, axis=1)
+    norm = logsumexp(ln_probs, axis=1)
     norm = np.broadcast_to(norm.reshape(num_samples, 1), (num_samples, num_states))
 
-    return ln_posteriors.copy() - norm
+    return ln_probs.copy() - norm
 
 
 def param_diff(params, new_params):

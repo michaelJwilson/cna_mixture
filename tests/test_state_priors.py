@@ -10,10 +10,13 @@ np.random.seed(314)
 
 
 def test_CNA_categorical_prior(mixture_params, rdr_baf):
-    equal_priors = CNA_categorical_prior.ln_lambdas_equal(5)
-    state_priors = CNA_categorical_prior(mixture_params, rdr_baf)
+    equal_priors = CNA_categorical_prior(10, mixture_params)
+    equal_priors.ln_lambdas_equal()
+    
+    state_priors = CNA_categorical_prior(10, mixture_params)
+    state_priors.ln_lambdas_closest(rdr_baf)
 
-    assert logsumexp(equal_priors) == 0.0
+    assert logsumexp(equal_priors.ln_lambdas) == 0.0
     assert len(state_priors.ln_lambdas) == len(mixture_params.cna_states)
     assert np.abs(logsumexp(state_priors.ln_lambdas)) < 1.5e-16
 
@@ -30,10 +33,10 @@ def test_CNA_categorical_prior(mixture_params, rdr_baf):
 
     assert np.abs(logsumexp(state_priors.ln_lambdas)) < 1.5e-16
 
-    state_priors = state_priors.get_state_priors(5)
+    state_priors = state_priors.get_state_priors()
 
     npt.assert_allclose(
-        np.tile(ln_state_posteriors, (5, 1)), state_priors, rtol=1e-5, atol=1e-8
+        np.tile(ln_state_posteriors, (10, 1)), state_priors, rtol=1e-5, atol=1e-8
     )
 
 

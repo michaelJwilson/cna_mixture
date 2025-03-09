@@ -7,7 +7,7 @@ from cna_mixture.cna_emission import CNA_emission
 from cna_mixture.cna_mixture_params import CNA_mixture_params
 from cna_mixture.plotting import plot_rdr_baf_flat
 from cna_mixture.state_priors import CNA_categorical_prior, CNA_markov_prior
-from cna_mixture.utils import normalize_ln_posteriors, param_diff
+from cna_mixture.utils import normalize_ln_probs, param_diff
 
 logger = logging.getLogger(__name__)
 
@@ -54,14 +54,8 @@ class CNA_inference:
         self.bounds = self.get_cna_mixture_bounds()
         
         self.state_prior_model = CNA_categorical_prior(
-            self.mixture_params
+            self.num_segments, self.mixture_params
         )
-        
-        """
-        self.state_prior_model = CNA_markov_prior(
-            self.num_segments, 0.1, self.num_states,
-        )
-        """
         
         self.emission_model = CNA_emission(
             self.num_states,
@@ -99,7 +93,7 @@ class CNA_inference:
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
         """
-        self.ln_state_posteriors = normalize_ln_posteriors(
+        self.ln_state_posteriors = normalize_ln_probs(
             self.ln_state_emission + self.ln_state_prior
         )
 
@@ -136,7 +130,7 @@ class CNA_inference:
         and re-compute the ln_state_priors.
         """
         self.state_prior_model.update(self.ln_state_posteriors)
-        self.ln_state_prior = self.state_prior_model.get_state_priors(self.num_segments)
+        self.ln_state_prior = self.state_prior_model.get_state_priors()
 
     def callback(self, intermediate_result: OptimizeResult):
         """
