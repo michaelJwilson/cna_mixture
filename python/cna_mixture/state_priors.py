@@ -98,7 +98,7 @@ class CNA_markov_prior:
                 self.transfer.T, self.ln_bs[ii + 1, :] + ln_state_emission[ii + 1, :]
             )
 
-    def get_ln_state_posteriors(self, ln_state_emission, ln_state_prior):
+    def get_ln_state_posteriors(self, ln_state_emission, *args, **kwargs):
         self.forward(ln_state_emission)
         self.backward(ln_state_emission)
 
@@ -107,4 +107,5 @@ class CNA_markov_prior:
         return -norm[:, None] + (self.ln_fs + self.ln_bs)
 
     def update(self):
+        # TODO
         raise NotImplementedError()
