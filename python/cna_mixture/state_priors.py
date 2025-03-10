@@ -62,18 +62,24 @@ class CNA_categorical_prior:
 
 
 class CNA_markov_prior:
-    def __init__(self, num_segments, jump_rate, num_states, ln_start_prior=None):
-        if ln_start_prior is None:
-            ln_start_prior = np.log((1.0 / num_states) * np.ones(num_states))
-
+    def __init__(self, num_segments, num_states):
         self.num_segments = num_segments
+        self.num_states = num_states
+        
+        self.ln_fs = np.zeros(shape=(num_segments, self.num_states))
+        self.ln_bs = np.zeros(shape=(num_segments, self.num_states))
+
+    def initialize(self, jump_rate, ln_start_prior=None):
+        if ln_start_prior is None:
+            ln_start_prior = np.log((1.0 / self.num_states) * np.ones(self.num_states))
+
         self.ln_start_prior = ln_start_prior
         self.transfer = CNA_transfer(
-            jump_rate=jump_rate, num_states=num_states
+            jump_rate=jump_rate, num_states=self.num_states
         ).transfer_matrix
 
-        self.ln_fs = np.zeros(shape=(num_segments, num_states))
-        self.ln_bs = np.zeros(shape=(num_segments, num_states))
+    def update(self):
+        logger.warning("CNA_markov_prior.update is *not* implemented.")
 
     def get_ln_state_priors(self):
         self.ln_fs[0, :] = self.ln_start_prior
@@ -105,7 +111,3 @@ class CNA_markov_prior:
         norm = logsumexp(self.ln_fs + self.ln_bs, axis=1)
         
         return -norm[:, None] + (self.ln_fs + self.ln_bs)
-
-    def update(self):
-        # TODO
-        raise NotImplementedError()

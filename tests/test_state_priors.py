@@ -78,8 +78,3 @@ def test_CNA_markov_prior():
     
     print(f"Hamming distance and transfers for emission: {hamming(states, decoded_states)}, {transfers(decoded_states)}")
     print(f"Hamming distance and transfers for Markov: {hamming(states, markov_decoded_states)}, {transfers(markov_decoded_states)}")
-
-    # TODO
-    with pytest.raises(NotImplementedError):
-        _ = markov_prior.update()
-    
