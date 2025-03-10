@@ -59,16 +59,14 @@ def tophat_smooth(data, window_size):
 
 
 def plot_rdr_baf_genome(
-    fpath, rdr_baf, ln_state_posteriors=None, states_bag=None, title=None
+    fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None
 ):
     pl.clf()
 
-    segment_index = np.arange(len(rdr_baf))
+    segment_index = np.arange(len(rdr))
 
     figsize = (15, 10)
     fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=figsize)
-
-    rdr, baf = rdr_baf[:, 0], rdr_baf[:, 1]
 
     smooth_rdr = tophat_smooth(rdr, window_size=100)
     smooth_baf = tophat_smooth(baf, window_size=100)
@@ -82,6 +80,6 @@ def plot_rdr_baf_genome(
     axes[0].set_ylabel(r"read depth ratio")
 
     axes[1].set_ylabel(r"$b$-allele frequency")
-    axes[1].set_xlabel("intervals")
+    axes[1].set_xlabel("segment index")
 
     pl.savefig(fpath)
