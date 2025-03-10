@@ -68,9 +68,15 @@ def plot_rdr_baf_genome(
     figsize = (15, 10)
     fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=figsize)
 
+    for (state_rdr, state_baf) in states_bag:
+        axes[0].axhline(state_rdr, c="k", lw=0.1)
+        axes[1].axhline(state_baf, c="k", lw=0.1)
+        
     smooth_rdr = tophat_smooth(rdr, window_size=100)
     smooth_baf = tophat_smooth(baf, window_size=100)
 
+    axes[0].set_xlim(-100, 10_100)
+    
     axes[0].plot(segment_index, rdr)
     axes[0].plot(segment_index, smooth_rdr)
 
