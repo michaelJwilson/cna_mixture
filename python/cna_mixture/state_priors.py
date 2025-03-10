@@ -83,7 +83,7 @@ class CNA_markov_prior:
     def update(self, ln_state_emission):
         logger.warning("CNA_markov_prior.update is *not* implemented.")
 
-        self.transfer = np.array(
+        new_ln_transfer = np.array(
             ln_transition_probs_rs(
                 self.num_states,
                 self.ln_fs,
@@ -93,7 +93,7 @@ class CNA_markov_prior:
             )
         )
 
-        self.transfer = np.exp(self.transfer)
+        # self.transfer = np.exp(new.ln_transfer)
 
     def get_ln_state_priors(self):
         self.ln_fs[0, :] = self.ln_start_prior
