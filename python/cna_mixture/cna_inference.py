@@ -5,7 +5,7 @@ from scipy.optimize import OptimizeResult, minimize
 
 from cna_mixture.cna_emission import CNA_emission
 from cna_mixture.cna_mixture_params import CNA_mixture_params
-from cna_mixture.plotting import plot_rdr_baf_flat
+from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
 from cna_mixture.state_priors import CNA_categorical_prior, CNA_markov_prior
 from cna_mixture.utils import normalize_ln_probs, param_diff
 
@@ -216,6 +216,15 @@ class CNA_inference:
             title="Final state posteriors",
         )
 
+        plot_rdr_baf_genome(
+            "plots/final_rdr_baf_genome.pdf",
+            self.rdr,
+            self.baf,
+            ln_state_posteriors=self.ln_state_posteriors,
+            states_bag=self.emission_model.get_states_bag(res.x),
+            title="Final state posteriors",
+        )
+        
         return res
 
     def get_cna_mixture_bounds(self):

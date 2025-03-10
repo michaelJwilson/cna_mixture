@@ -40,7 +40,8 @@ def main():
     fit_gaussian_mixture("plots/gmm_rdr_baf_flat.pdf", cna_sim.rdr_baf)
 
     # NB total number of states (inc. normal).
-    res = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data).fit()
+    cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data)
+    res = cna_inf.fit()
 
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
