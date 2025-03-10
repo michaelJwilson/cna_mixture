@@ -208,16 +208,17 @@ fn ln_transition_probs_rs<'py>(
     let ln_trans = ln_trans.as_array();
     let ln_ems = ln_ems.as_array();
 
+    let num_segments = ln_fs.shape()[0];
     let mut result: Vec<Vec<f64>> = vec![vec![0.0; num_states]; num_states];
 
-    for ii in 0..(ln_fs.len() - 1){
+    for ii in 0..(num_segments - 1){
     	for kk in 0..num_states {
 	    for ll in 0..num_states {
 	    	result[kk][ll] += ln_fs[[ii, kk]] + ln_trans[[kk, ll]] + ln_ems[[ii+1, ll]] + ln_bs[[ii + 1, ll]];
 	    }
 	}
     }
-
+ 
     // NB rows sum to unity.
     for ii in 0..num_states {
     	let norm = logsumexp(&result[ii]);
@@ -226,7 +227,7 @@ fn ln_transition_probs_rs<'py>(
             result[ii][jj] -= norm;
         }
     }
-
+ 
     Ok(result)
 }
 
@@ -239,4 +240,19 @@ fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_bb_rs, m)?)?;
     m.add_function(wrap_pyfunction!(ln_transition_probs_rs, m)?)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_logsumexp() {
+        let array = vec![1.0, 2.0, 3.0];
+	
+        let result = logsumexp(&array);
+        let expected = 3.4076059644443806;
+
+        assert!((result - expected).abs() < 1e-6, "result: {}, expected: {}", result, expected);
+    }
 }

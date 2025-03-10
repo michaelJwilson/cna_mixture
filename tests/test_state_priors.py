@@ -65,7 +65,6 @@ def test_CNA_markov_prior():
     assert ln_state_emission.shape == (num_segments, num_states)
 
     # print("\n", ln_state_emission)
-    # markov_prior.update(ln_state_emission)
     
     state_priors = markov_prior.get_ln_state_priors()
     state_posteriors = markov_prior.get_ln_state_posteriors(ln_state_emission)
@@ -79,3 +78,12 @@ def test_CNA_markov_prior():
     
     print(f"Hamming distance and transfers for emission: {hamming(states, decoded_states)}, {transfers(decoded_states)}")
     print(f"Hamming distance and transfers for Markov: {hamming(states, markov_decoded_states)}, {transfers(markov_decoded_states)}")
+
+    print(states)
+    print(markov_decoded_states)
+    
+    print(markov_prior.transfer)
+    
+    markov_prior.update(ln_state_emission)
+
+    print(markov_prior.transfer)
