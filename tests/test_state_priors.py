@@ -52,9 +52,10 @@ def test_CNA_markov_prior():
 
     markov_prior = CNA_markov_prior(
         num_segments=num_segments,
-        jump_rate=jump_rate,
         num_states=num_states,
     )
+
+    markov_prior.initialize(jump_rate=jump_rate)
 
     states = np.array([np.random.randint(0, num_states) for ii in range(num_segments)])
     samples = np.array([norm.rvs(loc=10 * ss, scale=10., size=1) for ss in states])
