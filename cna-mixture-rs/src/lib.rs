@@ -1,6 +1,6 @@
 extern crate statrs;
 
-use numpy::PyReadonlyArray1;
+use numpy::{PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::prelude::*;
 use statrs::function::gamma::{ln_gamma, digamma};
 use statrs::function::factorial::ln_factorial;
@@ -188,6 +188,48 @@ fn grad_cna_mixture_em_cost_bb_rs<'py>(
     Ok(result)
 }
 
+fn logsumexp(array: &Vec<f64>) -> f64 {
+    let max_val = array.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let sum_exp: f64 = array.iter().map(|&x| (x - max_val).exp()).sum();
+    
+    max_val + sum_exp.ln()
+}
+
+#[pyfunction]
+fn ln_transition_probs_rs<'py>(
+    num_states: usize,
+    ln_fs: PyReadonlyArray2<'_, f64>,
+    ln_bs: PyReadonlyArray2<'_, f64>,
+    ln_trans: PyReadonlyArray2<'_, f64>,
+    ln_ems: PyReadonlyArray2<'_, f64>,
+) -> PyResult<Vec<Vec<f64>>> {
+    let ln_fs = ln_fs.as_array();
+    let ln_bs = ln_bs.as_array();
+    let ln_trans = ln_trans.as_array();
+    let ln_ems = ln_ems.as_array();
+
+    let mut result: Vec<Vec<f64>> = vec![vec![0.0; num_states]; num_states];
+
+    for ii in 0..(ln_fs.len() - 1){
+    	for kk in 0..num_states {
+	    for ll in 0..num_states {
+	    	result[kk][ll] += ln_fs[[ii, kk]] + ln_trans[[kk, ll]] + ln_ems[[ii+1, ll]] + ln_bs[[ii + 1, ll]];
+	    }
+	}
+    }
+
+    // NB rows sum to unity.
+    for ii in 0..num_states {
+    	let norm = logsumexp(&result[ii]);
+	
+        for jj in 0..num_states {
+            result[ii][jj] -= norm;
+        }
+    }
+
+    Ok(result)
+}
+
 #[pymodule]
 #[pyo3(name = "core")]
 fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -195,5 +237,6 @@ fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(betabinom_logpmf, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_nb_rs, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_bb_rs, m)?)?;
+    m.add_function(wrap_pyfunction!(ln_transition_probs_rs, m)?)?;
     Ok(())
 }
