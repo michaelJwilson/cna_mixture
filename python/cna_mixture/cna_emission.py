@@ -277,7 +277,7 @@ class CNA_emission:
 
     def grad_em_cost(self, params, state_posteriors):
         # HACK *slow* guard against log probs.
-        assert np.all(state_posteriors > 0.0)
+        assert np.all(state_posteriors >= 0.0)
 
         return np.concatenate(
             [

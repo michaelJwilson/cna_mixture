@@ -1,9 +1,11 @@
+import logging
 import numpy as np
 from scipy.special import logsumexp
 
 from cna_mixture.transfer import CNA_transfer
 from cna_mixture.utils import assign_closest, logmatexp, normalize_ln_probs
 
+logger = logging.getLogger()
 
 class CNA_categorical_prior:
     def __init__(self, num_segments, num_states):
@@ -78,7 +80,7 @@ class CNA_markov_prior:
             jump_rate=jump_rate, num_states=self.num_states
         ).transfer_matrix
 
-    def update(self):
+    def update(self, ln_state_posteriors):
         logger.warning("CNA_markov_prior.update is *not* implemented.")
 
     def get_ln_state_priors(self):

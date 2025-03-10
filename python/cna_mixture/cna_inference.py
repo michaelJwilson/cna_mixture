@@ -71,7 +71,7 @@ class CNA_inference:
         
         # NB assign ln_lambdas based on fractions hard assigned to states.                                                                                                                                                                                                  
         # self.state_prior_model.initialize(self.rdr_baf, mixture_params.cna_states)
-        self.state_prior_model.initialize(jump_rate=0.1)
+        self.state_prior_model.initialize(jump_rate=1.0)
         
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
         self.ln_state_emission = self.emission_model.get_ln_state_emission(
