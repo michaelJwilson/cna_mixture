@@ -5,6 +5,7 @@ import numpy as np
 from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim
 from cna_mixture.plotting import plot_rdr_baf_genome
+from cna_mixture.gaussian_mixture import fit_gaussian_mixture
 
 np.random.seed(1234)
 
@@ -36,10 +37,10 @@ def main():
     cna_sim.plot_realization_true_flat("plots/truth_rdr_baf_flat.pdf")
     cna_sim.plot_realization_true_genome("plots/truth_rdr_baf_genome.pdf")
 
-    # fit_gaussian_mixture(cna_sim.rdr_baf)
+    fit_gaussian_mixture("plots/gmm_rdr_baf_flat.pdf", cna_sim.rdr_baf)
 
     # NB total number of states (inc. normal).
-    # res = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data).fit()
+    res = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data).fit()
 
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 

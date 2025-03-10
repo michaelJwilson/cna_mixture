@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def fit_gaussian_mixture(
+    fpath,
     rdr_baf,
     num_samples=100_000,
     num_components=4,
@@ -36,7 +37,7 @@ def fit_gaussian_mixture(
     logger.info(f"Fit Gaussian mixture means:\n{means}")
 
     plot_rdr_baf_flat(
-        "plots/gmm_rdr_baf_flat.pdf",
+        fpath,
         samples[:, 0],
         samples[:, 1],
         ln_state_posteriors=np.log(onehot_encode_states(decoded_states)),
