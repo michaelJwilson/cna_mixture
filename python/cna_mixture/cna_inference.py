@@ -38,21 +38,7 @@ class CNA_inference:
         self.mixture_params.rdr_baf_choice_update(self.rdr_baf)
 
         logger.info(f"Initializing CNA states:\n{self.mixture_params.cna_states}\n")
-
-        # NB self.genome_coverage == normal_coverage currently.
-        state_read_depths = self.genome_coverage * self.mixture_params.cna_states[:, 0]
-
-        bafs = self.mixture_params.cna_states[:, 1]
-
-        self.initial_params = np.array([
-            *state_read_depths.tolist(),
-            self.mixture_params.overdisp_phi,
-            *bafs.tolist(),
-            self.mixture_params.overdisp_tau
-        ])
-
-        self.bounds = self.get_cna_mixture_bounds()
-        
+                
         self.state_prior_model = CNA_categorical_prior(
             self.num_segments, self.mixture_params
         )
@@ -64,6 +50,27 @@ class CNA_inference:
             data["b_reads"],
             data["snp_coverage"],
         )
+
+        self.initial_params = self.pack_params(
+            self.genome_coverage,
+            self.mixture_params.cna_states[:, 0],
+            self.mixture_params.overdisp_phi,
+            self.mixture_params.cna_states[:, 1],
+            self.mixture_params.overdisp_tau
+        )
+
+        self.bounds = self.get_cna_mixture_bounds()
+
+    def pack_params(self, genome_coverage, rdrs, rdr_overdisp, bafs, baf_overdisp):
+        # NB self.genome_coverage == normal_coverage currently.
+        read_depths = genome_coverage * rdrs
+        
+        return np.array([
+            *read_depths.tolist(),
+            rdr_overdisp,
+            *bafs.tolist(),
+            baf_overdisp
+        ])
         
     @property
     def rdr(self):
@@ -79,7 +86,7 @@ class CNA_inference:
 
     def initialize(self):
         # NB pre-populate terms to cost.
-        self.state_prior_model.ln_lambdas_closest(self.rdr_baf)
+        self.state_prior_model.initialize(self.rdr_baf)
         
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
         self.ln_state_emission = self.emission_model.get_ln_state_emission(
@@ -93,8 +100,8 @@ class CNA_inference:
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
         """
-        self.ln_state_posteriors = normalize_ln_probs(
-            self.ln_state_emission + self.ln_state_prior
+        self.ln_state_posteriors = self.state_prior_model.get_ln_state_posteriors(
+            self.ln_state_emission, self.ln_state_prior
         )
 
         self.state_posteriors = np.exp(self.ln_state_posteriors)
@@ -197,7 +204,8 @@ class CNA_inference:
             ln_state_posteriors=self.ln_state_posteriors,                                                                                                                                                          
             states_bag=self.emission_model.get_states_bag(self.initial_params),                                                                                                                                    
             title="Initial state posteriors (based on closest state lambdas).",                                                                                                                                    
-        )                                                                                                                                                                                                                  
+        )
+        
         logger.info(f"Running {self.optimizer.upper()} optimization for {self.maxiter} max. iterations")
 
         res = minimize(
