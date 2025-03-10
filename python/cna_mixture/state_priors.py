@@ -17,13 +17,15 @@ class CNA_categorical_prior:
         self.ln_lambdas = np.log((1.0 / self.num_states) * np.ones(self.num_states))
 
     def ln_lambdas_closest(self, rdr_baf, cna_states):
+        assert len(cna_states ) == self.num_states
+                
         decoded_states = assign_closest(rdr_baf, cna_states)
 
         # NB categorical prior on state fractions
         ustates, counts = np.unique(decoded_states, return_counts=True)
 
         counts = dict(zip(ustates, counts))
-        counts = [counts.get(ii, 0) for ii in range(len(cna_states))]
+        counts = [counts.get(ii, 0) for ii in range(self.num_states)]
 
         # NB i.e. ln_lambdas
         self.ln_lambdas = np.log(counts) - np.log(np.sum(counts))

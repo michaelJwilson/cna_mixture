@@ -57,22 +57,45 @@ class CNA_inference:
     def rdr_baf(self):
         return np.c_[self.rdr, self.baf]
 
-    def burnin(self):
-        raise NotImplementedError()
-    
-    def initialize(self):
-        # TODO burnin >>>>                                                                                                                                                                                                      
-        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                                                                                                       
-        mixture_params = CNA_mixture_params(num_cna_states=self.num_states - 1, genome_coverage=self.genome_coverage)
+    def burnin(self, maxiter=25):
+        # TODO define custom scipy minimizer for random minimization.
+        best_states, best_cost = None, np.inf
 
-        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.                                                                                                                                     
-        mixture_params.rdr_baf_choice_update(self.rdr_baf)
+        for _ in range(maxiter):
+            # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
+            mixture_params = CNA_mixture_params(num_cna_states=self.num_states - 1, genome_coverage=self.genome_coverage)
 
+            # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
+            mixture_params.rdr_baf_choice_update(self.rdr_baf)
+
+            # NB assign ln_lambdas based on fractions hard assigned to states.                                                                                                                                                                               
+            self.state_prior_model.initialize(self.rdr_baf, mixture_params.cna_states)
+            
+            self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
+            self.ln_state_emission = self.emission_model.get_ln_state_emission(
+                mixture_params.params
+            )
+
+            self.estep()
+
+            if maxiter == 1:
+                best_states = mixture_params.cna_states.copy()
+                break
+            
+            new_cost = self.em_cost(mixture_params.params)
+            
+            if new_cost < best_cost:
+                best_states = mixture_params.cna_states.copy()
+                best_cost = new_cost
+
+                logger.info(f"Found new best cost={best_cost} with states={best_states}")
+
+        mixture_params.cna_states = best_states
+                
         logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
-        # <<<<                                                    
-        
-        self.initial_params = mixture_params.params
 
+        self.initial_params = mixture_params.params
+        
         # NB assign ln_lambdas based on fractions hard assigned to states.
         self.state_prior_model.initialize(self.rdr_baf, mixture_params.cna_states)
         
@@ -84,6 +107,27 @@ class CNA_inference:
         # NB sets state ln posteriors.
         self.estep()
 
+    def initialize(self):
+        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                                                                                                                                                    
+        mixture_params = CNA_mixture_params(num_cna_states=self.num_states - 1, genome_coverage=self.genome_coverage)
+
+        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.                                                                                                                                                                                  
+        mixture_params.rdr_baf_choice_update(self.rdr_baf)
+
+        logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
+        
+        # NB assign ln_lambdas based on fractions hard assigned to states.                                                                                                                                                                                                  
+        self.state_prior_model.initialize(self.rdr_baf, mixture_params.cna_states)
+        
+        self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
+        self.ln_state_emission = self.emission_model.get_ln_state_emission(
+            mixture_params.params
+        )
+
+        self.estep()
+
+        self.initial_params = mixture_params.params
+        
     def estep(self):
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
@@ -177,6 +221,7 @@ class CNA_inference:
 
     def fit(self):
         self.initialize()
+        # self.burnin()
         
         self.last_params, self.params = None, self.initial_params
         self.nit = 0

@@ -84,6 +84,7 @@ class CNA_mixture_params:
 
         xx = np.arange(len(non_normal))
         idx = random.choice(xx, size=self.num_states - 1, replace=False)
-
+        
         self.cna_states = np.vstack([self.normal_state, non_normal[idx]])
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
+        
