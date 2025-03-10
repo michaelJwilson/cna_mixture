@@ -214,12 +214,11 @@ fn ln_transition_probs_rs<'py>(
     for ii in 0..(num_segments - 1){
     	for kk in 0..num_states {
 	    for ll in 0..num_states {
-	    	result[kk][ll] += ln_fs[[ii, kk]] + ln_trans[[kk, ll]] + ln_ems[[ii+1, ll]] + ln_bs[[ii + 1, ll]];
+	    	result[kk][ll] += ln_trans[[kk, ll]] + ln_ems[[ii+1, ll]] + ln_fs[[ii, kk]] + ln_bs[[ii + 1, ll]];
 	    }
 	}
     }
  
-    // NB rows sum to unity.
     for ii in 0..num_states {
     	let norm = logsumexp(&result[ii]);
 	

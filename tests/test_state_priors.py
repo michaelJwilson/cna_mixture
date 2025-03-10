@@ -58,7 +58,7 @@ def test_CNA_markov_prior():
     markov_prior.initialize(jump_rate=jump_rate)
 
     states = np.array([np.random.randint(0, num_states) for ii in range(num_segments)])
-    samples = np.array([norm.rvs(loc=10 * ss, scale=10., size=1) for ss in states])
+    samples = np.array([norm.rvs(loc=10 * ss, scale=1., size=1) for ss in states])
     
     ln_state_emission = np.hstack([-0.5 * (samples - 10. * ii)**2. for ii in range(num_states)])
     
@@ -66,13 +66,13 @@ def test_CNA_markov_prior():
 
     # print("\n", ln_state_emission)
     
-    state_priors = markov_prior.get_ln_state_priors()
-    state_posteriors = markov_prior.get_ln_state_posteriors(ln_state_emission)
+    ln_state_priors = markov_prior.get_ln_state_priors()
+    ln_state_posteriors = markov_prior.get_ln_state_posteriors(ln_state_emission)
     
     # print("\n", state_priors)
 
     decoded_states = np.argmax(ln_state_emission, axis=1)
-    markov_decoded_states = np.argmax(state_posteriors, axis=1)
+    markov_decoded_states = np.argmax(ln_state_posteriors, axis=1)
     
     print("\n\n")
     
