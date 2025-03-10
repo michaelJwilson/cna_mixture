@@ -48,7 +48,7 @@ class CNA_mixture_params:
 
     @property
     def params(self):
-        read_depths = genome_coverage * self.cna_states[:,0]
+        read_depths = self.genome_coverage * self.cna_states[:,0]
 
         return np.array([
             *read_depths.tolist(),

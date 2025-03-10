@@ -9,7 +9,7 @@ np.random.seed(1234)
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
@@ -38,7 +38,8 @@ def main():
 
     # fit_gaussian_mixture(cna_sim.rdr_baf)
 
-    res = CNA_inference(3, cna_sim.realized_genome_coverage, cna_sim.data).fit()
+    # NB total number of states (inc. normal).
+    res = CNA_inference(4, cna_sim.realized_genome_coverage, cna_sim.data).fit()
 
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 

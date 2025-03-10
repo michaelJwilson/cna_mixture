@@ -23,7 +23,7 @@ class CNA_categorical_prior:
         ustates, counts = np.unique(decoded_states, return_counts=True)
 
         counts = dict(zip(ustates, counts))
-        counts = [counts.get(ii, 0) for ii in range(self.cna_states)]
+        counts = [counts.get(ii, 0) for ii in range(len(cna_states))]
 
         # NB i.e. ln_lambdas
         self.ln_lambdas = np.log(counts) - np.log(np.sum(counts))

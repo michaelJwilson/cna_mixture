@@ -63,15 +63,15 @@ class CNA_inference:
     def initialize(self):
         # TODO burnin >>>>                                                                                                                                                                                                      
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                                                                                                       
-        mixture_params = CNA_mixture_params(num_states=self.num_states, genome_coverage=self.genome_coverage)
+        mixture_params = CNA_mixture_params(num_cna_states=self.num_states - 1, genome_coverage=self.genome_coverage)
 
         # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.                                                                                                                                     
         mixture_params.rdr_baf_choice_update(self.rdr_baf)
 
-        logger.info(f"Initializing CNA states:\n{self.mixture_params.cna_states}\n")
+        logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
         # <<<<                                                    
         
-        self.initial_params = self.mixture_params.params
+        self.initial_params = mixture_params.params
 
         # NB assign ln_lambdas based on fractions hard assigned to states.
         self.state_prior_model.initialize(self.rdr_baf, mixture_params.cna_states)
