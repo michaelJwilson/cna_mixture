@@ -12,7 +12,7 @@ np.random.seed(1234)
 @pytest.mark.regression
 def test_cna_inference():
     cna_sim = CNA_sim()
-    cna_model = CNA_inference(cna_sim.num_states, cna_sim.realized_genome_coverage, cna_sim.data)
+    cna_model = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data)
 
     res = cna_model.fit()
     params = cna_model.emission_model.unpack_params(res.x)
@@ -24,7 +24,7 @@ def test_cna_inference():
     
 def test_cna_inference_grad():
     cna_sim = CNA_sim()
-    cna_model = CNA_inference(cna_sim.num_states, cna_sim.realized_genome_coverage, cna_sim.data)
+    cna_model = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data)
     
     # NB  to be set by initialize method.
     assert not hasattr(cna_model, "ln_state_prior")

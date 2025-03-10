@@ -10,11 +10,11 @@ np.random.seed(314)
 
 
 def test_CNA_categorical_prior(mixture_params, rdr_baf):
-    equal_priors = CNA_categorical_prior(10, mixture_params)
+    equal_priors = CNA_categorical_prior(10, mixture_params.num_states)
     equal_priors.ln_lambdas_equal()
     
-    state_priors = CNA_categorical_prior(10, mixture_params)
-    state_priors.ln_lambdas_closest(rdr_baf)
+    state_priors = CNA_categorical_prior(10, mixture_params.num_states)
+    state_priors.ln_lambdas_closest(rdr_baf, mixture_params.cna_states)
 
     assert logsumexp(equal_priors.ln_lambdas) == 0.0
     assert len(state_priors.ln_lambdas) == len(mixture_params.cna_states)
