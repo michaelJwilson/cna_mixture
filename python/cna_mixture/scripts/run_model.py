@@ -41,6 +41,8 @@ def main():
 
     # NB total number of states (inc. normal).
     cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data)
+    cna_inf.initialize(cna_sim.rdr_baf, cna_sim.cna_states)
+    
     res = cna_inf.fit()
 
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")

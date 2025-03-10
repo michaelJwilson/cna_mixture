@@ -11,8 +11,17 @@ from cna_mixture.utils import normalize_ln_probs, param_diff
 
 logger = logging.getLogger(__name__)
 
+
 class CNA_inference:
-    def __init__(self, num_states, genome_coverage, data, optimizer="L-BFGS-B", maxiter=250):
+    def __init__(
+        self,
+        num_states,
+        genome_coverage,
+        data,
+        optimizer="L-BFGS-B",
+        state_prior="categorical",
+        maxiter=250,
+    ):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -30,10 +39,14 @@ class CNA_inference:
         self.num_states = num_states
         self.num_segments = len(data)
         self.genome_coverage = genome_coverage
-        
-        self.state_prior_model = CNA_categorical_prior
-        # self.state_prior_model = CNA_markov_prior        
-        
+
+        if state_prior == "categorical":
+            self.state_prior_model = CNA_categorical_prior
+        elif state_prior == "markov":
+            self.state_prior_model = CNA_markov_prior
+        else:
+            raise ValueError(f"state prior model={state_prior} is not supported.")
+
         self.emission_model = CNA_emission(
             self.num_states,
             self.genome_coverage,
@@ -43,7 +56,7 @@ class CNA_inference:
         )
 
         self.bounds = self.get_cna_mixture_bounds()
-        
+
     @property
     def rdr(self):
         return self.data["read_coverage"] / self.genome_coverage
@@ -56,37 +69,41 @@ class CNA_inference:
     def rdr_baf(self):
         return np.c_[self.rdr, self.baf]
 
-    def initialize(self):
-        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                                                                                                                                                    
-        mixture_params = CNA_mixture_params(num_cna_states=self.num_states - 1, genome_coverage=self.genome_coverage)
+    def initialize(self, *args, **kwargs):
+        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
+        mixture_params = CNA_mixture_params(
+            num_cna_states=self.num_states - 1, genome_coverage=self.genome_coverage
+        )
 
-        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.                                                                                                                                                                                  
+        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
         mixture_params.rdr_baf_choice_update(self.rdr_baf)
 
         logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
 
         self.initial_params = mixture_params.params
-        
-        self.state_prior_model = self.state_prior_model(                                                                                                                                                                                                                       
-            self.num_segments, self.num_states,                                                                                                                                                                                                                                
+
+        self.state_prior_model = self.state_prior_model(
+            self.num_segments,
+            self.num_states,
         )
-        
-        # NB assign ln_lambdas based on fractions hard assigned to states.                                                                                                                                                                                                  
-        self.state_prior_model.initialize(self.rdr_baf, mixture_params.cna_states)
-        # self.state_prior_model.initialize(jump_rate=0.1)
-        
+
+        # NB assign ln_lambdas based on fractions hard assigned to states.
+        self.state_prior_model.initialize(*args, **kwargs)
+
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
         self.ln_state_emission = self.emission_model.get_ln_state_emission(
             self.initial_params
         )
 
         self.estep()
-        
+
     def estep(self):
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
         """
-        self.ln_state_posteriors = self.state_prior_model.get_ln_state_posteriors(self.ln_state_emission)
+        self.ln_state_posteriors = self.state_prior_model.get_ln_state_posteriors(
+            self.ln_state_emission
+        )
         self.state_posteriors = np.exp(self.ln_state_posteriors)
 
     def em_cost(self, params, verbose=False):
@@ -113,7 +130,7 @@ class CNA_inference:
 
     def jac(self, params):
         return self.emission_model.grad_em_cost(params, self.state_posteriors)
-    
+
     def pstep(self):
         """
         Update the state prior model based on the current state posteriors,
@@ -124,7 +141,7 @@ class CNA_inference:
 
     def callback(self, intermediate_result: OptimizeResult):
         """
-        Callable after each M-step iteration of optimizer.  
+        Callable after each M-step iteration of optimizer.
         e.g. this approach benefits from 'preserving' Hessian.
         """
         # NB assumed convergence tolerance for *fractional* change in parameter.
@@ -174,23 +191,27 @@ class CNA_inference:
         self.params = new_params.copy()
 
     def fit(self):
-        self.initialize()
-        
+        assert (
+            self.initial_params is not None
+        ), f"CNA_inference.initialize(*args, **kwargs) must be called first."
+
         self.last_params, self.params = None, self.initial_params
         self.nit = 0
 
         self.em_cost(self.params, verbose=True)
 
         plot_rdr_baf_flat(
-            "plots/initial_rdr_baf_flat.pdf",                                                                                                                                                                      
-            self.rdr,                                                                                                                                                                                              
-            self.baf,                                                                                                                                                                                              
-            ln_state_posteriors=self.ln_state_posteriors,                                                                                                                                                          
-            states_bag=self.emission_model.get_states_bag(self.initial_params),                                                                                                                                    
-            title="Initial state posteriors (based on closest state lambdas).",                                                                                                                                    
+            "plots/initial_rdr_baf_flat.pdf",
+            self.rdr,
+            self.baf,
+            ln_state_posteriors=self.ln_state_posteriors,
+            states_bag=self.emission_model.get_states_bag(self.initial_params),
+            title="Initial state posteriors (based on closest state lambdas).",
         )
-        
-        logger.info(f"Running {self.optimizer.upper()} optimization for {self.maxiter} max. iterations")
+
+        logger.info(
+            f"Running {self.optimizer.upper()} optimization for {self.maxiter} max. iterations"
+        )
 
         res = minimize(
             self.em_cost,
@@ -224,7 +245,7 @@ class CNA_inference:
             states_bag=self.emission_model.get_states_bag(res.x),
             title="Final state posteriors",
         )
-        
+
         return res
 
     def get_cna_mixture_bounds(self):
