@@ -38,7 +38,7 @@ def main():
 
     # fit_gaussian_mixture(cna_sim.rdr_baf)
 
-    res = CNA_inference(cna_sim.realized_genome_coverage, cna_sim.data).fit()
+    res = CNA_inference(3, cna_sim.realized_genome_coverage, cna_sim.data).fit()
 
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 

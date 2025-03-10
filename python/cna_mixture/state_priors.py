@@ -6,26 +6,24 @@ from cna_mixture.utils import assign_closest, logmatexp, normalize_ln_probs
 
 
 class CNA_categorical_prior:
-    def __init__(self, num_segments, mixture_params):
+    def __init__(self, num_segments, num_states):
         self.num_segments = num_segments
-        self.num_states = mixture_params.num_states
-        self.cna_states = mixture_params.cna_states
+        self.num_states = num_states
 
     def __str__(self):
         return f"lambdas={np.exp(self.ln_lambdas)}"
-    
-        
+            
     def ln_lambdas_equal(self):
         self.ln_lambdas = np.log((1.0 / self.num_states) * np.ones(self.num_states))
 
-    def ln_lambdas_closest(self, rdr_baf):
-        decoded_states = assign_closest(rdr_baf, self.cna_states)
+    def ln_lambdas_closest(self, rdr_baf, cna_states):
+        decoded_states = assign_closest(rdr_baf, cna_states)
 
         # NB categorical prior on state fractions
         ustates, counts = np.unique(decoded_states, return_counts=True)
 
         counts = dict(zip(ustates, counts))
-        counts = [counts.get(ii, 0) for ii in range(len(self.cna_states))]
+        counts = [counts.get(ii, 0) for ii in range(self.cna_states)]
 
         # NB i.e. ln_lambdas
         self.ln_lambdas = np.log(counts) - np.log(np.sum(counts))

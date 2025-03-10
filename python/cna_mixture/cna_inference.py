@@ -12,7 +12,7 @@ from cna_mixture.utils import normalize_ln_probs, param_diff
 logger = logging.getLogger(__name__)
 
 class CNA_inference:
-    def __init__(self, genome_coverage, data, optimizer="L-BFGS-B", maxiter=250):
+    def __init__(self, num_states, genome_coverage, data, optimizer="L-BFGS-B", maxiter=250):
         """
         Fit CNA mixture model via Expectation Maximization.
         Assumes RDR + BAF are independent given CNA state.
@@ -24,23 +24,15 @@ class CNA_inference:
         # NB see e.g. https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
 
-        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
-        self.mixture_params = CNA_mixture_params()
-
         self.data = data
         self.maxiter = maxiter
         self.optimizer = optimizer
-        self.num_segments = len(self.baf)
-        self.num_states = self.mixture_params.num_states
+        self.num_states = num_states
+        self.num_segments = len(data)
         self.genome_coverage = genome_coverage
-
-        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
-        self.mixture_params.rdr_baf_choice_update(self.rdr_baf)
-
-        logger.info(f"Initializing CNA states:\n{self.mixture_params.cna_states}\n")
-                
+        
         self.state_prior_model = CNA_categorical_prior(
-            self.num_segments, self.mixture_params
+            self.num_segments, self.num_states,
         )
         
         self.emission_model = CNA_emission(
@@ -52,17 +44,6 @@ class CNA_inference:
         )
 
         self.bounds = self.get_cna_mixture_bounds()
-
-    def pack_params(self, genome_coverage, rdrs, rdr_overdisp, bafs, baf_overdisp):
-        # NB self.genome_coverage == normal_coverage currently.
-        read_depths = genome_coverage * rdrs
-        
-        return np.array([
-            *read_depths.tolist(),
-            rdr_overdisp,
-            *bafs.tolist(),
-            baf_overdisp
-        ])
         
     @property
     def rdr(self):
@@ -76,16 +57,24 @@ class CNA_inference:
     def rdr_baf(self):
         return np.c_[self.rdr, self.baf]
 
+    def burnin(self):
+        raise NotImplementedError()
+    
     def initialize(self):
-        self.initial_params = self.pack_params(
-            self.genome_coverage,
-            self.mixture_params.cna_states[:, 0],
-            self.mixture_params.overdisp_phi,
-            self.mixture_params.cna_states[:, 1],
-            self.mixture_params.overdisp_tau
-        )
+        # TODO burnin >>>>                                                                                                                                                                                                      
+        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                                                                                                       
+        mixture_params = CNA_mixture_params(num_states=self.num_states, genome_coverage=self.genome_coverage)
+
+        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.                                                                                                                                     
+        mixture_params.rdr_baf_choice_update(self.rdr_baf)
+
+        logger.info(f"Initializing CNA states:\n{self.mixture_params.cna_states}\n")
+        # <<<<                                                    
         
-        self.state_prior_model.initialize(self.rdr_baf)
+        self.initial_params = self.mixture_params.params
+
+        # NB assign ln_lambdas based on fractions hard assigned to states.
+        self.state_prior_model.initialize(self.rdr_baf, mixture_params.cna_states)
         
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
         self.ln_state_emission = self.emission_model.get_ln_state_emission(

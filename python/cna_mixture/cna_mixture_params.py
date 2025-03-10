@@ -7,13 +7,15 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model,
     with shared overdispersions.
     """
-    def __init__(self, num_cna_states=3, tau=50.0, phi=2.0e-2):
+    def __init__(self, num_cna_states=3, tau=50.0, phi=2.0e-2, genome_coverage=1.):
         """
         Initialize an instance of the class with random values in the assumed bounds.
         """
         # NB normal state is treated independently
         self.num_states = 1 + num_cna_states
 
+        self.genome_coverage = genome_coverage
+        
         # NB BAF overdispersion.  Random between 25. and 55.
         self.overdisp_tau = tau
 
@@ -44,6 +46,18 @@ class CNA_mixture_params:
     def __str__(self):
         return ",  ".join([f"{key}: {value}" for key, value in self.__dict__.items()])
 
+    @property
+    def params(self):
+        read_depths = genome_coverage * self.cna_states[:,0]
+
+        return np.array([
+            *read_depths.tolist(),
+            self.overdisp_phi,
+            *self.cna_states[:,1].tolist(),
+            self.overdisp_tau
+        ])
+        
+    
     def dict_update(self, input_params_dict):
         """
         Update an instance of CNA_mixture_params to the input key: value dict.
