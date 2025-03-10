@@ -34,8 +34,7 @@ def main():
 
     cna_sim = CNA_sim()
     # cna_sim.plot_realization_true_flat("plots/truth_rdr_baf_flat.pdf")
-
-    plot_rdr_baf_genome("plots/truth_rdr_baf_genome.pdf", cna_sim.rdr, cna_sim.baf, states_bag=cna_sim.cna_states)
+    cna_sim.plot_realization_true_genome("plots/truth_rdr_baf_genome.pdf")
 
     # fit_gaussian_mixture(cna_sim.rdr_baf)
 

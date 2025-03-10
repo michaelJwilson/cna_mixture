@@ -2,7 +2,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pylab as pl
 
+def ln_probs_to_rgb(ln_probs):
+    if ln_probs.ndim == 1:
+        rgb = np.exp(ln_probs)
+        alpha = 0.25
+        cmap = "viridis"
 
+    else:
+        assert ln_probs.shape[1] == 4
+
+        # NB assumed to be normal probability.                                                                                                                                                                                                                              
+        alpha = 0.25
+            
+        rgb = np.exp(ln_probs[:, 1:4])
+        cmap = None
+
+    return rgb, alpha, cmap
+    
 def plot_rdr_baf_flat(
     fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None
 ):
@@ -14,6 +30,8 @@ def plot_rdr_baf_flat(
     pl.clf()
 
     if ln_state_posteriors is not None:
+        """
+        # DEPRECATE
         if ln_state_posteriors.ndim == 1:
             rgb = np.exp(ln_state_posteriors)
             alpha = 0.25
@@ -28,6 +46,8 @@ def plot_rdr_baf_flat(
 
             rgb = np.exp(ln_state_posteriors[:, 1:4])
             cmap = None
+        """
+        rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
 
     pl.axhline(0.5, c="k", lw=0.5)
     plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
@@ -72,16 +92,19 @@ def plot_rdr_baf_genome(
         axes[0].axhline(state_rdr, c="k", lw=0.1)
         axes[1].axhline(state_baf, c="k", lw=0.1)
         
-    smooth_rdr = tophat_smooth(rdr, window_size=100)
-    smooth_baf = tophat_smooth(baf, window_size=100)
+    # smooth_rdr = tophat_smooth(rdr, window_size=100)
+    # smooth_baf = tophat_smooth(baf, window_size=100)
 
+    rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
+    
     axes[0].set_xlim(-100, 10_100)
     
-    axes[0].plot(segment_index, rdr)
-    axes[0].plot(segment_index, smooth_rdr)
+    axes[0].scatter(segment_index, rdr, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
+    # axes[0].scatter(segment_index, smooth_rdr)
 
-    axes[1].plot(segment_index, baf)
-    axes[1].plot(segment_index, smooth_baf)
+    axes[1].scatter(segment_index, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
+    # axes[1].plot(segment_index, baf)
+    # axes[1].plot(segment_index, smooth_baf)
 
     axes[0].set_ylabel(r"read depth ratio")
 

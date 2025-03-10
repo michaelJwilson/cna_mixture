@@ -6,7 +6,7 @@ from scipy.stats import betabinom, nbinom
 from cna_mixture.transfer import CNA_transfer
 from cna_mixture.cna_emission import reparameterize_beta_binom, reparameterize_nbinom
 from cna_mixture.encoding import onehot_encode_states
-from cna_mixture.plotting import plot_rdr_baf_flat
+from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,7 @@ def get_sim_params():
         "max_snp_coverage": 1_000,
         "normal_genome_coverage": 500,  # NB normal coverage per segment, i.e. for RDR=1.
     }
+
 
 class CNA_sim:
     def __init__(self):
@@ -133,13 +134,21 @@ class CNA_sim:
         """
         BAF vs RDR for the assumed simulation.
         """
-        true_states = self.data["state"]
-
         plot_rdr_baf_flat(
             fpath,
             self.rdr,
             self.baf,
-            ln_state_posteriors=np.log(onehot_encode_states(true_states)),
+            ln_state_posteriors=np.log(onehot_encode_states(self.data["state"])),
+            states_bag=self.cna_states,
+            title="CNA realizations - true states",
+        )
+
+    def plot_realization_true_genome(self, fpath):
+        plot_rdr_baf_genome(
+            fpath,
+            self.rdr,
+            self.baf,
+            ln_state_posteriors=np.log(onehot_encode_states(self.data["state"])),
             states_bag=self.cna_states,
             title="CNA realizations - true states",
         )
