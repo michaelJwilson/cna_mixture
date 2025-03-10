@@ -51,14 +51,6 @@ class CNA_inference:
             data["snp_coverage"],
         )
 
-        self.initial_params = self.pack_params(
-            self.genome_coverage,
-            self.mixture_params.cna_states[:, 0],
-            self.mixture_params.overdisp_phi,
-            self.mixture_params.cna_states[:, 1],
-            self.mixture_params.overdisp_tau
-        )
-
         self.bounds = self.get_cna_mixture_bounds()
 
     def pack_params(self, genome_coverage, rdrs, rdr_overdisp, bafs, baf_overdisp):
@@ -85,7 +77,14 @@ class CNA_inference:
         return np.c_[self.rdr, self.baf]
 
     def initialize(self):
-        # NB pre-populate terms to cost.
+        self.initial_params = self.pack_params(
+            self.genome_coverage,
+            self.mixture_params.cna_states[:, 0],
+            self.mixture_params.overdisp_phi,
+            self.mixture_params.cna_states[:, 1],
+            self.mixture_params.overdisp_tau
+        )
+        
         self.state_prior_model.initialize(self.rdr_baf)
         
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
@@ -100,10 +99,7 @@ class CNA_inference:
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
         """
-        self.ln_state_posteriors = self.state_prior_model.get_ln_state_posteriors(
-            self.ln_state_emission, self.ln_state_prior
-        )
-
+        self.ln_state_posteriors = self.state_prior_model.get_ln_state_posteriors(self.ln_state_emission)
         self.state_posteriors = np.exp(self.ln_state_posteriors)
 
     def em_cost(self, params, verbose=False):
@@ -191,10 +187,11 @@ class CNA_inference:
         self.params = new_params.copy()
 
     def fit(self):
+        self.initialize()
+        
         self.last_params, self.params = None, self.initial_params
         self.nit = 0
 
-        self.initialize()
         self.em_cost(self.params, verbose=True)
 
         plot_rdr_baf_flat(

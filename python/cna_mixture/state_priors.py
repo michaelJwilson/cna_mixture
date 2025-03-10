@@ -37,10 +37,12 @@ class CNA_categorical_prior:
             self.ln_lambdas - ln_norm, (self.num_segments, len(self.ln_lambdas))
         ).copy()
 
-    def get_ln_state_posteriors(self, ln_state_emission, ln_state_prior):
+    def get_ln_state_posteriors(self, ln_state_emission):
+        ln_state_prior = self.get_ln_state_priors()
+        
         return normalize_ln_probs(
             ln_state_emission + ln_state_prior
-        )
+        )        
 
     def initialize(self, *args, **kwargs):
         self.ln_lambdas_closest(*args, **kwargs)
@@ -96,7 +98,7 @@ class CNA_markov_prior:
                 self.transfer.T, self.ln_bs[ii + 1, :] + ln_state_emission[ii + 1, :]
             )
 
-    def get_ln_state_posteriors(self, ln_state_emission):
+    def get_ln_state_posteriors(self, ln_state_emission, ln_state_prior):
         self.forward(ln_state_emission)
         self.backward(ln_state_emission)
 
