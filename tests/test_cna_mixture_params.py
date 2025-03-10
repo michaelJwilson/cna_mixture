@@ -10,7 +10,8 @@ def test_cna_mixture_params_dict_update(mixture_params):
     assert mixture_params.num_states == len(mixture_params.cna_states)
     assert np.array_equal(mixture_params.cna_states[0], np.array([1.0, 0.5]))
 
-    mixture_params.dict_update(get_sim_params())
+    # TODO HACK?
+    mixture_params.dict_update(get_sim_params() | {"genome_coverage": 500})
 
     exp = np.array([[1.0, 0.5], [3.0, 0.33], [4.0, 0.25], [10.0, 0.1]])
 

@@ -113,13 +113,13 @@ class CNA_sim:
         # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage
         # TODO? biases RDR estimates, particularly if many CNAs.
         #
-        # self.realized_genome_coverage = np.sum(self.data[:,2]) / self.num_segments
+        # self.genome_coverage = np.sum(self.data[:,2]) / self.num_segments
 
-        self.realized_genome_coverage = self.normal_genome_coverage
+        self.genome_coverage = self.normal_genome_coverage
 
     @property
     def rdr(self):
-        return self.data["read_coverage"] / self.realized_genome_coverage
+        return self.data["read_coverage"] / self.genome_coverage
 
     @property
     def baf(self):
