@@ -239,7 +239,6 @@ fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(betabinom_logpmf, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_nb_rs, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_bb_rs, m)?)?;
-    m.add_function(wrap_pyfunction!(forward_rs, m)?)?;
     m.add_function(wrap_pyfunction!(ln_transition_probs_rs, m)?)?;
     Ok(())
 }
