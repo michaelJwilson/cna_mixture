@@ -25,7 +25,7 @@ fn nbinom_logpmf<'py>(
     k: PyReadonlyArray1<'_, f64>,
     r: PyReadonlyArray1<'_, f64>,
     p: PyReadonlyArray1<'_, f64>,
-) -> PyResult<Vec<Vec<f64>>> {
+) -> PyResult<Vec<Vec<f64>>> { 
     //  see: https://en.wikipedia.org/wiki/Negative_binomial_distribution
     let k = k.to_vec()?;
     let r = r.to_vec()?;
@@ -36,6 +36,7 @@ fn nbinom_logpmf<'py>(
     let lnp: Vec<f64> = p.iter().map(|&x| x.ln()).collect();
     let lnq: Vec<f64> = p.iter().map(|&x| (1. - x).ln()).collect();
 
+    // TODO: ndarray for vectorization.
     let result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
         k.par_iter().enumerate().map(|(_ii, &k_val)| {
 	    //  NB data-dependent only
@@ -44,7 +45,7 @@ fn nbinom_logpmf<'py>(
             let row: Vec<f64> = r.iter().enumerate().map(|(ss, &r_val)| {
                 let mut interim = zero_point;
 
-                interim += k_val * lnq[ss] + r_val * lnp[ss] - gr[ss] ;
+                interim += k_val * lnq[ss] + r_val * lnp[ss] - gr[ss];
                 interim += ln_gamma(k_val + r_val);
 
 		interim
