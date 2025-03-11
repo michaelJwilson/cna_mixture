@@ -42,6 +42,7 @@ def assign_closest(points, centers):
 
     return idx
 
+@njit
 def logmatexp(transfer, ln_probs):
     max_ln_probs = np.max(ln_probs)
     return max_ln_probs + np.log(np.dot(transfer, np.exp(ln_probs - max_ln_probs)))

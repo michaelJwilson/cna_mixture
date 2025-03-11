@@ -209,6 +209,7 @@ fn ln_transition_probs_rs<'py>(
     let ln_trans = ln_trans.as_array();
     let ln_ems = ln_ems.as_array();
 
+    // TODO array for vectorization.
     let num_segments = ln_fs.shape()[0];
     let mut result: Vec<Vec<f64>> = vec![vec![0.0; num_states]; num_states];
 
@@ -238,6 +239,7 @@ fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(betabinom_logpmf, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_nb_rs, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_bb_rs, m)?)?;
+    m.add_function(wrap_pyfunction!(forward_rs, m)?)?;
     m.add_function(wrap_pyfunction!(ln_transition_probs_rs, m)?)?;
     Ok(())
 }

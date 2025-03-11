@@ -2,6 +2,7 @@ import logging
 import numpy as np
 from scipy.special import logsumexp
 
+from numba import njit
 from cna_mixture.transfer import CNA_transfer
 from cna_mixture.utils import assign_closest, logmatexp, normalize_ln_probs
 from cna_mixture_rs.core import ln_transition_probs_rs
@@ -63,13 +64,35 @@ class CNA_categorical_prior:
         )
 
 
+@njit
+def forward(ln_start_prior, transfer, ln_state_emission):
+    ln_fs = np.zeros_like(ln_state_emission)
+    ln_fs[0, :] = ln_start_prior + ln_state_emission[0, :]
+
+    for ii in range(1, len(ln_state_emission)):
+        ln_fs[ii, :] = ln_state_emission[ii, :]
+        ln_fs[ii, :] += logmatexp(transfer, ln_fs[ii - 1, :].T)
+
+    return ln_fs
+
+
+@njit
+def backward(ln_start_prior, transfer, ln_state_emission):
+    ln_bs = np.zeros_like(ln_state_emission)
+    ln_bs[-1, :] = ln_start_prior
+
+    for ii in range(len(ln_state_emission) - 2, -1, -1):
+        ln_bs[ii, :] = logmatexp(
+            transfer.T, ln_bs[ii + 1, :] + ln_state_emission[ii + 1, :]
+        )
+
+    return ln_bs
+
+
 class CNA_markov_prior:
     def __init__(self, num_segments, num_states):
         self.num_segments = num_segments
         self.num_states = num_states
-
-        self.ln_fs = np.zeros(shape=(num_segments, self.num_states))
-        self.ln_bs = np.zeros(shape=(num_segments, self.num_states))
 
     def initialize(self, jump_rate, ln_start_prior=None):
         if ln_start_prior is None:
@@ -95,32 +118,17 @@ class CNA_markov_prior:
 
         self.transfer = np.exp(new_ln_transfer)
 
+    # TODO HACK
     def get_ln_state_priors(self):
-        self.ln_fs[0, :] = self.ln_start_prior
-
-        for ii in range(1, self.num_segments):
-            self.ln_fs[ii, :] = logmatexp(self.transfer, self.ln_fs[ii - 1, :].T)
-
-        return self.ln_fs
-
-    def forward(self, ln_state_emission):
-        self.ln_fs[0, :] = self.ln_start_prior + ln_state_emission[0, :]
-
-        for ii in range(1, self.num_segments):
-            self.ln_fs[ii, :] = ln_state_emission[ii, :]
-            self.ln_fs[ii, :] += logmatexp(self.transfer, self.ln_fs[ii - 1, :].T)
-
-    def backward(self, ln_state_emission):
-        self.ln_bs[-1, :] = self.ln_start_prior
-
-        for ii in range(self.num_segments - 2, -1, -1):
-            self.ln_bs[ii, :] = logmatexp(
-                self.transfer.T, self.ln_bs[ii + 1, :] + ln_state_emission[ii + 1, :]
-            )
+        return forward(
+            self.ln_start_prior,
+            self.transfer,
+            np.zeros(shape=(self.num_segments, self.num_states)),
+        )
 
     def get_ln_state_posteriors(self, ln_state_emission, *args, **kwargs):
-        self.forward(ln_state_emission)
-        self.backward(ln_state_emission)
+        self.ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
+        self.ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
 
         norm = logsumexp(self.ln_fs + self.ln_bs, axis=1)
 
