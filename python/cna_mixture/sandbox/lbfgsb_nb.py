@@ -7,7 +7,7 @@ from scipy.optimize import approx_fprime, check_grad, minimize
 from scipy.special import digamma
 from scipy.stats import nbinom
 
-RUST_BACKEND = True
+RUST_BACKEND = False
 
 
 def nbinom_logpmf(ks, rs, ps):
@@ -186,11 +186,10 @@ if __name__ == "__main__":
 
     r, p = muvar2rp(*res.x)
     probs = nloglikes(r, p, samples)
-    pl.plot(samples, exp_probs, lw=0.0, marker=".", alpha=0.5)
-    pl.plot(samples, probs, lw=0.0, marker=".", alpha=0.5)
-    pl.show()
+    # pl.plot(samples, exp_probs, lw=0.0, marker=".", alpha=0.5)
+    # pl.plot(samples, probs, lw=0.0, marker=".", alpha=0.5)
+    # pl.show()
 
-    """
     ## >>>>  L-BFGS-B no analytic gradients.
     start = time.time()
     res = minimize(
@@ -247,5 +246,5 @@ if __name__ == "__main__":
     )
 
     print(f"\n\nOptimized with Nelder-Mead in {time.time() - start:.3f} seconds with result:\n{res}")
-    """
+    
     print("\n\nDone.\n\n")

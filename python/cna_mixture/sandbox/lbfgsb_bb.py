@@ -148,29 +148,8 @@ if __name__ == "__main__":
     exp = ab2pt(alphas[0], betas[0])
 
     print(f"\nExpectation={exp}\n")
-    
-    ## >>>>  L-BFGS-B no analytic gradients.
-    start = time.time()
-    bounds = [(epsilon, 1.0), (epsilon, None)]
-    res = minimize(
-        nloglike_pt,
-        p0,
-        args=(ks, ns),
-        method="L-BFGS-B",
-        jac=None,
-        hess=None,
-        hessp=None,
-        bounds=bounds,
-        constraints=(),
-        tol=None,
-        callback=None,
-        options=None,
-    )
-    print(
-        f"\n\nOptimized with L-BFGS-B (no analytic gradients) in {time.time() - start:.3f} seconds with result:\n{res}"
-    )
 
-    ## >>>>  L-BFGS-B analytic gradients. 
+    ## >>>>  L-BFGS-B analytic gradients.                                                                                                                                                                           
     start = time.time()
     bounds = [(epsilon, 1.0), (epsilon, None)]
     res = minimize(
@@ -190,6 +169,27 @@ if __name__ == "__main__":
 
     print(
         f"\n\nOptimized with L-BFGS-B in {time.time() - start:.3f} seconds with result:\n{res}"
+    )
+        
+    ## >>>>  L-BFGS-B no analytic gradients.
+    start = time.time()
+    bounds = [(epsilon, 1.0), (epsilon, None)]
+    res = minimize(
+        nloglike_pt,
+        p0,
+        args=(ks, ns),
+        method="L-BFGS-B",
+        jac=None,
+        hess=None,
+        hessp=None,
+        bounds=bounds,
+        constraints=(),
+        tol=None,
+        callback=None,
+        options=None,
+    )
+    print(
+        f"\n\nOptimized with L-BFGS-B (no analytic gradients) in {time.time() - start:.3f} seconds with result:\n{res}"
     )
 
     ## >>>>  Powell's
