@@ -93,7 +93,7 @@ class CNA_markov_prior:
             )
         )
 
-        # self.transfer = np.exp(new.ln_transfer)
+        self.transfer = np.exp(new_ln_transfer)
 
     def get_ln_state_priors(self):
         self.ln_fs[0, :] = self.ln_start_prior

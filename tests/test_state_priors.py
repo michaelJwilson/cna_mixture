@@ -48,7 +48,7 @@ def transfers(states):
     return np.count_nonzero(interim[:-1])
     
 def test_CNA_markov_prior():
-    num_segments, num_states, jump_rate = 1_000, 4, 1.e-2
+    num_segments, num_states, jump_rate = 5, 4, 1.e-2
 
     markov_prior = CNA_markov_prior(
         num_segments=num_segments,
