@@ -67,7 +67,7 @@ def mixture_plusplus(samples, k=5, scale=10.0, N=4):
 
     while len(centers) < k:
         ps = information.copy()
-        # ps[information < entropy_threshold] = 0.0
+        ps[information < entropy_threshold] = 0.0
         ps /= ps.sum()
 
         # NB high exclusive, with replacement.
@@ -84,13 +84,13 @@ def mixture_plusplus(samples, k=5, scale=10.0, N=4):
     return np.array(centers + [information.sum()])
 
 
-def initialize_exp(func, samples, k=5, scale=10.0, maxiter=5_000):
-    # result = [func(samples) for _ in range(maxiter)]
-
+def initialize_exp(func, samples, k=5, scale=10.0, maxiter=300):
+    result = [func(samples) for _ in range(maxiter)]
+    """
     with Pool(NUM_WORKERS) as pool:
         args = (samples.copy() for _ in range(maxiter))
         result = pool.map(func, args)
-
+    """
     return np.array(result)
 
 
@@ -146,7 +146,10 @@ if __name__ == "__main__":
 
     # plot_sim(samples, centers, lambdas, mus, sigmas)
 
-    result = initialize_exp(random_centers, samples)
+    # result = initialize_exp(random_centers, samples)
+    result = initialize_exp(mixture_plusplus, samples)
+    # result = initialize_exp(kmeans_plusplus, samples)
+    
     costs = result[:, -1] / len(samples)
 
     true = true_cost / len(samples)
@@ -155,6 +158,6 @@ if __name__ == "__main__":
     Ns = np.arange(1, 1 + len(result), 1)
     result = np.cumsum(costs) / Ns
     
-    pl.plot(Ns, result, c="k", lw=0.5)
+    pl.plot(Ns[10:], result[10:], c="k", lw=0.5)
     pl.axhline(true, c="k", lw=0.5)
     pl.show()
