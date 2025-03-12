@@ -13,8 +13,11 @@ NUM_WORKERS=8
 @njit
 def norm_logpdf(xs, mu, sigma):
     return -0.5 * ((xs - mu) / sigma)**2. - 0.5 * np.log(2. * np.pi) - np.log(sigma)
-    
 
+@njit
+def norm_entropy(sigma):
+    return 0.5 * (1. + np.log(2. * np.pi * sigma**2.))
+    
 @njit
 def get_cost(samples, centers, scale=10.0):
     cost = np.inf * np.ones_like(samples)
@@ -46,11 +49,41 @@ def kmeans_plusplus(samples, k=5, scale=10.0):
 
     return np.array(centers + [information.sum()])
 
-def initialize_exp(func, samples, k=5, scale=10.0, maxiter=2_000):
+def mixture_plusplus(samples, k=5, scale=10.0, N=4):
+    idx = np.arange(len(samples))
+
+    centers = [samples[np.random.choice(idx)]]
+    information = get_cost(samples, centers)
+
+    # NB 
+    entropy_threshold = norm_entropy(scale)
+    
+    while len(centers) < k:        
+        ps = information.copy()
+        # ps[information < entropy_threshold] = 0.0
+        ps /= ps.sum()
+
+        # NB high exclusive, with replacement.
+        choice = np.random.choice(idx, p=ps, size=N)
+        xs = samples[choice]
+            
+        interim = np.array([get_cost(samples, centers + [xx]).sum() for xx in xs])
+        minimizer = np.argmin(interim)
+        
+        centers.append(xs[minimizer])
+
+        information = get_cost(samples, centers)
+
+    return np.array(centers + [information.sum()])
+    
+
+def initialize_exp(func, samples, k=5, scale=10.0, maxiter=500):
+    # result = [func(samples) for _ in range(maxiter)]
+    
     with Pool(NUM_WORKERS) as pool:
         args = (samples for _ in range(maxiter))
         result = pool.map(func, args)
-        
+    
     return np.array(result)
     
 def norm_sim(num_components=5):
@@ -105,7 +138,7 @@ if __name__ == "__main__":
 
     # plot_sim(samples, centers, lambdas, mus, sigmas)
     
-    result = initialize_exp(kmeans_plusplus, samples)
+    result = initialize_exp(mixture_plusplus, samples)
     costs = result[:,-1] / len(samples)
 
     true = true_cost / len(samples)
