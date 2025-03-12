@@ -4,8 +4,11 @@ import matplotlib.pyplot as plt
 
 from numba import njit
 from scipy.stats import norm
+from multiprocessing import Pool
 
 np.random.seed(314)
+
+NUM_WORKERS=8
 
 @njit
 def norm_logpdf(xs, mu, sigma):
@@ -41,9 +44,15 @@ def kmeans_plusplus(samples, k=5, scale=10.0):
 
         information = get_cost(samples, centers)
 
-    return information.sum(), np.array(centers)
+    return np.array(centers + [information.sum()])
 
-
+def initialize_exp(func, samples, k=5, scale=10.0, maxiter=2_000):
+    with Pool(NUM_WORKERS) as pool:
+        args = (samples for _ in range(maxiter))
+        result = pool.map(func, args)
+        
+    return np.array(result)
+    
 def norm_sim(num_components=5):
     scale = 100.0
     num_samples = 500_000
@@ -91,20 +100,20 @@ def plot_sim(samples, centers, lambdas, mus, sigmas):
 if __name__ == "__main__":
     assert norm.logpdf(10., 1., 5.) == norm_logpdf(10., 1., 5.)
         
-    """
     samples, lambdas, mus, sigmas = norm_sim()
     true_cost = get_cost(samples, mus, scale=10.0).sum()
 
-    result = []
-
-    for ii in range(100):
-        est_cost, centers = kmeans_plusplus(samples)
-        result.append(est_cost / true_cost - 1.0)
-
-    result = np.array(result)
-
     # plot_sim(samples, centers, lambdas, mus, sigmas)
+    
+    result = initialize_exp(kmeans_plusplus, samples)
+    costs = result[:,-1] / len(samples)
 
-    pl.hist(result, histtype="step")
+    true = true_cost / len(samples)
+    bound = 8. * (np.log(5.) + 2.) * true
+
+    Ns = np.cumsum(np.ones_like(costs))
+    result = np.cumsum(costs) / Ns
+    
+    pl.plot(Ns[10:], result[10:], c="k", lw=0.5)    
+    pl.axhline(true, c="k", lw=0.5)
     pl.show()
-    """
