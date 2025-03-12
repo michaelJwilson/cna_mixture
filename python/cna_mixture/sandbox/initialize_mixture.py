@@ -8,16 +8,19 @@ from multiprocessing import Pool
 
 np.random.seed(314)
 
-NUM_WORKERS=8
+NUM_WORKERS = 8
+
 
 @njit
 def norm_logpdf(xs, mu, sigma):
-    return -0.5 * ((xs - mu) / sigma)**2. - 0.5 * np.log(2. * np.pi) - np.log(sigma)
+    return -0.5 * ((xs - mu) / sigma) ** 2.0 - 0.5 * np.log(2.0 * np.pi) - np.log(sigma)
+
 
 @njit
 def norm_entropy(sigma):
-    return 0.5 * (1. + np.log(2. * np.pi * sigma**2.))
-    
+    return 0.5 * (1.0 + np.log(2.0 * np.pi * sigma**2.0))
+
+
 @njit
 def get_cost(samples, centers, scale=10.0):
     cost = np.inf * np.ones_like(samples)
@@ -29,9 +32,12 @@ def get_cost(samples, centers, scale=10.0):
     return cost
 
 
-def random_centers(samples, k=5):
-    return np.random.choice(samples, replace=False, size=k)
+def random_centers(samples, k=5, scale=10.0):
+    centers = np.random.choice(samples, replace=False, size=k)
+    cost = get_cost(samples, centers, scale=scale)
 
+    return np.array(centers + [cost.sum()])
+    
 
 def kmeans_plusplus(samples, k=5, scale=10.0):
     idx = np.arange(len(samples))
@@ -49,16 +55,17 @@ def kmeans_plusplus(samples, k=5, scale=10.0):
 
     return np.array(centers + [information.sum()])
 
+
 def mixture_plusplus(samples, k=5, scale=10.0, N=4):
     idx = np.arange(len(samples))
 
     centers = [samples[np.random.choice(idx)]]
     information = get_cost(samples, centers)
 
-    # NB 
+    # NB
     entropy_threshold = norm_entropy(scale)
-    
-    while len(centers) < k:        
+
+    while len(centers) < k:
         ps = information.copy()
         # ps[information < entropy_threshold] = 0.0
         ps /= ps.sum()
@@ -66,26 +73,27 @@ def mixture_plusplus(samples, k=5, scale=10.0, N=4):
         # NB high exclusive, with replacement.
         choice = np.random.choice(idx, p=ps, size=N)
         xs = samples[choice]
-            
+
         interim = np.array([get_cost(samples, centers + [xx]).sum() for xx in xs])
         minimizer = np.argmin(interim)
-        
+
         centers.append(xs[minimizer])
 
         information = get_cost(samples, centers)
 
     return np.array(centers + [information.sum()])
-    
 
-def initialize_exp(func, samples, k=5, scale=10.0, maxiter=500):
+
+def initialize_exp(func, samples, k=5, scale=10.0, maxiter=5_000):
     # result = [func(samples) for _ in range(maxiter)]
-    
+
     with Pool(NUM_WORKERS) as pool:
-        args = (samples for _ in range(maxiter))
+        args = (samples.copy() for _ in range(maxiter))
         result = pool.map(func, args)
-    
+
     return np.array(result)
-    
+
+
 def norm_sim(num_components=5):
     scale = 100.0
     num_samples = 500_000
@@ -131,21 +139,22 @@ def plot_sim(samples, centers, lambdas, mus, sigmas):
 
 
 if __name__ == "__main__":
-    assert norm.logpdf(10., 1., 5.) == norm_logpdf(10., 1., 5.)
-        
+    assert norm.logpdf(10.0, 1.0, 5.0) == norm_logpdf(10.0, 1.0, 5.0)
+
     samples, lambdas, mus, sigmas = norm_sim()
     true_cost = get_cost(samples, mus, scale=10.0).sum()
 
     # plot_sim(samples, centers, lambdas, mus, sigmas)
-    
-    result = initialize_exp(mixture_plusplus, samples)
-    costs = result[:,-1] / len(samples)
+
+    result = initialize_exp(random_centers, samples)
+    costs = result[:, -1] / len(samples)
 
     true = true_cost / len(samples)
-    bound = 8. * (np.log(5.) + 2.) * true
+    bound = 8.0 * (np.log(5.0) + 2.0) * true
 
-    Ns = np.arange(len(result))
+    Ns = np.arange(1, 1 + len(result), 1)
+    result = np.cumsum(costs) / Ns
     
-    pl.scatter(Ns, costs, c="k", lw=0.5)    
+    pl.plot(Ns, result, c="k", lw=0.5)
     pl.axhline(true, c="k", lw=0.5)
     pl.show()
