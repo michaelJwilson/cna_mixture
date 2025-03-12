@@ -144,9 +144,8 @@ if __name__ == "__main__":
     true = true_cost / len(samples)
     bound = 8. * (np.log(5.) + 2.) * true
 
-    Ns = np.cumsum(np.ones_like(costs))
-    result = np.cumsum(costs) / Ns
+    Ns = np.arange(len(result))
     
-    pl.plot(Ns[10:], result[10:], c="k", lw=0.5)    
+    pl.scatter(Ns, costs, c="k", lw=0.5)    
     pl.axhline(true, c="k", lw=0.5)
     pl.show()
