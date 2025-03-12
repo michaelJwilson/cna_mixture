@@ -2,48 +2,58 @@ import numpy as np
 import pylab as pl
 import matplotlib.pyplot as plt
 
+from numba import njit
 from scipy.stats import norm
 
 np.random.seed(314)
 
-def get_cost(samples, centers, scale=10.):
-    cost = np.inf * np.ones_like(samples)
+@njit
+def norm_logpdf(xs, mu, sigma):
+    return -0.5 * ((xs - mu) / sigma)**2. - 0.5 * np.log(2. * np.pi) - np.log(sigma)
     
-    for cc in np.atleast_1d(centers):
-        new = -norm.logpdf(samples, loc=cc)
+
+@njit
+def get_cost(samples, centers, scale=10.0):
+    cost = np.inf * np.ones_like(samples)
+
+    for cc in centers:
+        new = -norm_logpdf(samples, cc, scale)
         cost = np.minimum(cost, new)
 
     return cost
-        
-def random_centers(samples, k=5):
-    return np.random.choice(samples, replace=False, size=5)
 
-def kmeans_plusplus(samples, k=5, scale=10.):
+
+def random_centers(samples, k=5):
+    return np.random.choice(samples, replace=False, size=k)
+
+
+def kmeans_plusplus(samples, k=5, scale=10.0):
     idx = np.arange(len(samples))
     information = np.ones_like(samples)
     centers = []
 
     while len(centers) < k:
-      ps = information / information.sum()
-        
-      # NB high exclusive, with replacement.                                                                                                                                                                       
-      xx = samples[np.random.choice(idx, p=ps)]
-      centers.append(xx)
+        ps = information / information.sum()
 
-      information = get_cost(samples, centers)
+        # NB high exclusive, with replacement.
+        xx = samples[np.random.choice(idx, p=ps)]
+        centers.append(xx)
+
+        information = get_cost(samples, centers)
 
     return information.sum(), np.array(centers)
 
+
 def norm_sim(num_components=5):
-    scale = 100.
+    scale = 100.0
     num_samples = 500_000
 
     mus = scale * np.sort(np.random.uniform(size=num_components))
-    sigmas = (scale / 10.) * np.random.uniform(size=num_components)
+    sigmas = (scale / 10.0) * np.random.uniform(size=num_components)
 
     lambdas = np.random.uniform(size=num_components)
     lambdas /= lambdas.sum()
-    
+
     print(mus)
     print(sigmas)
     print(lambdas)
@@ -54,18 +64,17 @@ def norm_sim(num_components=5):
     samples = []
 
     for idx in cluster_samples:
-        samples.append(
-            np.random.normal(loc=mus[idx], scale=sigmas[idx])
-        )
+        samples.append(np.random.normal(loc=mus[idx], scale=sigmas[idx]))
 
     samples = np.array(samples)
 
     return samples, lambdas, mus, sigmas
 
-def plot_sim(samples, centers, lambdas, mus, sigmas):
-    pl.hist(samples, bins=np.arange(0., 100., 1.), histtype='step', density=True)
 
-    xs = np.linspace(0.0, 100., 1000)
+def plot_sim(samples, centers, lambdas, mus, sigmas):
+    pl.hist(samples, bins=np.arange(0.0, 100.0, 1.0), histtype="step", density=True)
+
+    xs = np.linspace(0.0, 100.0, 1000)
 
     for ll, mu, sigma in zip(lambdas, mus, sigmas):
         ys = norm.pdf(xs, mu, sigma)
@@ -73,15 +82,29 @@ def plot_sim(samples, centers, lambdas, mus, sigmas):
 
     for xx in centers:
         pl.axvline(xx, c="k", lw=0.5)
-        
+
     pl.xlabel(r"$x$")
     pl.ylabel(r"$P(x)$")
     pl.show()
 
 
 if __name__ == "__main__":
+    assert norm.logpdf(10., 1., 5.) == norm_logpdf(10., 1., 5.)
+        
+    """
     samples, lambdas, mus, sigmas = norm_sim()
-    
-    cost, centers = kmeans_plusplus(samples)
+    true_cost = get_cost(samples, mus, scale=10.0).sum()
 
-    plot_sim(samples, centers, lambdas, mus, sigmas)
+    result = []
+
+    for ii in range(100):
+        est_cost, centers = kmeans_plusplus(samples)
+        result.append(est_cost / true_cost - 1.0)
+
+    result = np.array(result)
+
+    # plot_sim(samples, centers, lambdas, mus, sigmas)
+
+    pl.hist(result, histtype="step")
+    pl.show()
+    """
