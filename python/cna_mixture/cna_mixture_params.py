@@ -79,12 +79,11 @@ class CNA_mixture_params:
         self.num_states = len(self.cna_states)
         self.__verify()
 
-    def rdr_baf_choice_update(self, rdr_baf):
-        non_normal = rdr_baf[rdr_baf[:, 0] > 1.0]
+    def rdr_baf_choice_update(self, rdr_baf, threshold=0.05):
+        non_normal = rdr_baf[np.abs(rdr_baf[:, 0] - 1.0) > threshold]
 
         xx = np.arange(len(non_normal))
         idx = random.choice(xx, size=self.num_states - 1, replace=False)
         
         self.cna_states = np.vstack([self.normal_state, non_normal[idx]])
-        self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
-        
+        self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]        
