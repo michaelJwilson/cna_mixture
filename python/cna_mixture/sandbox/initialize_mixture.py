@@ -59,29 +59,31 @@ def kmeans_plusplus(samples, k=5, scale=10.0):
 def mixture_plusplus(samples, k=5, scale=10.0, N=4):
     idx = np.arange(len(samples))
 
-    centers = [samples[np.random.choice(idx)]]
-    information = get_cost(samples, centers)
+    centers = []
+    information = np.ones_like(samples)
 
     # NB
     entropy_threshold = norm_entropy(scale)
 
     while len(centers) < k:
         ps = information.copy()
-        ps[information < entropy_threshold] = 0.0
+        # ps[information < entropy_threshold] = 0.0
         ps /= ps.sum()
 
         # NB high exclusive, with replacement.
-        choice = np.random.choice(idx, p=ps, size=N)
+        choice = np.random.choice(idx, p=ps, size=N, replace=True)
         xs = samples[choice]
 
-        interim = np.array([get_cost(samples, centers + [xx]).sum() for xx in xs])
-        minimizer = np.argmin(interim)
+        costs = [get_cost(samples, centers + [xx]) for xx in xs]
+        costs_sum = np.array([cost.sum() for cost in costs])
+        
+        minimizer = np.argmin(costs_sum)
 
         centers.append(xs[minimizer])
 
-        information = get_cost(samples, centers)
+        information = costs[minimizer]
 
-    return np.array(centers + [information.sum()])
+    return np.array(centers + [costs_sum[minimizer]])
 
 
 def initialize_exp(func, samples, k=5, scale=10.0, maxiter=300):
@@ -146,18 +148,27 @@ if __name__ == "__main__":
 
     # plot_sim(samples, centers, lambdas, mus, sigmas)
 
-    # result = initialize_exp(random_centers, samples)
-    result = initialize_exp(mixture_plusplus, samples)
-    # result = initialize_exp(kmeans_plusplus, samples)
-    
-    costs = result[:, -1] / len(samples)
+    funcs = [random_centers, kmeans_plusplus, mixture_plusplus, ]
 
-    true = true_cost / len(samples)
-    bound = 8.0 * (np.log(5.0) + 2.0) * true
-
-    Ns = np.arange(1, 1 + len(result), 1)
-    result = np.cumsum(costs) / Ns
+    for func in funcs:
+        result = initialize_exp(func, samples)
     
-    pl.plot(Ns[10:], result[10:], c="k", lw=0.5)
+        costs = result[:, -1] / len(samples)
+
+        true = true_cost / len(samples)
+        bound = 8.0 * (np.log(5.0) + 2.0) * true
+
+        Ns = np.arange(1, 1 + len(result), 1)
+        result = np.cumsum(costs) / Ns
+    
+        pl.plot(Ns[10:], result[10:], c="k", lw=0.5)
+
+        mean = costs.mean()
+        
+    pl.ylim(3.3, 4.0)
+    pl.xlabel("Realizations")
+    pl.ylabel("Shannon Information [Nats]")
+    pl.axhline(mean, c="c", lw=0.5)
     pl.axhline(true, c="k", lw=0.5)
+    pl.title(f"<$\Phi$>={mean:.4f}; frac. error to truth={100. * (mean / true - 1.):.2f}%")
     pl.show()
