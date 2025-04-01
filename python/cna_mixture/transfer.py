@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class CNA_transfer:
     def __init__(self, jump_rate=0.1, num_states=4):
         self.jump_rate = jump_rate

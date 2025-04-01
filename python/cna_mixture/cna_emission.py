@@ -10,10 +10,10 @@ from scipy.stats import betabinom, nbinom, poisson
 
 
 def reparameterize_beta_binom(bafs, overdispersion):
-    """                                                                                                                                                                                            
-    Given the array of BAFs for all states and a shared overdispersion,                                                                                                                            
-    return the (# states, 2) array of [alpha, beta] for each state,                                                                                                                                
-    where beta is associated to the BAF probability.                                                                                                                                               
+    """
+    Given the array of BAFs for all states and a shared overdispersion,
+    return the (# states, 2) array of [alpha, beta] for each state,
+    where beta is associated to the BAF probability.
     """
     return np.array(
         [
@@ -24,6 +24,7 @@ def reparameterize_beta_binom(bafs, overdispersion):
             for baf in bafs
         ]
     )
+
 
 def reparameterize_nbinom(means, overdisp):
     """

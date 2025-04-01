@@ -3,10 +3,10 @@ import logging
 import numpy as np
 from scipy.stats import betabinom, nbinom
 
-from cna_mixture.transfer import CNA_transfer
 from cna_mixture.cna_emission import reparameterize_beta_binom, reparameterize_nbinom
 from cna_mixture.encoding import onehot_encode_states
 from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
+from cna_mixture.transfer import CNA_transfer
 
 logger = logging.getLogger(__name__)
 

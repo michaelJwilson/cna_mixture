@@ -1,11 +1,12 @@
 import logging
+
 import numpy as np
+from cna_mixture_rs.core import ln_transition_probs_rs
+from numba import njit
 from scipy.special import logsumexp
 
-from numba import njit
 from cna_mixture.transfer import CNA_transfer
 from cna_mixture.utils import assign_closest, logmatexp, normalize_ln_probs
-from cna_mixture_rs.core import ln_transition_probs_rs
 
 logger = logging.getLogger()
 

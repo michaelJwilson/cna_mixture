@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pylab as pl
 
+
 def ln_probs_to_rgb(ln_probs):
     if ln_probs.ndim == 1:
         rgb = np.exp(ln_probs)
@@ -11,14 +12,15 @@ def ln_probs_to_rgb(ln_probs):
     else:
         assert ln_probs.shape[1] == 4
 
-        # NB assumed to be normal probability.                                                                                                                                                                                                                              
+        # NB assumed to be normal probability.
         alpha = 0.25
-            
+
         rgb = np.exp(ln_probs[:, 1:4])
         cmap = None
 
     return rgb, alpha, cmap
-    
+
+
 def plot_rdr_baf_flat(
     fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None
 ):
@@ -53,9 +55,9 @@ def plot_rdr_baf_flat(
     plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
 
     if states_bag is not None:
-        for (rdr, baf) in states_bag:
+        for state_rdr, state_baf in states_bag:
             pl.scatter(
-                rdr, baf, marker="*", edgecolors="black", facecolors="white", s=45
+                state_rdr, state_baf, marker="*", edgecolors="black", facecolors="white", s=45
             )
 
     pl.xlim(-0.05, 15.0)
@@ -88,21 +90,25 @@ def plot_rdr_baf_genome(
     figsize = (15, 10)
     fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=figsize)
 
-    for (state_rdr, state_baf) in states_bag:
+    for state_rdr, state_baf in states_bag:
         axes[0].axhline(state_rdr, c="k", lw=0.1)
         axes[1].axhline(state_baf, c="k", lw=0.1)
-        
+
     # smooth_rdr = tophat_smooth(rdr, window_size=100)
     # smooth_baf = tophat_smooth(baf, window_size=100)
 
     rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
-    
+
     axes[0].set_xlim(-100, 10_100)
-    
-    axes[0].scatter(segment_index, rdr, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
+
+    axes[0].scatter(
+        segment_index, rdr, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
+    )
     # axes[0].scatter(segment_index, smooth_rdr)
 
-    axes[1].scatter(segment_index, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
+    axes[1].scatter(
+        segment_index, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
+    )
     # axes[1].plot(segment_index, baf)
     # axes[1].plot(segment_index, smooth_baf)
 
@@ -111,4 +117,7 @@ def plot_rdr_baf_genome(
     axes[1].set_ylabel(r"$b$-allele frequency")
     axes[1].set_xlabel("segment index")
 
+    if title is not None:
+        pl.title(title)
+    
     pl.savefig(fpath)

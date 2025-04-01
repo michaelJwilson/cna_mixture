@@ -1,9 +1,9 @@
 import logging
 
 import numpy as np
+from numba import njit
 from scipy.spatial import KDTree
 from scipy.special import logsumexp
-from numba import njit
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,7 @@ def assign_closest(points, centers):
     distances, idx = tree.query(points)
 
     return idx
+
 
 @njit
 def logmatexp(transfer, ln_probs):

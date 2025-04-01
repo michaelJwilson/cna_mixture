@@ -7,7 +7,7 @@ from cna_mixture.cna_emission import CNA_emission
 from cna_mixture.cna_mixture_params import CNA_mixture_params
 from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
 from cna_mixture.state_priors import CNA_categorical_prior, CNA_markov_prior
-from cna_mixture.utils import normalize_ln_probs, param_diff
+from cna_mixture.utils import param_diff
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,8 @@ class CNA_inference:
         elif state_prior == "markov":
             self.state_prior_model = CNA_markov_prior
         else:
-            raise ValueError(f"state prior model={state_prior} is not supported.")
+            msg = f"state prior model={state_prior} is not supported."
+            raise ValueError(msg)
 
         self.emission_model = CNA_emission(
             self.num_states,
@@ -193,7 +194,7 @@ class CNA_inference:
     def fit(self):
         assert (
             self.initial_params is not None
-        ), f"CNA_inference.initialize(*args, **kwargs) must be called first."
+        ), "CNA_inference.initialize(*args, **kwargs) must be called first."
 
         self.last_params, self.params = None, self.initial_params
         self.nit = 0

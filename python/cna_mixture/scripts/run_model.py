@@ -4,7 +4,6 @@ import time
 import numpy as np
 from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim
-from cna_mixture.plotting import plot_rdr_baf_genome
 from cna_mixture.gaussian_mixture import fit_gaussian_mixture
 
 np.random.seed(1234)
@@ -43,7 +42,7 @@ def main():
     cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data)
     cna_inf.initialize(cna_sim.rdr_baf, cna_sim.cna_states)
     
-    res = cna_inf.fit()
+    cna_inf.fit()
 
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
