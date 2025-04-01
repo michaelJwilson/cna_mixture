@@ -1,5 +1,10 @@
 import torch
 
+"""
+pytorch evaluation of the gradient of NB log pdf.
+
+NB emission model, not EM cost.
+"""
 
 def negative_binomial_log_pmf(k, r, p):
     log_pmf = (
