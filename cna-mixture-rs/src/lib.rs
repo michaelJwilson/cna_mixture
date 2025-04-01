@@ -25,7 +25,10 @@ fn nbinom_logpmf<'py>(
     k: PyReadonlyArray1<'_, f64>,
     r: PyReadonlyArray1<'_, f64>,
     p: PyReadonlyArray1<'_, f64>,
-) -> PyResult<Vec<Vec<f64>>> { 
+) -> PyResult<Vec<Vec<f64>>> {
+    //
+    //  Efficient negative binomial evaluation for many samples x many states.
+    //
     //  see: https://en.wikipedia.org/wiki/Negative_binomial_distribution
     let k = k.to_vec()?;
     let r = r.to_vec()?;
@@ -36,7 +39,7 @@ fn nbinom_logpmf<'py>(
     let lnp: Vec<f64> = p.iter().map(|&x| x.ln()).collect();
     let lnq: Vec<f64> = p.iter().map(|&x| (1. - x).ln()).collect();
 
-    // TODO: ndarray for vectorization.
+    // TODO: ndarray for vectorization?
     let result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
         k.par_iter().enumerate().map(|(_ii, &k_val)| {
 	    //  NB data-dependent only
@@ -67,6 +70,9 @@ fn betabinom_logpmf<'py>(
     a: PyReadonlyArray1<'_, f64>,
     b: PyReadonlyArray1<'_, f64>,
 ) -> PyResult<Vec<Vec<f64>>> {
+    //
+    //  Efficient beta binomial evaluation for many samples x many states.
+    //
     //  see: https://en.wikipedia.org/wiki/Beta-binomial_distribution
     let k = k.to_vec()?;
     let n = n.to_vec()?;
@@ -106,6 +112,10 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
     rs: PyReadonlyArray1<'_, f64>,
     phi: f64,
 ) -> PyResult<(Vec<Vec<f64>>, Vec<Vec<f64>>)> {
+    //
+    //  Gradient of the negative binomial component to the
+    //  EM cost for the CNA mixture problem.  
+    //
     let ks = ks.to_vec()?;
     let mus = mus.to_vec()?;
     let rs = rs.to_vec()?;
@@ -156,6 +166,10 @@ fn grad_cna_mixture_em_cost_bb_rs<'py>(
     alphas: PyReadonlyArray1<'_, f64>,
     betas: PyReadonlyArray1<'_, f64>,
 ) -> PyResult<(Vec<Vec<f64>>, Vec<Vec<f64>>)> {
+    //
+    // 	Gradient of the	beta binomial component to the
+    //  EM cost for the CNA mixture problem.
+    //
     let ks = ks.to_vec()?;
     let ns = ns.to_vec()?;
     let alphas = alphas.to_vec()?;
@@ -204,6 +218,10 @@ fn ln_transition_probs_rs<'py>(
     ln_trans: PyReadonlyArray2<'_, f64>,
     ln_ems: PyReadonlyArray2<'_, f64>,
 ) -> PyResult<Vec<Vec<f64>>> {
+    //
+    //
+    //
+    //
     let ln_fs = ln_fs.as_array();
     let ln_bs = ln_bs.as_array();
     let ln_trans = ln_trans.as_array();
