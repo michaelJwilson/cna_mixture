@@ -34,6 +34,9 @@ def get_sim_params():
 
 
 class CNA_sim:
+    """
+    A 1D genome simulation for a CNA markov model with NB/BB emission models.
+    """
     def __init__(self):
         super().__init__()
 

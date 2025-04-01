@@ -23,8 +23,9 @@ class CNA_inference:
         maxiter=250,
     ):
         """
-        Fit CNA mixture model via Expectation Maximization.
-        Assumes RDR + BAF are independent given CNA state.
+        Fit CNA mixture model via Expectation Maximization.  Assumes RDR + BAF are independent
+        given CNA state.
+
         See:
             https://udlbook.github.io/cvbook/
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.betabinom.html
@@ -143,7 +144,7 @@ class CNA_inference:
     def callback(self, intermediate_result: OptimizeResult):
         """
         Callable after each M-step iteration of optimizer.
-        e.g. this approach benefits from 'preserving' Hessian.
+        e.g. this approach benefits from 'conserving' Hessian.
         """
         # NB assumed convergence tolerance for *fractional* change in parameter.
         PTOL = 1.0e-3
