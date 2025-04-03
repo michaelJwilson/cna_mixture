@@ -14,6 +14,7 @@ np.random.seed(314)
 
 NUM_WORKERS = 8
 
+
 @njit
 def norm_logpdf(xs, mu, sigma):
     """
@@ -35,8 +36,8 @@ def norm_entropy(sigma):
 @njit
 def get_cost(samples, centers, scale=10.0):
     """
-    Return the kmeans++ cost, i.e. log pdf when
-    each sample is matched to its nearest component.
+    Return the kmeans++ cost, i.e. log pdf when each sample is matched to
+    its nearest component.
     """
     cost = np.inf * np.ones_like(samples)
 
@@ -49,8 +50,7 @@ def get_cost(samples, centers, scale=10.0):
 
 def random_centers(samples, k=5, scale=10.0):
     """
-    Random centers (of degree k) and their associated
-    cost.
+    Random centers (of degree k) and their associated cost.
     """
     centers = np.random.choice(samples, replace=False, size=k)
     cost = get_cost(samples, centers, scale=scale)
@@ -60,8 +60,7 @@ def random_centers(samples, k=5, scale=10.0):
 
 def kmeans_plusplus(samples, k=5, scale=10.0):
     """
-    kmeans++ centers (of degree k) and their associated
-    cost.
+    kmeans++ centers (of degree k) and their associated cost.
 
     NB samples new center according to -log prob. of
        existing centers.
@@ -84,7 +83,33 @@ def kmeans_plusplus(samples, k=5, scale=10.0):
     return np.array(centers + [information.sum()])
 
 
-def mixture_plusplus(samples, k=5, scale=10.0, N=4):
+def saturated_kmeans_plusplus(samples, k=5, scale=10.0):
+    """
+    Saturated kmeans++ centers (of degree k) and their associated cost.                                                                                                                                                                                                                                                                                                                               NB samples new center according to -log prob. of
+       existing centers.
+    """
+    idx = np.arange(len(samples))
+
+    # NB -log Probability.
+    information = np.ones_like(samples) / len(samples)
+    centers = []
+
+    threshold = -np.log(1.0e-6)
+
+    while len(centers) < k:
+        ps = np.clip(information, a_min=0.0, a_max=threshold)
+        ps /= ps.sum()
+
+        # NB high exclusive; with replacement.
+        xx = samples[np.random.choice(idx, p=ps)]
+        centers.append(xx)
+
+        information = get_cost(samples, centers)
+
+    return np.array(centers + [information.sum()])
+
+
+def greedy_kmeans_plusplus(samples, k=5, scale=10.0, N=4):
     """
     greedy sampling of kmeans++ centers (of degree k)
     and their associated cost.
@@ -104,7 +129,8 @@ def mixture_plusplus(samples, k=5, scale=10.0, N=4):
         ps /= ps.sum()
 
         # NB high exclusive, with replacement.
-        xs = samples[np.random.choice(idx, p=ps, size=N, replace=True)]
+        size = N
+        xs = samples[np.random.choice(idx, p=ps, size=size, replace=True)]
 
         costs = [get_cost(samples, centers + [xx]) for xx in xs]
         costs_sum = np.array([cost.sum() for cost in costs])
@@ -188,10 +214,13 @@ if __name__ == "__main__":
     assignments = [
         random_centers,
         kmeans_plusplus,
-        mixture_plusplus,
+        # saturated_kmeans_plusplus,
+        greedy_kmeans_plusplus,
     ]
 
-    for assignment in assignments:
+    labels = ["random", "k++", "4-greedy k++"]
+
+    for label, assignment in zip(labels, assignments):
         result = get_assignment_cost(assignment, samples)
 
         costs = result[:, -1] / len(samples)
@@ -204,16 +233,17 @@ if __name__ == "__main__":
         Ns = np.arange(1, 1 + len(result), 1)
         result = np.cumsum(costs) / Ns
 
-        pl.plot(Ns[10:], result[10:], c="k", lw=0.5)
+        pl.plot(Ns[10:], result[10:], lw=0.5, label=label)
 
         mean = costs.mean()
 
     pl.ylim(3.3, 4.0)
     pl.xlabel("Realizations")
     pl.ylabel("Shannon Information [Nats]")
-    pl.axhline(mean, c="c", lw=0.5)
-    pl.axhline(true, c="k", lw=0.5)
+    # pl.axhline(mean, c="c", lw=0.5)
+    pl.axhline(true, c="k", lw=0.5, label="truth")
     pl.title(
         f"<$\Phi$>={mean:.4f}; frac. error to truth={100. * (mean / true - 1.):.2f}%"
     )
+    pl.legend(frameon=False)
     pl.show()

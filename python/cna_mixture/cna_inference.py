@@ -276,3 +276,4 @@ class CNA_inference:
         msg += f"\nMax. frac. parameter diff. compared to last and current state posterior: {param_diff(last_params, new_params)}, {param_diff(params, new_params)}"
 
         logger.info(msg)
+B
