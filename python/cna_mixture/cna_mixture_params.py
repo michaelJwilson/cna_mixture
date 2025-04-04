@@ -118,7 +118,7 @@ class CNA_mixture_params:
 
         return cost
 
-    def initialize_mixture_plusplus(self, ks, xs, ns, N=1):
+    def initialize_mixture_plusplus(self, ks, xs, ns, N=4):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.
@@ -128,7 +128,7 @@ class CNA_mixture_params:
 
         # NB we assume a normal-like state to start.
         normal = self.normal_state.tolist()
-        normal[0] /= self.genome_coverage
+        normal[0] *= self.genome_coverage
 
         centers = np.array([normal])
 
@@ -136,6 +136,11 @@ class CNA_mixture_params:
             samples, centers, self.overdisp_phi, self.overdisp_tau
         )
 
+        # NB one cost for normal state per sample.
+        assert len(cost) == len(ks)
+        
+        logger.info(f"Initialized mixture++ with normal state cost: {cost.sum()}")
+        
         while len(centers) < self.num_states:
             ps = cost / cost.sum()
             xs = samples[np.random.choice(idx, p=ps, size=N, replace=False)]
@@ -145,13 +150,15 @@ class CNA_mixture_params:
             # TODO here, we would also select based on BAF error, i.e. for high coverage.
             trial_centers = np.c_[xs[:, 0], xs[:, 1] / xs[:, 2]]
 
+            logger.info(f"Found trial centers:\n{trial_centers}")
+            
             costs = [
                 self.mixture_plusplus_cost(samples, np.vstack([centers, tc]), self.overdisp_phi, self.overdisp_tau)
                 for tc in trial_centers
             ]
             
             costs_sum = np.array([cost.sum() for cost in costs])
-
+            
             minimizer = np.argmin(costs_sum)
 
             cost = costs[minimizer]
@@ -161,5 +168,5 @@ class CNA_mixture_params:
 
         self.cna_states = centers.copy()
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
-
+        
         return cost
