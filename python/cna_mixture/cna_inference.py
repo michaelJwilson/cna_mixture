@@ -11,6 +11,20 @@ from cna_mixture.utils import param_diff
 
 logger = logging.getLogger(__name__)
 
+def get_cna_mixture_bounds(num_states):
+    # NB exp_read_depths > 0                                                                                                                                                                                                                 
+    bounds = [(1.0e-6, None) for _ in range(num_states)]
+
+    # NB RDR overdispersion > 0                                                                                                                                                                                                              
+    bounds += [(1.0e-6, None)]
+
+    # NB bafs - note, not limited to 0.5                                                                                                                                                                                                     
+    bounds += [(1.0e-6, 1.0) for _ in range(num_states)]
+
+    # NB baf overdispersion > 0                                                                                                                                                                                                              
+    bounds += [(1.0e-6, None)]
+
+    return tuple(bounds)
 
 class CNA_inference:
     def __init__(
@@ -57,7 +71,7 @@ class CNA_inference:
             data["snp_coverage"],
         )
 
-        self.bounds = self.get_cna_mixture_bounds()
+        self.bounds = get_cna_mixture_bounds(self.num_states)
 
     @property
     def rdr(self):
@@ -256,21 +270,6 @@ class CNA_inference:
             states_bag=self.emission_model.get_states_bag(res.x),
             title="Final state posteriors",
         )
-
-    def get_cna_mixture_bounds(self):
-        # NB exp_read_depths > 0
-        bounds = [(1.0e-6, None) for _ in range(self.num_states)]
-
-        # NB RDR overdispersion > 0
-        bounds += [(1.0e-6, None)]
-
-        # NB bafs - note, not limited to 0.5
-        bounds += [(1.0e-6, 1.0) for _ in range(self.num_states)]
-
-        # NB baf overdispersion > 0
-        bounds += [(1.0e-6, None)]
-
-        return tuple(bounds)
 
     def update_message(self, nit, last_params, params, new_params, cost):
         state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
