@@ -24,8 +24,8 @@ def test_cna_mixture_params_dict_update(mixture_params):
     )
 
 
-def test_cna_mixture_params_rdr_baf_choice_update(mixture_params, rdr_baf):    
-    mixture_params.rdr_baf_choice_update(rdr_baf)
+def test_initialize_random_nonnormal_rdr_baf(mixture_params, rdr_baf):    
+    mixture_params.initialize_random_nonnormal_rdr_baf(rdr_baf)
 
     # TODO exp changes whether the test is run individually, or all tests run.
     # NB matches rdr_baf realization

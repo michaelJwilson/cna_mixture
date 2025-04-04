@@ -13,7 +13,7 @@ np.random.seed(1234)
 def test_cna_inference():
     cna_sim = CNA_sim()
     cna_model = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data)
-    cna_model.initialize(cna_sim.rdr_baf, cna_sim.cna_states)
+    cna_model.initialize()
     
     res = cna_model.fit()
     params = cna_model.emission_model.unpack_params(res.x)
@@ -42,7 +42,7 @@ def test_cna_inference_grad(state_prior):
         _ = cna_model.jac(np.zeros(2 + 2 * cna_sim.num_states))
 
     if state_prior == "categorical":
-        cna_model.initialize(cna_sim.rdr_baf, cna_sim.cna_states)
+        cna_model.initialize()
     else:
         cna_model.initialize(jump_rate=0.1)
         
@@ -74,7 +74,7 @@ def test_cna_inference_mixture_initialize():
         interim = []
         
         for initialization in range(1):
-            cna_inf.initialize(cna_sim.rdr_baf, cna_sim.cna_states)
+            cna_inf.initialize()
             
             interim.append(
                 cna_inf.em_cost(cna_inf.initial_params, verbose=True)

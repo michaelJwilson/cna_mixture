@@ -119,9 +119,15 @@ class CNA_inference:
             self.num_states,
         )
 
+        if "cna_states" not in kwargs:
+            kwargs["cna_states"] = mixture_params.cna_states
+
+        if "rdr_baf" not in kwargs:
+            kwargs["rdr_baf"] = self.rdr_baf
+            
         # BUG TODO generalizable to Markov chain?
         # NB assign ln_lambdas based on fractions hard assigned to states.
-        self.state_prior_model.initialize(self.rdr_baf, mixture_params.cna_states, **kwargs)
+        self.state_prior_model.initialize(**kwargs)
 
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
         self.ln_state_emission = self.emission_model.get_ln_state_emission_update(

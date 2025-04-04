@@ -48,8 +48,8 @@ class CNA_categorical_prior:
 
         return normalize_ln_probs(ln_state_emission + ln_state_prior)
 
-    def initialize(self, rdr_baf, cna_states, **kwargs):
-        self.ln_lambdas_closest(rdr_baf, cna_states, **kwargs)
+    def initialize(self, **kwargs):
+        self.ln_lambdas_closest(kwargs["rdr_baf"], kwargs["cna_states"])
 
     def update(self, ln_state_posteriors):
         """
@@ -95,11 +95,17 @@ class CNA_markov_prior:
         self.num_segments = num_segments
         self.num_states = num_states
 
-    def initialize(self, jump_rate, ln_start_prior=None):
-        if ln_start_prior is None:
-            ln_start_prior = np.log((1.0 / self.num_states) * np.ones(self.num_states))
+    def initialize(self, **kwargs):
+        if "ln_start_prior" in kwargs:
+            self.ln_start_prior = kwargs["ln_start_prior"]
+        else:
+            self.ln_start_prior = np.log((1.0 / self.num_states) * np.ones(self.num_states))
 
-        self.ln_start_prior = ln_start_prior
+        if "jump_rate" in kwargs:
+            jump_rate=kwargs["jump_rate"]
+        else:
+            jump_rate=0.1
+            
         self.transfer = CNA_transfer(
             jump_rate=jump_rate, num_states=self.num_states
         ).transfer_matrix
