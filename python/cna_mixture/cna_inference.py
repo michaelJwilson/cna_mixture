@@ -97,7 +97,12 @@ class CNA_inference:
         )
 
         # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
-        mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
+        # mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
+
+        # NB Negative-Binomial derived read counts, b reads and snp covering reads.
+        mixture_params.initialize_mixture_plusplus(data[:,1], data[:,3], data[:,4])
+                
+        exit(0)
         
         logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
 
@@ -245,9 +250,9 @@ class CNA_inference:
 
         return res
 
-    def plot(self, params, label, title=None):
+    def plot(self, plots_dir, params, label, title=None):
         plot_rdr_baf_flat(
-            f"plots/{label}_rdr_baf_flat.pdf",
+            f"{plots_dir}/{label}_rdr_baf_flat.pdf",
             self.rdr,
             self.baf,
             ln_state_posteriors=self.ln_state_posteriors,
@@ -256,7 +261,7 @@ class CNA_inference:
         )
 
         plot_rdr_baf_genome(
-            f"plots/{label}_rdr_baf_genome.pdf",
+            f"{plots_dir}/{label}_rdr_baf_genome.pdf",
             self.rdr,
             self.baf,
             ln_state_posteriors=self.ln_state_posteriors,
