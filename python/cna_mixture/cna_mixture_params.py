@@ -149,17 +149,15 @@ class CNA_mixture_params:
             ps = cost / cost.sum()
 
             if validate:
-                ln_state_probs = -self.mixture_plusplus_cost(
+                tmp_cost = self.mixture_plusplus_cost(
                     samples,
                     centers,
                     self.overdisp_phi,
                     self.overdisp_tau,
-                    collapse=False,
+                    collapse=True,
                 )
 
-                ln_state_probs -= ln_state_probs.max()
-
-                logger.info(f"HERE {ln_state_probs.shape}")
+                tmp_cost /= tmp_cost.max()
                 
                 states_bag = centers.copy()
                 states_bag[:,0] /= self.genome_coverage
@@ -168,7 +166,7 @@ class CNA_mixture_params:
                     f"plots/mixture++_{len(centers)}_rdr_baf_flat.pdf",
                     ks / self.genome_coverage,
                     xs / ns,
-                    ln_state_posteriors=ln_state_probs,
+                    ln_state_posteriors=np.log(tmp_cost),
                     states_bag=states_bag,
                     title=None,
                 )
