@@ -62,3 +62,14 @@ def test_cna_inference_grad(state_prior):
         # BUG? TODO?  numerical error or bug?  note: grad tau is correctly evalued;
         #             numerical is zeros => no dependence?  killed by posterior?
         npt.assert_allclose(approx_grad, grad, rtol=1., atol=7.7)
+
+def test_cna_inference_mixture_initialize():
+    cna_sim = CNA_sim()
+    
+    cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data, initialize_mode="mixture_plusplus")
+    cna_inf.initialize(cna_sim.rdr_baf, cna_sim.cna_states)
+
+    cost = cna_inf.em_cost(cna_inf.initial_params, verbose=True)
+
+    print(cost)
+    
