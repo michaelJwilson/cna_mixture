@@ -99,6 +99,10 @@ class CNA_emission:
 
     @staticmethod
     def cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion):
+        """
+        Evaluate log prob. under BetaBinom model.                                                                                                                       
+        Returns (# sample, # state) array.
+        """
         state_alpha_betas = reparameterize_beta_binom(
             bafs,
             baf_overdispersion,
@@ -123,7 +127,7 @@ class CNA_emission:
         
     def cna_mixture_betabinom_update(self, params):
         """
-        Evaluate log prob. under BetaBinom model.
+        Evaluate log prob. under BetaBinom model given parameter vector.
         Returns (# sample, # state) array.
         """
         xs, ns = self.xs, self.ns
@@ -133,6 +137,9 @@ class CNA_emission:
 
     @staticmethod
     def cna_mixture_nbinom_eval(ks, state_read_depths, rdr_overdispersion):
+        """                                                                                                                                                             
+        Evaluate log prob. under NegativeBinom model, given parameter vector.                                                                                                   Return (# sample, # state) array.                                                                                                                               
+        """
         # TODO does a non-linear transform in the cost trip the optimizer?                                                                                        
 	state_rs_ps = reparameterize_nbinom(
 	    state_read_depths,
@@ -167,6 +174,8 @@ class CNA_emission:
         return self.cna_mixture_nbinom_eval(ks, state_read_depths, rdr_overdispersion)
 
     def get_ln_state_emission(self, params):
+        """
+        """
         ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
         ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
 
