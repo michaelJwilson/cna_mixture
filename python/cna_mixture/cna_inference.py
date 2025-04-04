@@ -11,20 +11,22 @@ from cna_mixture.utils import param_diff
 
 logger = logging.getLogger(__name__)
 
+
 def get_cna_mixture_bounds(num_states):
-    # NB exp_read_depths > 0                                                                                                                                                                                                                 
+    # NB exp_read_depths > 0
     bounds = [(1.0e-6, None) for _ in range(num_states)]
 
-    # NB RDR overdispersion > 0                                                                                                                                                                                                              
+    # NB RDR overdispersion > 0
     bounds += [(1.0e-6, None)]
 
-    # NB bafs - note, not limited to 0.5                                                                                                                                                                                                     
+    # NB bafs - note, not limited to 0.5
     bounds += [(1.0e-6, 1.0) for _ in range(num_states)]
 
-    # NB baf overdispersion > 0                                                                                                                                                                                                              
+    # NB baf overdispersion > 0
     bounds += [(1.0e-6, None)]
 
     return tuple(bounds)
+
 
 class CNA_inference:
     def __init__(
@@ -115,6 +117,11 @@ class CNA_inference:
         )
 
         self.estep()
+        self.plot(
+            self.initial_params,
+            "initial",
+            "Initial state posteriors (based on closest state lambdas).",
+        )
 
     def estep(self):
         """
@@ -222,15 +229,6 @@ class CNA_inference:
 
         self.em_cost(self.params, verbose=True)
 
-        plot_rdr_baf_flat(
-            "plots/initial_rdr_baf_flat.pdf",
-            self.rdr,
-            self.baf,
-            ln_state_posteriors=self.ln_state_posteriors,
-            states_bag=self.emission_model.get_states_bag(self.initial_params),
-            title="Initial state posteriors (based on closest state lambdas).",
-        )
-
         logger.info(
             f"Running {self.optimizer.upper()} optimization for {self.maxiter} max. iterations"
         )
@@ -252,23 +250,23 @@ class CNA_inference:
 
         return res
 
-    def plot(self, res):
+    def plot(self, params, label, title=None):
         plot_rdr_baf_flat(
-            "plots/final_rdr_baf_flat.pdf",
+            f"plots/{label}_rdr_baf_flat.pdf",
             self.rdr,
             self.baf,
             ln_state_posteriors=self.ln_state_posteriors,
-            states_bag=self.emission_model.get_states_bag(res.x),
-            title="Final state posteriors",
+            states_bag=self.emission_model.get_states_bag(params),
+            title=title,
         )
 
         plot_rdr_baf_genome(
-            "plots/final_rdr_baf_genome.pdf",
+            f"plots/{label}_rdr_baf_genome.pdf",
             self.rdr,
             self.baf,
             ln_state_posteriors=self.ln_state_posteriors,
-            states_bag=self.emission_model.get_states_bag(res.x),
-            title="Final state posteriors",
+            states_bag=self.emission_model.get_states_bag(params),
+            title=title,
         )
 
     def update_message(self, nit, last_params, params, new_params, cost):

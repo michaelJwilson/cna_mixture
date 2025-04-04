@@ -44,7 +44,7 @@ def main():
     
     res = cna_inf.fit()
 
-    cna_inf.plot(res)
+    cna_inf.plot(res.x, "final", "Final state posteriors")
     
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
