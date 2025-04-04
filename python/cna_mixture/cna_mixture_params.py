@@ -2,6 +2,7 @@ import logging
 import numpy as np
 from numpy import random
 from cna_mixture.cna_emission import get_ln_state_emission
+from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
 
 logger = logging.getLogger(__name__)
 
@@ -102,8 +103,10 @@ class CNA_mixture_params:
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
 
     @staticmethod
-    def mixture_plusplus_cost(samples, centers, overdisp_phi, overdisp_tau):
-        ln_state_emission = get_ln_state_emission(
+    def mixture_plusplus_cost(
+        samples, centers, overdisp_phi, overdisp_tau, collapse=True
+    ):
+        cost = get_ln_state_emission(
             samples[:, 0],
             samples[:, 1],
             samples[:, 2],
@@ -113,12 +116,13 @@ class CNA_mixture_params:
             overdisp_tau,
         )
 
-        # NB emission probability for "most likely" state.
-        cost = -np.max(ln_state_emission, axis=1)
+        if collapse:
+            # NB emission probability for "most likely" state.
+            cost = np.max(cost, axis=1)
 
-        return cost
+        return -cost
 
-    def initialize_mixture_plusplus(self, ks, xs, ns, N=4):
+    def initialize_mixture_plusplus(self, ks, xs, ns, N=4, validate=True):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.
@@ -138,27 +142,53 @@ class CNA_mixture_params:
 
         # NB one cost for normal state per sample.
         assert len(cost) == len(ks)
-        
+
         logger.info(f"Initialized mixture++ with normal state cost: {cost.sum()}")
-        
+
         while len(centers) < self.num_states:
             ps = cost / cost.sum()
-            xs = samples[np.random.choice(idx, p=ps, size=N, replace=False)]
+
+            if validate:
+                ln_state_probs = -self.mixture_plusplus_cost(
+                    samples,
+                    centers,
+                    self.overdisp_phi,
+                    self.overdisp_tau,
+                    collapse=False,
+                )
+
+                states_bag = centers.copy()
+                states_bag[:,0] /= self.genome_coverage
+                
+                plot_rdr_baf_flat(
+                    f"plots/mixture++_{len(centers)}_rdr_baf_flat.pdf",
+                    ks / self.genome_coverage,
+                    xs / ns,
+                    ln_state_posteriors=ln_state_probs,
+                    states_bag=states_bag,
+                    title=None,
+                )
+
+            new_samples = samples[np.random.choice(idx, p=ps, size=N, replace=False)]
 
             # NB state read depth (RDR x genome coverage) and BAF.
             #
             # TODO here, we would also select based on BAF error, i.e. for high coverage.
-            trial_centers = np.c_[xs[:, 0], xs[:, 1] / xs[:, 2]]
+            trial_centers = np.c_[new_samples[:, 0], new_samples[:, 1] / new_samples[:, 2]]
 
             logger.info(f"Found trial centers:\n{trial_centers}")
-            
+
             costs = [
-                self.mixture_plusplus_cost(samples, np.vstack([centers, tc]), self.overdisp_phi, self.overdisp_tau)
+                self.mixture_plusplus_cost(
+                    samples,
+                    np.vstack([centers, tc]),
+                    self.overdisp_phi,
+                    self.overdisp_tau,
+                )
                 for tc in trial_centers
             ]
-            
+
             costs_sum = np.array([cost.sum() for cost in costs])
-            
             minimizer = np.argmin(costs_sum)
 
             cost = costs[minimizer]
@@ -168,5 +198,5 @@ class CNA_mixture_params:
 
         self.cna_states = centers.copy()
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
-        
+
         return cost

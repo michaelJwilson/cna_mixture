@@ -10,12 +10,16 @@ def ln_probs_to_rgb(ln_probs):
         cmap = "viridis"
 
     else:
-        assert ln_probs.shape[1] == 4
+        assert ln_probs.shape[1] <= 4
 
         # NB assumed to be normal probability.
         alpha = 0.25
 
-        rgb = np.exp(ln_probs[:, 1:4])
+        ncol = ln_probs.shape[1] - 1
+        
+        rgb = np.zeros(shape=(len(ln_probs), 3))
+        rgb[:, :ncol] = np.exp(ln_probs[:, 1:])
+
         cmap = None
 
     return rgb, alpha, cmap
@@ -32,23 +36,10 @@ def plot_rdr_baf_flat(
     pl.clf()
 
     if ln_state_posteriors is not None:
-        """
-        # DEPRECATE
-        if ln_state_posteriors.ndim == 1:
-            rgb = np.exp(ln_state_posteriors)
-            alpha = 0.25
-            cmap = "viridis"
+        assert len(ln_state_posteriors) == len(
+            rdr
+        ), f"Found inconsistent RDR, BAF and state posteriors (size {len(rdr)} and {len(ln_state_posteriors)} respectively)"
 
-        else:
-            assert ln_state_posteriors.shape[1] == 4
-
-            # NB assumed to be normal probability.
-            # alpha = 0.25 + 3.0 * (1.0 - state_posteriors[:, 0]) / 4.0
-            alpha = 0.25
-
-            rgb = np.exp(ln_state_posteriors[:, 1:4])
-            cmap = None
-        """
         rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
 
     pl.axhline(0.5, c="k", lw=0.5)
