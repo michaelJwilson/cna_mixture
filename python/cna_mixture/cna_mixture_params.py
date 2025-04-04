@@ -86,7 +86,7 @@ class CNA_mixture_params:
         self.num_states = len(self.cna_states)
         self.__verify()
 
-    def rdr_baf_choice_update(self, rdr_baf, threshold=0.05):
+    def initialize_random_nonnormal_rdr_baf(self, rdr_baf, threshold=0.05):
         """
         Given an instance of (RDR, BAF) data, update the mixture params
         to be a random sample of the *non-normal* data, i.e. a copy number
@@ -99,3 +99,5 @@ class CNA_mixture_params:
 
         self.cna_states = np.vstack([self.normal_state, non_normal[idx]])
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
+
+    def 

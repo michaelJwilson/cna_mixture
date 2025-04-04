@@ -97,8 +97,8 @@ class CNA_inference:
         )
 
         # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
-        mixture_params.rdr_baf_choice_update(self.rdr_baf)
-
+        mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
+        
         logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
 
         self.initial_params = mixture_params.params
