@@ -101,3 +101,8 @@ class CNA_mixture_params:
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
 
     def initialize_mixture_plusplus(self, ks, xs, ns):
+        """
+        Initialize with a mixture++ pattern, where subsequent selections are
+        proportional to the cost for the current subset of states.
+        """
+        
