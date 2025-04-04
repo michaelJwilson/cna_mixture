@@ -65,11 +65,23 @@ def test_cna_inference_grad(state_prior):
 
 def test_cna_inference_mixture_initialize():
     cna_sim = CNA_sim()
+
+    result = []
     
-    cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data, initialize_mode="mixture_plusplus")
-    cna_inf.initialize(cna_sim.rdr_baf, cna_sim.cna_states)
+    for initialize_mode in ["random", "mixture_plusplus"]:
+        cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data, initialize_mode="mixture_plusplus")
+        interim = []
+        
+        for initialization in range(2):
+            cna_inf.initialize(cna_sim.rdr_baf, cna_sim.cna_states)
+            
+            interim.append(
+                cna_inf.em_cost(cna_inf.initial_params, verbose=True)
+            )
 
-    cost = cna_inf.em_cost(cna_inf.initial_params, verbose=True)
+        result.append(interim)
 
-    print(cost)
+    result = np.array(result)
+        
+    print(result)
     
