@@ -158,7 +158,7 @@ class CNA_inference:
         self.state_prior_model.update(self.ln_state_posteriors)
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
 
-    def callback(self, intermediate_result: OptimizeResult):
+    def emstep(self, intermediate_result: OptimizeResult):
         """
         Callable after each M-step iteration of optimizer.
         e.g. this approach benefits from 'conserving' Hessian.
@@ -241,7 +241,7 @@ class CNA_inference:
             method=self.optimizer,
             jac=self.jac,
             bounds=self.bounds,
-            callback=self.callback,
+            callback=self.emstep,
             constraints=None,
             options={"disp": True, "maxiter": self.maxiter},
         )
