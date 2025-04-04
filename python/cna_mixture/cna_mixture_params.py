@@ -1,5 +1,8 @@
+import logging
 import numpy as np
 from numpy import random
+
+logger = logging.getLogger(__name__)
 
 
 class CNA_mixture_params:
@@ -14,7 +17,6 @@ class CNA_mixture_params:
         """
         # NB normal state is treated independently
         self.num_states = 1 + num_cna_states
-
         self.genome_coverage = genome_coverage
 
         # NB BAF overdispersion.  Random between 25. and 55.
@@ -63,6 +65,9 @@ class CNA_mixture_params:
     def dict_update(self, input_params_dict):
         """
         Update an instance of CNA_mixture_params to the input key: value dict.
+
+        Assumes input dictionary specifies all cna mixture attributes.
+
         """
         keys = self.__dict__.keys()
         params_dict = input_params_dict.copy()
@@ -75,7 +80,7 @@ class CNA_mixture_params:
             params_dict.pop(key)
 
         if params_dict:
-            f"Skipping additional params in dict={params_dict}"
+            logger.warning(f"Skipping additional params in provided dict={params_dict}")
 
         self.cna_states = np.array(self.cna_states)
         self.num_states = len(self.cna_states)
