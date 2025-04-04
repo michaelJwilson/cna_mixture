@@ -100,9 +100,7 @@ class CNA_inference:
         # mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
 
         # NB Negative-Binomial derived read counts, b reads and snp covering reads.
-        mixture_params.initialize_mixture_plusplus(self.data[:,1], self.data[:,3], self.data[:,4])
-                
-        exit(0)
+        mixture_params.initialize_mixture_plusplus(self.data["read_coverage"], self.data["b_reads"], self.data["snp_coverage"])
         
         logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
 

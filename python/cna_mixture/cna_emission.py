@@ -112,11 +112,11 @@ def get_ln_state_emission(
     baf_overdispersion,
     rust_backend=True,
 ):
-    ln_state_emission_nbinom, _ = self.cna_mixture_nbinom_eval(
+    ln_state_emission_nbinom, _ = cna_mixture_nbinom_eval(
         ks, state_read_depths, rdr_overdispersion, rust_backend=rust_backend
     )
 
-    ln_state_emission_betabinom, _ = self.cna_mixture_betabinom_eval(
+    ln_state_emission_betabinom, _ = cna_mixture_betabinom_eval(
         xs, ns, bafs, baf_overdispersion, rust_backend=rust_backend
     )
 
@@ -186,7 +186,7 @@ class CNA_emission:
         xs, ns = self.xs, self.ns
         _, _, bafs, baf_overdispersion = self.unpack_params(params)
 
-        return self.cna_mixture_betabinom_eval(
+        return cna_mixture_betabinom_eval(
             xs, ns, bafs, baf_overdispersion, rust_backend=self.RUST_BACKEND
         )
 
@@ -198,7 +198,7 @@ class CNA_emission:
         ks = self.ks
         state_read_depths, rdr_overdispersion, _, _ = self.unpack_params(params)
 
-        return self.cna_mixture_nbinom_eval(
+        return cna_mixture_nbinom_eval(
             ks, state_read_depths, rdr_overdispersion, rust_backend=self.RUST_BACKEND
         )
 
