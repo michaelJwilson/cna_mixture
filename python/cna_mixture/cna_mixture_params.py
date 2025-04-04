@@ -5,6 +5,7 @@ from cna_mixture.cna_emission import get_ln_state_emission
 
 logger = logging.getLogger(__name__)
 
+
 class CNA_mixture_params:
     """
     Data class for parameters required by CNA mixture model,
@@ -103,44 +104,56 @@ class CNA_mixture_params:
     @staticmethod
     def mixture_plusplus_cost(samples, centers):
         ln_state_emission = get_ln_state_emission(
-            samples[:,0],
-            samples[:,1],
-            samples[:,2],
-            centers[:,0],
+            samples[:, 0],
+            samples[:, 1],
+            samples[:, 2],
+            centers[:, 0],
             self.overdisp_phi,
-            centers[:,1],
+            centers[:, 1],
             self.overdisp_tau,
         )
 
-        # NB emission probability for "most likely" state.                                                                                                                                                                             
+        # NB emission probability for "most likely" state.
         cost = -np.max(ln_state_emission, axis=1)
 
         return cost
-        
+
     def initialize_mixture_plusplus(self, ks, xs, ns, N=4):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.
         """
+        idx = np.arange(len(ks))
         samples = np.c_[ks, xs, ns]
-        idx = np.arange(len(samples))
 
-        centers = self.normal_state.copy()
-        centers[:,0] *= self.genome_coverage
+        # NB we assume a normal-like state to start.
+        normal = self.normal_state.tolist()
+        normal[0] /= self.genome_coverage
 
-        cost = self.mixture_plusplus_cost(samples, centers)
+        centers = np.array([normal])
         
+        cost = self.mixture_plusplus_cost(samples, centers)
+
         while len(centers) < self.num_states:
             ps = cost / cost.sum()
-
             xs = samples[np.random.choice(idx, p=ps, size=N, replace=False)]
 
-            costs = [self.mixture_plusplus_cost(samples, centers + [xx]) for xx in xs]
+            # NB state read depth (RDR x genome coverage) and BAF.
+            #
+            # TODO here, we would also select based on BAF error, i.e. for high coverage.
+            trial_centers = np.c_[xs[:,0], xs[:,1] / xs[:,2]]
+            
+            costs = [self.mixture_plusplus_cost(samples, np.vstack([centers, tc]) for tc in trial_centers]
             costs_sum = np.array([cost.sum() for cost in costs])
 
             minimizer = np.argmin(costs_sum)
-            centers.append(xs[minimizer])
 
             cost = costs[minimizer]
+            centers = np.vstack([centers, trial_centers[minimizer]])
 
-        return np.array(centers + [costs_sum[minimizer]])
+        centers[:,0] /= self.genome_coverage
+
+        self.cna_states = centers.copy()
+        self.cna_states = self.cna_states[self.cna_states[:,0].argsort()]
+
+        return cost
