@@ -176,10 +176,10 @@ class CNA_emission:
     def get_ln_state_emission(self, params):
         """
         """
-        ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
-        ln_state_posterior_nbinom, _ = self.cna_mixture_nbinom_update(params)
+        ln_state_emission_betabinom, _ = self.cna_mixture_betabinom_update(params)
+        ln_state_emission_nbinom, _ = self.cna_mixture_nbinom_update(params)
 
-        return ln_state_posterior_betabinom + ln_state_posterior_nbinom
+        return ln_state_emission_betabinom + ln_state_emission_nbinom
 
     def grad_em_cost_nb(self, params, state_posteriors):
         # TODO
