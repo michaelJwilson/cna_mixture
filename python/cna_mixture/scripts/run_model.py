@@ -4,7 +4,7 @@ import time
 import numpy as np
 from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim
-from cna_mixture.gaussian_mixture import fit_gaussian_mixture
+from cna_mixture.fit_gaussian_mixture import fit_gaussian_mixture
 
 np.random.seed(1234)
 
@@ -31,7 +31,7 @@ TODOs:
 
 def main():
     start = time.time()
-
+    """
     cna_sim = CNA_sim()
     cna_sim.plot_realization_true_flat("plots/truth_rdr_baf_flat.pdf")
     cna_sim.plot_realization_true_genome("plots/truth_rdr_baf_genome.pdf")
@@ -45,7 +45,7 @@ def main():
     res = cna_inf.fit()
 
     cna_inf.plot(res.x, "final", "Final state posteriors")
-    
+    """
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
 
