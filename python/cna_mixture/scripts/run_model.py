@@ -39,8 +39,14 @@ def main():
     fit_gaussian_mixture("plots/gmm_rdr_baf_flat.pdf", cna_sim.rdr_baf)
 
     # NB total number of states (inc. normal).
-    cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data)
+    cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data, state_prior="categorical")
     cna_inf.initialize(cna_sim.rdr_baf, cna_sim.cna_states)
+
+    cna_inf.plot(
+        cna_inf.initial_params,
+        "initial",
+        "Initial state posteriors (based on closest state lambdas).",
+    )
     
     res = cna_inf.fit()
 

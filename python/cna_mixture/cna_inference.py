@@ -118,12 +118,6 @@ class CNA_inference:
 
         self.estep()
 
-        self.plot(
-            self.initial_params,
-            "initial",
-            "Initial state posteriors (based on closest state lambdas).",
-        )
-
     def estep(self):
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
