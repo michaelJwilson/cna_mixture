@@ -108,18 +108,21 @@ class CNA_mixture_params:
 
         return -cost
         
-    def initialize_random_nonnormal_rdr_baf(self, rdr_baf, threshold=0.05):
+    def initialize_random_nonnormal_rdr_baf(self, rdr_baf, threshold=0.05, non_normal=False):
         """
         Given an instance of (RDR, BAF) data, update the mixture params
         to be a random sample of the *non-normal* data, i.e. a copy number
         that is not unity.
         """
-        non_normal = rdr_baf[np.abs(rdr_baf[:, 0] - 1.0) > threshold]
-
-        xx = np.arange(len(non_normal))
+        if non_normal:
+            samples = rdr_baf[np.abs(rdr_baf[:, 0] - 1.0) > threshold]
+        else:
+            samples = rdr_baf.copy()
+            
+        xx = np.arange(len(samples))
         idx = random.choice(xx, size=self.num_states - 1, replace=False)
-
-        self.cna_states = np.vstack([self.normal_state, non_normal[idx]])
+            
+        self.cna_states = np.vstack([self.normal_state, samples[idx]])
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
         
     def initialize_mixture_plusplus(self, ks, xs, ns, N=4, validate=True):

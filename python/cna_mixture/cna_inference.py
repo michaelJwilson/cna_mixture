@@ -51,7 +51,7 @@ class CNA_inference:
         # NB see e.g. https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
         assert initialize_mode in ["random", "mixture_plusplus"]
-        
+
         self.data = data
         self.maxiter = maxiter
         self.optimizer = optimizer
@@ -59,7 +59,7 @@ class CNA_inference:
         self.num_segments = len(data)
         self.genome_coverage = genome_coverage
         self.initialize_mode = initialize_mode
-        
+
         if state_prior == "categorical":
             self.state_prior_model = CNA_categorical_prior
         elif state_prior == "markov":
@@ -67,6 +67,11 @@ class CNA_inference:
         else:
             msg = f"state prior model={state_prior} is not supported."
             raise ValueError(msg)
+
+        self.state_prior_model = self.state_prior_model(
+            self.num_segments,
+            self.num_states,
+        )
 
         self.emission_model = CNA_emission(
             self.num_states,
@@ -104,27 +109,29 @@ class CNA_inference:
             mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
         elif self.initialize_mode == "mixture_plusplus":
             # NB Negative-Binomial derived read counts, b reads and snp covering reads.
-            mixture_params.initialize_mixture_plusplus(self.data["read_coverage"], self.data["b_reads"], self.data["snp_coverage"])
+            mixture_params.initialize_mixture_plusplus(
+                self.data["read_coverage"],
+                self.data["b_reads"],
+                self.data["snp_coverage"],
+                N=4,
+            )
         else:
-            raise ValueError(f"{initialize_mode} style initialization is not supported.")
-            
+            raise ValueError(
+                f"{initialize_mode} style initialization is not supported."
+            )
+
         logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
 
         self.initial_params = mixture_params.params
         self.last_params, self.params = None, self.initial_params
         self.nit = 0
-        
-        self.state_prior_model = self.state_prior_model(
-            self.num_segments,
-            self.num_states,
-        )
 
         if "cna_states" not in kwargs:
             kwargs["cna_states"] = mixture_params.cna_states
 
         if "rdr_baf" not in kwargs:
             kwargs["rdr_baf"] = self.rdr_baf
-            
+
         # BUG TODO generalizable to Markov chain?
         # NB assign ln_lambdas based on fractions hard assigned to states.
         self.state_prior_model.initialize(**kwargs)
@@ -135,7 +142,7 @@ class CNA_inference:
         )
 
         self.estep()
-        
+
     def estep(self):
         """
         Calculate normalized state posteriors based on current parameter + lambda settings.
@@ -152,7 +159,9 @@ class CNA_inference:
 
         NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
         """
-        self.ln_state_emission = self.emission_model.get_ln_state_emission_update(params)
+        self.ln_state_emission = self.emission_model.get_ln_state_emission_update(
+            params
+        )
 
         # NB responsibilites rik, where i is the sample and k is the state.
         # NB this is *not* state-posterior weighted log-likelihood.
@@ -239,13 +248,14 @@ class CNA_inference:
 
         self.last_params, self.params = None, self.initial_params
         self.nit = 0
-        
+
         self.em_cost(self.params, verbose=True)
 
         logger.info(
             f"Running {self.optimizer.upper()} optimization for {self.maxiter} max. iterations"
         )
 
+        # NB see https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.OptimizeResult.html
         res = minimize(
             self.em_cost,
             self.params.copy(),
