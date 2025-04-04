@@ -84,7 +84,7 @@ class CNA_mixture_params:
         """
         Given an instance of (RDR, BAF) data, update the mixture params
         to be a random sample of the *non-normal* data, i.e. a copy number
-        that is not unity.        
+        that is not unity.
         """
         non_normal = rdr_baf[np.abs(rdr_baf[:, 0] - 1.0) > threshold]
 
