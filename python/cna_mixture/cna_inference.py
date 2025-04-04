@@ -117,6 +117,7 @@ class CNA_inference:
         )
 
         self.estep()
+        
         self.plot(
             self.initial_params,
             "initial",
