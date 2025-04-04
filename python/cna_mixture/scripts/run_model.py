@@ -58,11 +58,11 @@ def run_model(plots_dir):
         "initial",
         "Initial state posteriors (based on closest state lambdas).",
     )
-    """
+
     res = cna_inf.fit()
 
     cna_inf.plot(plots_dir, res.x, "final", "Final state posteriors")
-    """
+
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
 def main():
