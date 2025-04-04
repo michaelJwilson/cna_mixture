@@ -90,7 +90,7 @@ class CNA_inference:
     def rdr_baf(self):
         return np.c_[self.rdr, self.baf]
 
-    def initialize(self, *args, **kwargs):
+    def initialize(self, **kwargs):
         """
         Initialize state prior model and update state priors & emissions.
         """
@@ -119,8 +119,9 @@ class CNA_inference:
             self.num_states,
         )
 
+        # BUG TODO generalizable to Markov chain?
         # NB assign ln_lambdas based on fractions hard assigned to states.
-        self.state_prior_model.initialize(*args, **kwargs)
+        self.state_prior_model.initialize(self.rdr_baf, mixture_params.cna_states, **kwargs)
 
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
         self.ln_state_emission = self.emission_model.get_ln_state_emission_update(

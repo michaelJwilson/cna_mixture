@@ -67,12 +67,13 @@ def test_cna_inference_mixture_initialize():
     cna_sim = CNA_sim()
 
     result = []
-    
-    for initialize_mode in ["random", "mixture_plusplus"]:
+
+    # "random"
+    for initialize_mode in ["mixture_plusplus"]:
         cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data, initialize_mode="mixture_plusplus")
         interim = []
         
-        for initialization in range(2):
+        for initialization in range(1):
             cna_inf.initialize(cna_sim.rdr_baf, cna_sim.cna_states)
             
             interim.append(

@@ -50,7 +50,7 @@ def run_model(plots_dir):
         state_prior="categorical",
     )
     
-    cna_inf.initialize(cna_sim.rdr_baf, cna_sim.cna_states)
+    cna_inf.initialize()
 
     cna_inf.plot(
         plots_dir,

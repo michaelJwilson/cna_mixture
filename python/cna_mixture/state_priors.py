@@ -48,8 +48,8 @@ class CNA_categorical_prior:
 
         return normalize_ln_probs(ln_state_emission + ln_state_prior)
 
-    def initialize(self, *args, **kwargs):
-        self.ln_lambdas_closest(*args, **kwargs)
+    def initialize(self, rdr_baf, cna_states, **kwargs):
+        self.ln_lambdas_closest(rdr_baf, cna_states, **kwargs)
 
     def update(self, ln_state_posteriors):
         """
