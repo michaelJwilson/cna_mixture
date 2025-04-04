@@ -157,6 +157,10 @@ class CNA_mixture_params:
                     collapse=False,
                 )
 
+                ln_state_probs -= ln_state_probs.max()
+
+                logger.info(f"HERE {ln_state_probs.shape}")
+                
                 states_bag = centers.copy()
                 states_bag[:,0] /= self.genome_coverage
                 

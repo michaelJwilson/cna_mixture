@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
+import logging
 import numpy as np
 import pylab as pl
 
+logger = logging.getLogger(__name__)
 
 def ln_probs_to_rgb(ln_probs):
     if ln_probs.ndim == 1:
@@ -10,18 +12,20 @@ def ln_probs_to_rgb(ln_probs):
         cmap = "viridis"
 
     else:
-        assert ln_probs.shape[1] <= 4
-
         # NB assumed to be normal probability.
-        alpha = 0.25
-
-        ncol = ln_probs.shape[1] - 1
-        
+        alpha = 0.25        
         rgb = np.zeros(shape=(len(ln_probs), 3))
-        rgb[:, :ncol] = np.exp(ln_probs[:, 1:])
 
+        for ii in range(ln_probs.shape[1]):
+            if ii <= 2:
+                rgb[:, -(1 + ii)] = np.exp(ln_probs[:, -(1 + ii)])
+            else:
+                logger.warning(f"Failed to map all of states to RGB when plotting")
+            
         cmap = None
 
+    print(rgb)
+        
     return rgb, alpha, cmap
 
 
