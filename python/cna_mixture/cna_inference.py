@@ -117,7 +117,7 @@ class CNA_inference:
         self.state_prior_model.initialize(*args, **kwargs)
 
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
-        self.ln_state_emission = self.emission_model.get_ln_state_emission(
+        self.ln_state_emission = self.emission_model.get_ln_state_emission_update(
             self.initial_params
         )
 
@@ -139,7 +139,7 @@ class CNA_inference:
 
         NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
         """
-        self.ln_state_emission = self.emission_model.get_ln_state_emission(params)
+        self.ln_state_emission = self.emission_model.get_ln_state_emission_update(params)
 
         # NB responsibilites rik, where i is the sample and k is the state.
         # NB this is *not* state-posterior weighted log-likelihood.
@@ -201,7 +201,7 @@ class CNA_inference:
             )
 
             # TODO may not be necessary?  Depends how solver calls cost (emission update) vs grad.
-            self.ln_state_emission = self.emission_model.get_ln_state_emission(
+            self.ln_state_emission = self.emission_model.get_ln_state_emission_update(
                 new_params
             )
 

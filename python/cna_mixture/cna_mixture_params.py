@@ -4,7 +4,6 @@ from numpy import random
 
 logger = logging.getLogger(__name__)
 
-
 class CNA_mixture_params:
     """
     Data class for parameters required by CNA mixture model,
@@ -99,10 +98,70 @@ class CNA_mixture_params:
 
         self.cna_states = np.vstack([self.normal_state, non_normal[idx]])
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
-
+        
     def initialize_mixture_plusplus(self, ks, xs, ns):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.
         """
-        
+        centers = self.normal_state.copy()
+
+        while len(centers) < self.num_states:
+            ln_emission_nbinom = cna_mixture_nbinom_eval(
+                ks,
+                state_read_depths,
+                self.overdisp_phi,
+            )
+
+            ln_emission_betabinom = cna_mixture_betabinom_eval(
+                xs, ns, bafs, self.overdisp_tau
+            )
+
+@njit
+def get_cost(samples, centers, scale=10.0):
+    """                                                                                                                                                                                                                                   
+    Return the kmeans++ cost, i.e. log pdf when each sample is matched to                                                                                                                                                                 
+    its nearest component.                                                                                                                                                                                                                
+    """
+    cost = np.inf * np.ones_like(samples)
+
+    for cc in centers:
+        new = -norm_logpdf(samples, cc, scale)
+        cost = np.minimum(cost, new)
+
+    return cost
+            
+
+def greedy_kmeans_plusplus(samples, k=5, scale=10.0, N=4):
+    """
+    greedy sampling of kmeans++ centers (of degree k)
+    and their associated cost.
+   
+    NB samples new center according to -log prob. of existing centers.
+    """
+    idx = np.arange(len(samples))
+
+    centers = []
+    information = np.ones_like(samples)
+
+    # NB
+    # entropy_threshold = norm_entropy(scale)
+
+    while len(centers) < k:
+        ps = information.copy()
+        ps /= ps.sum()
+
+        # NB high exclusive, with replacement.
+        size = N
+        xs = samples[np.random.choice(idx, p=ps, size=size, replace=True)]
+
+        costs = [get_cost(samples, centers + [xx]) for xx in xs]
+        costs_sum = np.array([cost.sum() for cost in costs])
+
+        minimizer = np.argmin(costs_sum)
+
+        centers.append(xs[minimizer])
+
+        information = costs[minimizer]
+
+    return np.array(centers + [costs_sum[minimizer]])

@@ -180,11 +180,25 @@ class CNA_emission:
             ks, state_read_depths, rdr_overdispersion, rust_backend=self.RUST_BACKEND
         )
 
-    def get_ln_state_emission(self, params):
+    @staticmethod
+    def get_ln_state_emission(ks, xs, ns, state_read_depths, rdr_overdispersion, bafs, baf_overdispersion, rust_backend=True):
+        ln_state_emission_nbinom, _ = self.cna_mixture_nbinom_eval(
+            ks, state_read_depths, rdr_overdispersion, rust_backend=rust_backend
+        )
+        
+        ln_state_emission_betabinom, _ = self.cna_mixture_betabinom_eval(
+            xs, ns, bafs, baf_overdispersion, rust_backend=rust_backend
+        )
+        
+        # NB assumes independent
+        return ln_state_emission_betabinom + ln_state_emission_nbinom
+        
+    def get_ln_state_emission_update(self, params):
         """ """
         ln_state_emission_betabinom, _ = self.cna_mixture_betabinom_update(params)
         ln_state_emission_nbinom, _ = self.cna_mixture_nbinom_update(params)
 
+        # NB assumes independent
         return ln_state_emission_betabinom + ln_state_emission_nbinom
 
     def grad_em_cost_nb(self, params, state_posteriors):
