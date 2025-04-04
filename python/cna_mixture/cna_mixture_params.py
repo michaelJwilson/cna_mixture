@@ -7,6 +7,7 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model,
     with shared overdispersions.
     """
+
     def __init__(self, num_cna_states=3, tau=50.0, phi=2.0e-2, genome_coverage=1.0):
         """
         Initialize an instance of the class with random values in the assumed bounds.

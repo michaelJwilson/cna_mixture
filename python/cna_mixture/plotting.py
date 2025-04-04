@@ -57,7 +57,12 @@ def plot_rdr_baf_flat(
     if states_bag is not None:
         for state_rdr, state_baf in states_bag:
             pl.scatter(
-                state_rdr, state_baf, marker="*", edgecolors="black", facecolors="white", s=45
+                state_rdr,
+                state_baf,
+                marker="*",
+                edgecolors="black",
+                facecolors="white",
+                s=45,
             )
 
     pl.xlim(-0.05, 15.0)
@@ -119,5 +124,5 @@ def plot_rdr_baf_genome(
 
     if title is not None:
         pl.title(title)
-    
+
     pl.savefig(fpath)
