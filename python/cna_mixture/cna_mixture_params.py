@@ -99,71 +99,48 @@ class CNA_mixture_params:
 
         self.cna_states = np.vstack([self.normal_state, non_normal[idx]])
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
+
+    @staticmethod
+    def mixture_plusplus_cost(samples, centers):
+        ln_state_emission = get_ln_state_emission(
+            samples[:,0],
+            samples[:,1],
+            samples[:,2],
+            centers[:,0],
+            self.overdisp_phi,
+            centers[:,1],
+            self.overdisp_tau,
+        )
+
+        # NB emission probability for "most likely" state.                                                                                                                                                                             
+        cost = -np.max(ln_state_emission, axis=1)
+
+        return cost
         
-    def initialize_mixture_plusplus(self, ks, xs, ns):
+    def initialize_mixture_plusplus(self, ks, xs, ns, N=4):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.
         """
+        samples = np.c_[ks, xs, ns]
+        idx = np.arange(len(samples))
+
         centers = self.normal_state.copy()
+        centers[:,0] *= self.genome_coverage
 
+        cost = self.mixture_plusplus_cost(samples, centers)
+        
         while len(centers) < self.num_states:
-            ln_state_emission = get_ln_state_emission(
-                ks,
-                xs,
-                ns,
-                state_read_depths,
-                rdr_overdispersion,
-                bafs,
-                baf_overdispersion,
-                rust_backend=True,
-            )
+            ps = cost / cost.sum()
 
-@njit
-def get_cost(samples, centers, scale=10.0):
-    """                                                                                                                                                                                                                                   
-    Return the kmeans++ cost, i.e. log pdf when each sample is matched to                                                                                                                                                                 
-    its nearest component.                                                                                                                                                                                                                
-    """
-    cost = np.inf * np.ones_like(samples)
+            xs = samples[np.random.choice(idx, p=ps, size=N, replace=False)]
 
-    for cc in centers:
-        new = -norm_logpdf(samples, cc, scale)
-        cost = np.minimum(cost, new)
+            costs = [self.mixture_plusplus_cost(samples, centers + [xx]) for xx in xs]
+            costs_sum = np.array([cost.sum() for cost in costs])
 
-    return cost
-            
+            minimizer = np.argmin(costs_sum)
+            centers.append(xs[minimizer])
 
-def greedy_kmeans_plusplus(samples, k=5, scale=10.0, N=4):
-    """
-    greedy sampling of kmeans++ centers (of degree k)
-    and their associated cost.
-   
-    NB samples new center according to -log prob. of existing centers.
-    """
-    idx = np.arange(len(samples))
+            cost = costs[minimizer]
 
-    centers = []
-    information = np.ones_like(samples)
-
-    # NB
-    # entropy_threshold = norm_entropy(scale)
-
-    while len(centers) < k:
-        ps = information.copy()
-        ps /= ps.sum()
-
-        # NB high exclusive, with replacement.
-        size = N
-        xs = samples[np.random.choice(idx, p=ps, size=size, replace=True)]
-
-        costs = [get_cost(samples, centers + [xx]) for xx in xs]
-        costs_sum = np.array([cost.sum() for cost in costs])
-
-        minimizer = np.argmin(costs_sum)
-
-        centers.append(xs[minimizer])
-
-        information = costs[minimizer]
-
-    return np.array(centers + [costs_sum[minimizer]])
+        return np.array(centers + [costs_sum[minimizer]])

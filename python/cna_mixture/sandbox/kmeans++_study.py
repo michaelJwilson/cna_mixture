@@ -130,8 +130,11 @@ def greedy_kmeans_plusplus(samples, k=5, scale=10.0, N=4):
 
         # NB high exclusive, with replacement.
         size = N
+
+        # BUG TODO replace=True?
         xs = samples[np.random.choice(idx, p=ps, size=size, replace=True)]
 
+        # BUG TODO replication of center is not prohibited (but unlikely)?
         costs = [get_cost(samples, centers + [xx]) for xx in xs]
         costs_sum = np.array([cost.sum() for cost in costs])
 
