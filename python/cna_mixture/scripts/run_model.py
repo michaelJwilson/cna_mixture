@@ -31,7 +31,7 @@ TODOs:
 
 def main():
     start = time.time()
-    """
+
     cna_sim = CNA_sim()
     cna_sim.plot_realization_true_flat("plots/truth_rdr_baf_flat.pdf")
     cna_sim.plot_realization_true_genome("plots/truth_rdr_baf_genome.pdf")
@@ -45,7 +45,7 @@ def main():
     res = cna_inf.fit()
 
     cna_inf.plot(res.x, "final", "Final state posteriors")
-    """
+
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
 

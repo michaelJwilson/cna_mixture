@@ -98,7 +98,7 @@ class CNA_emission:
         return np.c_[state_read_depths / self.genome_coverage, bafs]
 
     @staticmethod
-    def cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion):
+    def cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion, rust_backend=True):
         """
         Evaluate log prob. under BetaBinom model.
         Returns (# sample, # state) array.
@@ -108,7 +108,7 @@ class CNA_emission:
             baf_overdispersion,
         )
 
-        if self.RUST_BACKEND:
+        if rust_backend:
             xs, ns = np.ascontiguousarray(xs), np.ascontiguousarray(ns)
 
             alphas = np.ascontiguousarray(state_alpha_betas[:, 0].copy())
@@ -133,10 +133,10 @@ class CNA_emission:
         xs, ns = self.xs, self.ns
         _, _, bafs, baf_overdispersion = self.unpack_params(params)
 
-        return self.cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion)
+        return self.cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion, rust_backend=self.RUST_BACKEND)
 
     @staticmethod
-    def cna_mixture_nbinom_eval(ks, state_read_depths, rdr_overdispersion):
+    def cna_mixture_nbinom_eval(ks, state_read_depths, rdr_overdispersion, rust_backend=True):
         """
         Evaluate log prob. under NegativeBinom model, given parameter vector.
         Return (# sample, # state) array.
@@ -147,7 +147,7 @@ class CNA_emission:
             rdr_overdispersion,
         )
 
-        if self.RUST_BACKEND:
+        if rust_backend:
             ks = np.ascontiguousarray(ks)
 
             rs = np.ascontiguousarray(state_rs_ps[:, 0].copy())
@@ -172,7 +172,7 @@ class CNA_emission:
         ks = self.ks
         state_read_depths, rdr_overdispersion, _, _ = self.unpack_params(params)
 
-        return self.cna_mixture_nbinom_eval(ks, state_read_depths, rdr_overdispersion)
+        return self.cna_mixture_nbinom_eval(ks, state_read_depths, rdr_overdispersion, rust_backend=self.RUST_BACKEND)
 
     def get_ln_state_emission(self, params):
         """ """
