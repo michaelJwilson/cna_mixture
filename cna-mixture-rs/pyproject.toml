@@ -1,14 +1,14 @@
-[tool.poetry]
+[project]
 name = "cna_mixture_rs"
 version = "0.1.0"
 description = ""
-authors = ["M. J. Wilson"]
+authors = [{ name = "M. J. Wilson" }]
+requires-python = "==3.12.2"
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "3.12.2"
-maturin = "^1.1.0"
-numpy = "^1.26.0"
+dependencies = [
+    "maturin>=1.1.0,<2",
+    "numpy>=1.26.0,<2",
+]
 
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
