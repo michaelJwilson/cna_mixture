@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 from numpy import random
+from cna_mixture.cna_emission import get_ln_state_emission
 
 logger = logging.getLogger(__name__)
 
@@ -107,14 +108,15 @@ class CNA_mixture_params:
         centers = self.normal_state.copy()
 
         while len(centers) < self.num_states:
-            ln_emission_nbinom = cna_mixture_nbinom_eval(
+            ln_state_emission = get_ln_state_emission(
                 ks,
+                xs,
+                ns,
                 state_read_depths,
-                self.overdisp_phi,
-            )
-
-            ln_emission_betabinom = cna_mixture_betabinom_eval(
-                xs, ns, bafs, self.overdisp_tau
+                rdr_overdispersion,
+                bafs,
+                baf_overdispersion,
+                rust_backend=True,
             )
 
 @njit
