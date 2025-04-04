@@ -42,8 +42,10 @@ def main():
     cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data)
     cna_inf.initialize(cna_sim.rdr_baf, cna_sim.cna_states)
     
-    cna_inf.fit()
+    res = cna_inf.fit()
 
+    cna_inf.plot(res)
+    
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
 

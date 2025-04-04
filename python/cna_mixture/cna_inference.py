@@ -72,6 +72,9 @@ class CNA_inference:
         return np.c_[self.rdr, self.baf]
 
     def initialize(self, *args, **kwargs):
+        """
+        Initialize state prior model and update state priors & emissions.
+        """
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         mixture_params = CNA_mixture_params(
             num_cna_states=self.num_states - 1, genome_coverage=self.genome_coverage
@@ -149,6 +152,7 @@ class CNA_inference:
         # NB assumed convergence tolerance for *fractional* change in parameter.
         PTOL = 1.0e-3
 
+        # NB callback evaluated after each iteration of optimizer.
         self.nit += 1
 
         new_params, new_cost = intermediate_result.x, intermediate_result.fun
@@ -161,13 +165,15 @@ class CNA_inference:
             logger.info(f"Failed to converge in {self.maxiter}")
             raise StopIteration
 
-        # NB converged with respect to last posterior?
+        # NB parameter difference across E+M step.  i.e. converged with respect to last posterior?
+        #    note: relies on self.last_params == None at start of fitting, which evaluates False.
         if param_diff(self.last_params, new_params) < PTOL:
             logger.info(
                 f"Converged to {100 * PTOL}% wrt last state posteriors.  Optimization complete."
             )
             raise StopIteration
 
+        # NB has parameter differences across M steps converged?
         if param_diff(self.params, new_params) < PTOL:
             logger.info(
                 f"Converged to {100 * PTOL}% wrt current state posteriors.  Updating posteriors."
@@ -230,6 +236,9 @@ class CNA_inference:
             f"minimization finished with message={res.message} and best-fit CNA mixture params=\n{res.x}\n"
         )
 
+        return res
+
+    def plot(self, res):
         plot_rdr_baf_flat(
             "plots/final_rdr_baf_flat.pdf",
             self.rdr,
@@ -247,8 +256,6 @@ class CNA_inference:
             states_bag=self.emission_model.get_states_bag(res.x),
             title="Final state posteriors",
         )
-
-        return res
 
     def get_cna_mixture_bounds(self):
         # NB exp_read_depths > 0
@@ -276,4 +283,3 @@ class CNA_inference:
         msg += f"\nMax. frac. parameter diff. compared to last and current state posterior: {param_diff(last_params, new_params)}, {param_diff(params, new_params)}"
 
         logger.info(msg)
-B
