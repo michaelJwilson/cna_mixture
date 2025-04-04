@@ -97,14 +97,8 @@ class CNA_emission:
 
         return np.c_[state_read_depths / self.genome_coverage, bafs]
 
-    def cna_mixture_betabinom_update(self, params):
-        """
-        Evaluate log prob. under BetaBinom model.
-        Returns (# sample, # state) array.
-        """
-        xs, ns = self.xs, self.ns
-
-        _, _, bafs, baf_overdispersion = self.unpack_params(params)
+    @staticmethod
+    def cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion):
         state_alpha_betas = reparameterize_beta_binom(
             bafs,
             baf_overdispersion,
@@ -126,22 +120,26 @@ class CNA_emission:
                     result[row, col] = betabinom.logpmf(x, n, beta, alpha)
 
         return result, state_alpha_betas
-
-    def cna_mixture_nbinom_update(self, params):
+        
+    def cna_mixture_betabinom_update(self, params):
         """
-        Evaluate log prob. under NegativeBinom model.
-        Return (# sample, # state) array.
+        Evaluate log prob. under BetaBinom model.
+        Returns (# sample, # state) array.
         """
-        ks = self.ks
-        state_read_depths, rdr_overdispersion, _, _ = self.unpack_params(params)
+        xs, ns = self.xs, self.ns
+        _, _, bafs, baf_overdispersion = self.unpack_params(params)
 
-        # TODO does a non-linear transform in the cost trip the optimizer?
-        state_rs_ps = reparameterize_nbinom(
-            state_read_depths,
-            rdr_overdispersion,
-        )
+        return self.cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion)
 
-        if self.RUST_BACKEND:
+    @staticmethod
+    def cna_mixture_nbinom_eval(ks, state_read_depths, rdr_overdispersion):
+        # TODO does a non-linear transform in the cost trip the optimizer?                                                                                        
+	state_rs_ps = reparameterize_nbinom(
+	    state_read_depths,
+	    rdr_overdispersion,
+	)
+
+	if self.RUST_BACKEND:
             ks = np.ascontiguousarray(ks)
 
             rs = np.ascontiguousarray(state_rs_ps[:, 0].copy())
@@ -157,6 +155,16 @@ class CNA_emission:
                     result[row, col] = nbinom.logpmf(kk, rr, pp)
 
         return result, state_rs_ps
+                
+    def cna_mixture_nbinom_update(self, params):
+        """
+        Evaluate log prob. under NegativeBinom model.
+        Return (# sample, # state) array.
+        """
+        ks = self.ks
+        state_read_depths, rdr_overdispersion, _, _ = self.unpack_params(params)
+
+        return self.cna_mixture_nbinom_eval(ks, state_read_depths, rdr_overdispersion)
 
     def get_ln_state_emission(self, params):
         ln_state_posterior_betabinom, _ = self.cna_mixture_betabinom_update(params)
