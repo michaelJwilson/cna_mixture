@@ -59,7 +59,7 @@ class CNA_inference:
         self.num_segments = len(data)
         self.genome_coverage = genome_coverage
         self.initialize_mode = initialize_mode
-        
+
         if state_prior == "categorical":
             self.state_prior_model = CNA_categorical_prior
         elif state_prior == "markov":
@@ -68,6 +68,7 @@ class CNA_inference:
             msg = f"state prior model={state_prior} is not supported."
             raise ValueError(msg)
 
+        # NB state prior initializers log the type.
         self.state_prior_model = self.state_prior_model(
             self.num_segments,
             self.num_states,

@@ -27,22 +27,8 @@ class CNA_mixture_params:
         # NB RDR overdispersion.  Random between 1e-2 and 4e-2
         self.overdisp_phi = phi
 
-        # NB list of (baf, rdr) for k=4 states, without replacement.
-        integers = np.random.choice(
-            np.arange(3, 10), size=num_cna_states, replace=False
-        )
-        integers = np.sort(integers)
-
-        self.normal_state = [1.0, 0.5]
-        self.cna_states = [
-            [1.0 * int_sample, 1.0 / int_sample] for int_sample in integers
-        ]
-
-        self.cna_states = np.array([self.normal_state, *self.cna_states])
-        self.normal_state = np.array(self.normal_state)
-
-        self.__verify()
-
+        self.normal_state = np.array([1.0, 0.5])
+        
     def __verify(self):
         assert isinstance(
             self.cna_states, np.ndarray
@@ -64,6 +50,19 @@ class CNA_mixture_params:
             ]
         )
 
+    def initialize(self, ):
+        # NB list of (baf, rdr) for k=4 states, without replacement.                                                                                                                                             
+        integers = np.random.choice(
+            np.arange(3, 10), size=num_cna_states, replace=False
+        )
+
+        self.cna_states = [
+            [1.0 * int_sample, 1.0 / int_sample] for int_sample in np.sort(integers)
+        ]
+
+        self.cna_states = np.array([self.normal_state.tolist(), *self.cna_states])
+        self.__verify()
+        
     def dict_update(self, input_params_dict):
         """
         Update an instance of CNA_mixture_params to the input key: value dict.
