@@ -65,8 +65,7 @@ class CNA_sim:
         # self.genome_coverage = np.sum(self.data[:,2]) / self.num_segments
         
         self.genome_coverage = self.normal_genome_coverage
-        
-        
+                
     def realize_data(self):
         """
         Generate a realization (one seed only) for given configuration settings.
@@ -161,16 +160,16 @@ class CNA_sim:
         logger.info(f"Successfully saved sim. {self.num_sim} output to {output_dir}")
 
     @classmethod
-    def load(cls):
+    def load(cls, output_dir, num_sim):
         # TODO guard against missing/corrupted file.
         with open(f"{output_dir}/cna_sim_parameters.json", "r") as ff:
-            sim_params = json.load(ff)
+            params = json.load(ff)
 
-        data = np.loadtxt(f"{output_dir}/cna_sim_data.txt")
+        data = np.loadtxt(f"{output_dir}/cna_sim_data_{num_sim}.txt")
 
         logger.info(f"Successfully loaded sim. output from {output_dir}")
 
-        return CNA_sim(params=params, data=data)
+        return CNA_sim(num_sim=num_sim, params=params, data=data)
         
     @property
     def rdr(self):
