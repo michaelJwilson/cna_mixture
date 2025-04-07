@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 
@@ -5,10 +6,10 @@ import numpy as np
 from scipy.stats import betabinom, nbinom
 from rich.pretty import pprint
 
-
 from cna_mixture.encoding import onehot_encode_states
 from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
 from cna_mixture.transfer import CNA_transfer
+from cna_mixture.cna_emission import reparameterize_beta_binom, reparameterize_nbinom
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +164,8 @@ class CNA_sim:
         with open(f"{output_dir}/cna_sim_parameters.json", "w") as ff:
             json.dump(sim_params, ff, indent=4)
 
+        os.makedirs(f"{output_dir}/cna_sim_{self.sim_id}", exist_ok=True)
+            
         np.savetxt(
             f"{output_dir}/cna_sim_{self.sim_id}/cna_sim_data_{self.sim_id}.txt",
             self.data,
