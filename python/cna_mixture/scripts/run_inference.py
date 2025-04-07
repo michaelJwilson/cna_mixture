@@ -38,9 +38,9 @@ def run_inference(sim_dir, sim_id=0):
 
     os.makedirs(plots_dir, exist_ok=True)
 
-    cna_sim = CNA_sim.load(sim_dir, 0)
+    cna_sim = CNA_sim.load(sim_dir, sim_id)
     
-    fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat.pdf", cna_sim.rdr_baf)
+    fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat_{sim_id}.pdf", cna_sim.rdr_baf)
 
     # NB total number of states (inc. normal).
     cna_inf = CNA_inference(

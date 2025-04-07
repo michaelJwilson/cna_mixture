@@ -97,23 +97,24 @@ class CNA_inference:
 
     def initialize(self, **kwargs):
         """
-        Initialize state prior model and update state priors & emissions.
+        Initialize parameters, state prior model given said parameters &
+        update state priors & emissions.
         """
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         mixture_params = CNA_mixture_params(
             num_cna_states=self.num_states - 1, genome_coverage=self.genome_coverage
         )
 
+        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1. 
         if self.initialize_mode == "random":
-            # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
             mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
+
+        # NB Negative-Binomial derived read counts, b reads and snp covering reads.
         elif self.initialize_mode == "mixture_plusplus":
-            # NB Negative-Binomial derived read counts, b reads and snp covering reads.
             mixture_params.initialize_mixture_plusplus(
                 self.data["read_coverage"],
                 self.data["b_reads"],
                 self.data["snp_coverage"],
-                N=4,
             )
         else:
             raise ValueError(
@@ -188,10 +189,10 @@ class CNA_inference:
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
 
     # TODO rename post_mstep
-    def emstep(self, intermediate_result: OptimizeResult):
+    def post_mstep(self, intermediate_result: OptimizeResult):
         """
-        Callable after each M-step iteration of optimizer.
-        e.g. this approach benefits from 'conserving' Hessian.
+        Callable after each M-step iteration of optimizer.  e.g. this approach
+        benefits from 'conserving' Hessian.
         """
         # NB assumed convergence tolerance for *fractional* change in parameter.
         PTOL = 1.0e-3
@@ -263,7 +264,7 @@ class CNA_inference:
             method=self.optimizer,
             jac=self.jac,
             bounds=self.bounds,
-            callback=self.emstep,
+            callback=self.post_mstep,
             constraints=None,
             options={"disp": True, "maxiter": self.maxiter},
         )
