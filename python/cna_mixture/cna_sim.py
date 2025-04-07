@@ -35,6 +35,16 @@ def get_sim_params():
     }
 
 
+def get_sim_output_dtype():
+    return [
+        ("state", np.float64),
+        ("read_coverage", np.float64),
+        ("true_read_coverage", np.float64),
+        ("b_reads", np.float64),
+        ("snp_coverage", np.float64),
+    ]
+
+
 class CNA_sim:
     """
     A 1D genome simulation for a CNA markov model with NB/BB emission models.
@@ -75,6 +85,7 @@ class CNA_sim:
     def print(self):
         print(f"\nCNA_Sim({self.sim_id})=")
         pprint(self.params)
+        print(f"with data=\n{self.data}")
 
     def realize_data(self):
         """
@@ -134,15 +145,7 @@ class CNA_sim:
                 )
             )
 
-        dtype = [
-            ("state", np.float64),
-            ("read_coverage", np.float64),
-            ("true_read_coverage", np.float64),
-            ("b_reads", np.float64),
-            ("snp_coverage", np.float64),
-        ]
-
-        return np.array(result, dtype=dtype)
+        return np.array(result, dtype=get_sim_output_dtype())
 
     def save(self, output_dir):
         # BUG TODO
@@ -165,6 +168,7 @@ class CNA_sim:
             self.data,
             delimiter="\t",
             header=",".join(self.data.dtype.names),
+            fmt="%.6f",
         )
 
         logger.info(f"Successfully saved sim. {self.sim_id} output to {output_dir}")
@@ -175,11 +179,20 @@ class CNA_sim:
         with open(f"{output_dir}/cna_sim_parameters.json", "r") as ff:
             params = json.load(ff)
 
-        data = np.loadtxt(f"{output_dir}/cna_sim_{sim_id}/cna_sim_data_{sim_id}.txt")
+        data = np.loadtxt(
+            f"{output_dir}/cna_sim_{sim_id}/cna_sim_data_{sim_id}.txt", dtype=np.float64
+        )
+
+        # TODO UGH comprehension is slow
+        data = np.array([tuple(row) for row in data], dtype=get_sim_output_dtype())
+        
+        cna_sim = CNA_sim(sim_id=sim_id, params=params, data=data)
 
         logger.info(f"Successfully loaded sim. {sim_id} output from {output_dir}")
 
-        return CNA_sim(sim_id=sim_id, params=params, data=data)
+        cna_sim.print()
+
+        return cna_sim
 
     @property
     def rdr(self):

@@ -71,6 +71,8 @@ def plot_rdr_baf_flat(
 
     pl.savefig(fpath)
 
+    logger.info(f"Plotted rdr_baf_flat to {fpath}")
+
 
 def tophat_smooth(data, window_size):
     """
@@ -121,3 +123,5 @@ def plot_rdr_baf_genome(
         pl.title(title)
 
     pl.savefig(fpath)
+
+    logger.info(f"Plotted rdr_baf_genome to {fpath}")

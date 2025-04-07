@@ -39,11 +39,10 @@ def run_inference(sim_dir, sim_id=0):
     os.makedirs(plots_dir, exist_ok=True)
 
     cna_sim = CNA_sim.load(sim_dir, 0)
-    cna_sim.print()
     
-    """
     fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat.pdf", cna_sim.rdr_baf)
 
+    """
     # NB total number of states (inc. normal).
     cna_inf = CNA_inference(
         cna_sim.num_states,
@@ -65,7 +64,7 @@ def run_inference(sim_dir, sim_id=0):
 
     cna_inf.plot(plots_dir, res.x, "final", "Final state posteriors")
     """
-    logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
+    logger.info(f"Done ({time.time() - start:.3f} seconds).\n\n")
 
 
 def main():
