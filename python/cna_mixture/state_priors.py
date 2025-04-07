@@ -20,7 +20,7 @@ class CNA_categorical_prior:
         self.num_segments = num_segments
         self.num_states = num_states
         self.production_mode = production_mode
-        
+
     def __str__(self):
         return f"lambdas={np.exp(self.ln_lambdas)}"
 

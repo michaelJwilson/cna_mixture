@@ -128,6 +128,9 @@ class CNA_mixture_params:
             
         self.cna_states = np.vstack([self.normal_state, samples[idx]])
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
+
+        # TODO return cost.
+        return np.inf
         
     def initialize_mixture_plusplus(self, ks, xs, ns, N=4, validate=False):
         """
