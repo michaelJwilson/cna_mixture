@@ -19,23 +19,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def run_sim(output_dir, plots_dir, num_sims=1):
+def run_sim(output_dir, num_sims=1):
     start = time.time()
-
-    # NB ensure the directory exists
-    os.makedirs(output_dir, exist_ok=True)
-
+    
     for num_sim in range(num_sims):
-        cna_sim = CNA_sim()
+        # NB ensure the directory exists
+        os.makedirs(f"{output_dir}/cna_sim_{num_sim}/plots", exist_ok=True)
+        
+        cna_sim = CNA_sim(num_sim=num_sim)
         cna_sim.save(output_dir)
 
-        # cna_sim.plot_realization_true_flat(f"{plots_dir}/truth_rdr_baf_flat.pdf")
-        # cna_sim.plot_realization_true_genome(f"{plots_dir}/truth_rdr_baf_genome.pdf")
+        cna_sim.plot_realization_true_flat(f"{output_dir}/cna_sim_{num_sim}/plots/truth_rdr_baf_flat_{num_sim}.pdf")
+        cna_sim.plot_realization_true_genome(f"{output_dir}/cna_sim_{num_sim}/plots/truth_rdr_baf_genome_{num_sim}.pdf")
 
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
 
 def main():
+    # NB python python/cna_mixture/scripts/run_sim.py --output-dir ~/scratch/cna_mixture/sims/ --num_sims 2
     parser = argparse.ArgumentParser(description="Create CNA simulation.")
     parser.add_argument(
         "--output-dir",
@@ -45,15 +46,15 @@ def main():
         help="Directory to save the simulation results.",
     )
     parser.add_argument(
-        "--plots-dir",
-        type=str,
-        default="./plots",
-        help="Directory to save the validation plots.",
+        "--num_sims",
+        type=int,
+        default=1,
+        help="Number of simulations to generate.",
     )
 
     args = parser.parse_args()
 
-    run_sim(args.output_dir, args.plots_dir)
+    run_sim(args.output_dir, args.num_sims)
 
 
 if __name__ == "__main__":

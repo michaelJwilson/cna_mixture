@@ -161,7 +161,7 @@ class CNA_sim:
             json.dump(sim_params, ff, indent=4)
 
         np.savetxt(
-            f"{output_dir}/cna_sim_data_{self.num_sim}.txt",
+            f"{output_dir}/cna_sim_{self.num_sim}/cna_sim_data_{self.num_sim}.txt",
             self.data,
             delimiter="\t",
             header=",".join(self.data.dtype.names),
