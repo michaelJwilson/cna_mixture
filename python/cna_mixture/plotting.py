@@ -21,7 +21,7 @@ def ln_probs_to_rgb(ln_probs):
             if ii <= 2:
                 rgb[:, -(1 + ii)] = np.exp(ln_probs[:, -(1 + ii)])
             else:
-                logger.warning(f"Failed to map all of states to RGB when plotting")
+                logger.warning(f"Failed to map all of {ln_probs.shape[1]} states to RGB when plotting")
                 break
                 
         cmap = None
