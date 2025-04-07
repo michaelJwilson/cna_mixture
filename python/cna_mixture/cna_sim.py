@@ -39,23 +39,42 @@ class CNA_sim:
     A 1D genome simulation for a CNA markov model with NB/BB emission models.
     """
 
-    def __init__(self):
+    def __init__(self, params=None, data=None):
         super().__init__()
 
-        for key, value in get_sim_params().items():
+        self.params = params if params is not None else get_sim_params()
+        
+        for key, value in self.params.items():
             setattr(self, key, value)
 
         self.transfer = CNA_transfer(self.jump_rate, self.num_states)
-        self.realize()
 
-    def realize(self):
+        if data is None:
+            # NB guard against inconsistent data/params.
+            assert params is None, f"Parameters must not be provided when generating new data"
+            
+            self.data = self.realize_data()
+        else:
+            assert params is not None, f"Parameters are required when loading pre-generated data."
+            
+            self.data = data
+            
+        # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage                                                                                                            
+        # TODO? biases RDR estimates, particularly if many CNAs.                                                                                                                                   
+        #                                                                                                                                                                                           
+        # self.genome_coverage = np.sum(self.data[:,2]) / self.num_segments
+        
+        self.genome_coverage = self.normal_genome_coverage
+        
+        
+    def realize_data(self):
         """
         Generate a realization (one seed only) for given configuration settings.
         """
         logger.info(f"Simulating copy number states:\n{self.cna_states}.")
 
         # NB SNP-covering reads per segment.
-        self.snp_coverages = np.random.randint(
+        snp_coverages = np.random.randint(
             self.min_snp_coverage, self.max_snp_coverage, self.num_segments
         )
 
@@ -79,11 +98,11 @@ class CNA_sim:
 
             # NB simulate variation in realized BAF according to betabinom model;
             #    b_reads have an expected BAF, as encoded by beta.
-            b_reads = betabinom.rvs(self.snp_coverages[ii], beta, alpha)
+            b_reads = betabinom.rvs(snp_coverages[ii], beta, alpha)
 
             # NB we expect for baf ~0.5, some baf estimate to NOT be the minor allele,
             #    i.e. to occur at a rate > 0.5;
-            baf = b_reads / self.snp_coverages[ii]
+            baf = b_reads / snp_coverages[ii]
 
             # NB stochastic, given rdr derived from state sampling.
             true_read_coverage = rdr * self.normal_genome_coverage
@@ -102,7 +121,7 @@ class CNA_sim:
                     read_coverage,
                     true_read_coverage,  # NB not an observable, to be inferrred.
                     b_reads,
-                    self.snp_coverages[ii],
+                    snp_coverages[ii],
                 )
             )
 
@@ -114,25 +133,16 @@ class CNA_sim:
             ("snp_coverage", np.float64),
         ]
 
-        self.data = np.array(result, dtype=dtype)
-
-        # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage
-        # TODO? biases RDR estimates, particularly if many CNAs.
-        #
-        # self.genome_coverage = np.sum(self.data[:,2]) / self.num_segments
-
-        self.genome_coverage = self.normal_genome_coverage
+        return np.array(result, dtype=dtype)
 
     def save(self, output_dir):
-        # TODO save
-        # - self.data
-
+        # BUG TODO 
         numpy_state = np.random.get_state()
 
-        sim_params = get_sim_params()
+        sim_params = self.params.copy()
         sim_params["genome_coverage"] = self.genome_coverage
-        sim_params["numpy_seed"] = numpy_state[1][0]
-
+        sim_params["numpy_seed"] = int(numpy_state[1][0])
+        
         sim_params = {
             key: value.tolist() if isinstance(value, np.ndarray) else value
             for key, value in sim_params.items()
@@ -150,6 +160,18 @@ class CNA_sim:
 
         logger.info(f"Successfully saved sim. output to {output_dir}")
 
+    @classmethod
+    def load(cls):
+        # TODO guard against missing/corrupted file.
+        with open(f"{output_dir}/cna_sim_parameters.json", "r") as ff:
+            sim_params = json.load(ff)
+
+        data = np.loadtxt(f"{output_dir}/cna_sim_data.txt")
+
+        logger.info(f"Successfully loaded sim. output from {output_dir}")
+
+        return CNA_sim(params=params, data=data)
+        
     @property
     def rdr(self):
         return self.data["read_coverage"] / self.genome_coverage
