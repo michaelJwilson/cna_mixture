@@ -18,7 +18,8 @@ dependencies = [
 ]
 
 [project.scripts]
-run_model = "cna_mixture.scripts.run_model:main"
+run_sim = "cna_mixture.scripts.run_sim:main"
+run_inference = "cna_mixture.scripts.run_inference:main"
 
 [tool.hatch.build.targets.sdist]
 include = ["python/cna_mixture"]
