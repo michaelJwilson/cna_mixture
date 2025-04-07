@@ -5,7 +5,7 @@ import numpy as np
 from scipy.stats import betabinom, nbinom
 from rich.pretty import pprint
 
-from cna_mixture.cna_emission import reparameterize_beta_binom, reparameterize_nbinom
+
 from cna_mixture.encoding import onehot_encode_states
 from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
 from cna_mixture.transfer import CNA_transfer
@@ -40,10 +40,10 @@ class CNA_sim:
     A 1D genome simulation for a CNA markov model with NB/BB emission models.
     """
 
-    def __init__(self, num_sim=0, params=None, data=None):
+    def __init__(self, sim_id=0, params=None, data=None):
         super().__init__()
 
-        self.num_sim = num_sim
+        self.sim_id = sim_id
         self.params = params if params is not None else get_sim_params()
 
         for key, value in self.params.items():
@@ -73,7 +73,7 @@ class CNA_sim:
         self.genome_coverage = self.normal_genome_coverage
 
     def print(self):
-        print(f"\nCNA_Sim({self.num_sim})=")
+        print(f"\nCNA_Sim({self.sim_id})=")
         pprint(self.params)
 
     def realize_data(self):
@@ -161,25 +161,25 @@ class CNA_sim:
             json.dump(sim_params, ff, indent=4)
 
         np.savetxt(
-            f"{output_dir}/cna_sim_{self.num_sim}/cna_sim_data_{self.num_sim}.txt",
+            f"{output_dir}/cna_sim_{self.sim_id}/cna_sim_data_{self.sim_id}.txt",
             self.data,
             delimiter="\t",
             header=",".join(self.data.dtype.names),
         )
 
-        logger.info(f"Successfully saved sim. {self.num_sim} output to {output_dir}")
+        logger.info(f"Successfully saved sim. {self.sim_id} output to {output_dir}")
 
     @classmethod
-    def load(cls, output_dir, num_sim):
+    def load(cls, output_dir, sim_id):
         # TODO guard against missing/corrupted file.
         with open(f"{output_dir}/cna_sim_parameters.json", "r") as ff:
             params = json.load(ff)
 
-        data = np.loadtxt(f"{output_dir}/cna_sim_data_{num_sim}.txt")
+        data = np.loadtxt(f"{output_dir}/cna_sim_{sim_id}/cna_sim_data_{sim_id}.txt")
 
-        logger.info(f"Successfully loaded sim. output from {output_dir}")
+        logger.info(f"Successfully loaded sim. {sim_id} output from {output_dir}")
 
-        return CNA_sim(num_sim=num_sim, params=params, data=data)
+        return CNA_sim(sim_id=sim_id, params=params, data=data)
 
     @property
     def rdr(self):

@@ -30,16 +30,18 @@ TODOs:
 
 """
 
-def run_model(plots_dir):
+
+def run_inference(sim_dir, sim_id=0):
     start = time.time()
 
-    # NB ensure the directory exists    
-    os.makedirs(plots_dir, exist_ok=True)
-    
-    cna_sim = CNA_sim()
-    cna_sim.plot_realization_true_flat(f"{plots_dir}/truth_rdr_baf_flat.pdf")
-    cna_sim.plot_realization_true_genome(f"{plots_dir}/truth_rdr_baf_genome.pdf")
+    plots_dir = f"{sim_dir}/cna_sim_{sim_id}/plots/"
 
+    os.makedirs(plots_dir, exist_ok=True)
+
+    cna_sim = CNA_sim.load(sim_dir, 0)
+    cna_sim.print()
+    
+    """
     fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat.pdf", cna_sim.rdr_baf)
 
     # NB total number of states (inc. normal).
@@ -62,22 +64,30 @@ def run_model(plots_dir):
     res = cna_inf.fit()
 
     cna_inf.plot(plots_dir, res.x, "final", "Final state posteriors")
-
+    """
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Run CNA simulation and inference.")
+    # NB python python/cna_mixture/scripts/run_inference.py --sim-dir ~/scratch/cna_mixture/sims/ --sim_id=0
+    parser = argparse.ArgumentParser(description="Run CNA inference.")
     parser.add_argument(
-        "--plots-dir",
+        "--sim-dir",
         type=str,
         default="plots",
-        help="Directory to save the plots (default: 'plots').",
+        help="Directory to simulation outputs",
+    )
+    parser.add_argument(
+        "--sim-id",
+        type=int,
+        default=0,
+        help="Simulation ID",
     )
 
     args = parser.parse_args()
 
-    run_model(args.plots_dir)
+    run_inference(args.sim_dir, args.sim_id)
+
 
 if __name__ == "__main__":
     main()
-    
