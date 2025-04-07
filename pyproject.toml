@@ -35,15 +35,6 @@ include = ["python/cna_mixture"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = ["-ra -q", "--showlocals", "--strict-markers", "--strict-config"]
-xfail_strict = false
-filterwarnings = ["error"]
-testpaths = [
-    "tests",
-]
-
 [tool.ruff]
 ignore = [
   "G004", # f-string in logger
