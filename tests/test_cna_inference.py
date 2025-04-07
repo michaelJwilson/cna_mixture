@@ -78,7 +78,7 @@ def test_cna_inference_grad(state_prior):
         #             numerical is zeros => no dependence?  killed by posterior?
         npt.assert_allclose(approx_grad, grad, rtol=1.0, atol=7.7)
 
-def test_cna_inference_mixture_initialize(num_trials=45):
+def test_cna_inference_mixture_initialize(num_trials=50):
     modes = ["random", "mixture_plusplus"]
 
     cna_sim = CNA_sim()
@@ -89,7 +89,7 @@ def test_cna_inference_mixture_initialize(num_trials=45):
             cna_sim.num_states,
             cna_sim.genome_coverage,
             cna_sim.data,
-            initialize_mode="mixture_plusplus",
+            initialize_mode=initialize_mode,
         )
         
         interim = []
@@ -97,10 +97,13 @@ def test_cna_inference_mixture_initialize(num_trials=45):
         for initialization in range(num_trials):
             cna_inf.initialize()
 
-            # res = cna_inf.em_cost(cna_inf.initial_params)
-            res = cna_inf.fit().fun
+            # NB initial objective
+            # objective = cna_inf.em_cost(cna_inf.initial_params)
+
+            # NB final objective
+            objective = cna_inf.fit().fun
             
-            interim.append(res)
+            interim.append(objective)
 
         result.append(interim)
     
@@ -110,6 +113,8 @@ def test_cna_inference_mixture_initialize(num_trials=45):
     result = result[~invalid]
 
     print(f"\nFound {100. * invalid.mean()}% invalid with good results:\n{result}")
+
+    mins = np.minimum.accumulate(result, axis=0)
     
     result = np.cumsum(result, axis=0)
 
@@ -118,10 +123,18 @@ def test_cna_inference_mixture_initialize(num_trials=45):
 
     pl.clf()
 
-    for ii in range(result.shape[1]):
-        pl.plot(trials, result[:, ii], label=modes[ii])
+    # color_cycle = plt.gca().prop_cycler
+    # colors = [item['color'] for item in color_cycle]
 
-    pl.xlabel("Realizations")
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    
+    for ii in range(result.shape[1]):
+        pl.plot(trials, result[:, ii], alpha=0.25, c=colors[ii])
+        pl.plot(trials, mins[:, ii], label=modes[ii], c=colors[ii])
+        
+    pl.ylim(100_000, 200_000)
+        
+    pl.xlabel("Initializations")
     pl.ylabel("EM cost")
     pl.legend(frameon=False)
     plt.tight_layout()

@@ -108,7 +108,7 @@ class CNA_mixture_params:
 
         return -cost
         
-    def initialize_random_nonnormal_rdr_baf(self, rdr_baf, threshold=0.05, non_normal=False):
+    def initialize_random_nonnormal_rdr_baf(self, rdr_baf, threshold=0.05, non_normal=True):
         """
         Given an instance of (RDR, BAF) data, update the mixture params
         to be a random sample of the *non-normal* data, i.e. a copy number
@@ -125,7 +125,7 @@ class CNA_mixture_params:
         self.cna_states = np.vstack([self.normal_state, samples[idx]])
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
         
-    def initialize_mixture_plusplus(self, ks, xs, ns, N=4, validate=True):
+    def initialize_mixture_plusplus(self, ks, xs, ns, N=4, validate=False):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.

@@ -43,6 +43,7 @@ class CNA_categorical_prior:
             self.ln_lambdas - ln_norm, (self.num_segments, len(self.ln_lambdas))
         ).copy()
 
+    # TODO outlier masking?
     def get_ln_state_posteriors(self, ln_state_emission):
         ln_state_prior = self.get_ln_state_priors()
 
@@ -133,6 +134,7 @@ class CNA_markov_prior:
             np.zeros(shape=(self.num_segments, self.num_states)),
         )
 
+    # TODO outlier masking?
     def get_ln_state_posteriors(self, ln_state_emission, *args, **kwargs):
         self.ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
         self.ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
