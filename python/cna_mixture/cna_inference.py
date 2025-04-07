@@ -59,7 +59,7 @@ class CNA_inference:
         self.num_segments = len(data)
         self.genome_coverage = genome_coverage
         self.initialize_mode = initialize_mode
-
+        
         if state_prior == "categorical":
             self.state_prior_model = CNA_categorical_prior
         elif state_prior == "markov":
@@ -188,7 +188,6 @@ class CNA_inference:
         self.state_prior_model.update(self.ln_state_posteriors)
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
 
-    # TODO rename post_mstep
     def post_mstep(self, intermediate_result: OptimizeResult):
         """
         Callable after each M-step iteration of optimizer.  e.g. this approach

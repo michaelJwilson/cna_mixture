@@ -13,6 +13,10 @@ logger = logging.getLogger()
 
 class CNA_categorical_prior:
     def __init__(self, num_segments, num_states):
+        logger.info(
+            f"Initializing CNA_categorical_prior for num. segments, num. states = {num_segments}, {num_states} respectively."
+        )
+
         self.num_segments = num_segments
         self.num_states = num_states
 
@@ -93,6 +97,10 @@ def backward(ln_start_prior, transfer, ln_state_emission):
 
 class CNA_markov_prior:
     def __init__(self, num_segments, num_states):
+        logger.info(
+            f"Initializing CNA_markov_prior for num. segments, num. states = {num_segments}, {num_states} respectively."
+        )
+
         self.num_segments = num_segments
         self.num_states = num_states
 
@@ -100,13 +108,15 @@ class CNA_markov_prior:
         if "ln_start_prior" in kwargs:
             self.ln_start_prior = kwargs["ln_start_prior"]
         else:
-            self.ln_start_prior = np.log((1.0 / self.num_states) * np.ones(self.num_states))
+            self.ln_start_prior = np.log(
+                (1.0 / self.num_states) * np.ones(self.num_states)
+            )
 
         if "jump_rate" in kwargs:
-            jump_rate=kwargs["jump_rate"]
+            jump_rate = kwargs["jump_rate"]
         else:
-            jump_rate=0.1
-            
+            jump_rate = 0.1
+
         self.transfer = CNA_transfer(
             jump_rate=jump_rate, num_states=self.num_states
         ).transfer_matrix

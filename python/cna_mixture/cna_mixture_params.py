@@ -118,6 +118,8 @@ class CNA_mixture_params:
             samples = rdr_baf[np.abs(rdr_baf[:, 0] - 1.0) > threshold]
         else:
             samples = rdr_baf.copy()
+
+        logger.info(f"Initializing CNA mixture params with random_rdr_baf with non_normal={non_normal}")
             
         xx = np.arange(len(samples))
         idx = random.choice(xx, size=self.num_states - 1, replace=False)
@@ -130,6 +132,8 @@ class CNA_mixture_params:
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.
         """
+        logger.info(f"Initializing CNA mixture params with {N}-greedy CNA_mixture++")
+        
         idx = np.arange(len(ks))
         samples = np.c_[ks, xs, ns]
 
