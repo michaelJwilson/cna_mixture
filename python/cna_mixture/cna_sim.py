@@ -1,3 +1,4 @@
+import json
 import logging
 
 import numpy as np
@@ -121,6 +122,23 @@ class CNA_sim:
 
         self.genome_coverage = self.normal_genome_coverage
 
+    def save(self, output_dir):
+        # TODO save
+        # - self.data
+
+        sim_params = get_sim_params()
+        sim_params["genome_coverage"] = self.genome_coverage
+        
+        with open(f"{output_dir}/cna_sim_parameters.json", "w") as ff:
+            json.dump(sim_params, ff, indent=4)
+
+        np.savetxt(
+            f"{output_dir}/cna_sim_data.txt", 
+            self.data, 
+            delimiter='\t', 
+            header=','.join(self.data.dtype.names)
+        )
+            
     @property
     def rdr(self):
         return self.data["read_coverage"] / self.genome_coverage
