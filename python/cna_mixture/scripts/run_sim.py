@@ -25,8 +25,8 @@ def run_sim(output_dir, plots_dir):
     # NB ensure the directory exists
     os.makedirs(output_dir, exist_ok=True)
 
-    # cna_sim = CNA_sim()
-    # cna_sim.save(output_dir)
+    cna_sim = CNA_sim()
+    cna_sim.save(output_dir)
 
     # cna_sim.plot_realization_true_flat(f"{plots_dir}/truth_rdr_baf_flat.pdf")
     # cna_sim.plot_realization_true_genome(f"{plots_dir}/truth_rdr_baf_genome.pdf")
@@ -52,7 +52,7 @@ def main():
 
     args = parser.parse_args()
 
-    run_sim(args.output_dir, args.plot_dir)
+    run_sim(args.output_dir, args.plots_dir)
 
 
 if __name__ == "__main__":

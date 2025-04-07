@@ -38,6 +38,7 @@ class CNA_sim:
     """
     A 1D genome simulation for a CNA markov model with NB/BB emission models.
     """
+
     def __init__(self):
         super().__init__()
 
@@ -126,19 +127,29 @@ class CNA_sim:
         # TODO save
         # - self.data
 
+        numpy_state = np.random.get_state()
+
         sim_params = get_sim_params()
         sim_params["genome_coverage"] = self.genome_coverage
-        
+        sim_params["numpy_seed"] = numpy_state[1][0]
+
+        sim_params = {
+            key: value.tolist() if isinstance(value, np.ndarray) else value
+            for key, value in sim_params.items()
+        }
+
         with open(f"{output_dir}/cna_sim_parameters.json", "w") as ff:
             json.dump(sim_params, ff, indent=4)
 
         np.savetxt(
-            f"{output_dir}/cna_sim_data.txt", 
-            self.data, 
-            delimiter='\t', 
-            header=','.join(self.data.dtype.names)
+            f"{output_dir}/cna_sim_data.txt",
+            self.data,
+            delimiter="\t",
+            header=",".join(self.data.dtype.names),
         )
-            
+
+        logger.info(f"Successfully saved sim. output to {output_dir}")
+
     @property
     def rdr(self):
         return self.data["read_coverage"] / self.genome_coverage
