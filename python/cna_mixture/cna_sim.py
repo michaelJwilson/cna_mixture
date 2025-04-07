@@ -179,20 +179,22 @@ class CNA_sim:
     @classmethod
     def load(cls, output_dir, sim_id):
         # TODO guard against missing/corrupted file.
-        with open(f"{output_dir}/cna_sim_parameters.json", "r") as ff:
+        params_path = f"{output_dir}/cna_sim_parameters.json"
+        
+        with open(params_path, "r") as ff:
             params = json.load(ff)
 
-        data = np.loadtxt(
-            f"{output_dir}/cna_sim_{sim_id}/cna_sim_data_{sim_id}.txt", dtype=np.float64
-        )
+        logger.info(f"Loading simulation parameters @ {params_path}")
+            
+        data_path = f"{output_dir}/cna_sim_{sim_id}/cna_sim_data_{sim_id}.txt"            
+        data = np.loadtxt(data_path, dtype=np.float64)
+
+        logger.info(f"Loading simulation data @ {data_path}")
 
         # TODO UGH comprehension is slow
         data = np.array([tuple(row) for row in data], dtype=get_sim_output_dtype())
         
         cna_sim = CNA_sim(sim_id=sim_id, params=params, data=data)
-
-        logger.info(f"Successfully loaded sim. {sim_id} output from {output_dir}")
-
         cna_sim.print()
 
         return cna_sim
