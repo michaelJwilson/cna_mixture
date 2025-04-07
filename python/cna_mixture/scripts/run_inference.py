@@ -42,7 +42,6 @@ def run_inference(sim_dir, sim_id=0):
     
     fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat.pdf", cna_sim.rdr_baf)
 
-    """
     # NB total number of states (inc. normal).
     cna_inf = CNA_inference(
         cna_sim.num_states,
@@ -50,7 +49,7 @@ def run_inference(sim_dir, sim_id=0):
         cna_sim.data,
         state_prior="categorical",
     )
-    
+
     cna_inf.initialize()
 
     cna_inf.plot(
@@ -63,7 +62,7 @@ def run_inference(sim_dir, sim_id=0):
     res = cna_inf.fit()
 
     cna_inf.plot(plots_dir, res.x, "final", "Final state posteriors")
-    """
+
     logger.info(f"Done ({time.time() - start:.3f} seconds).\n\n")
 
 
