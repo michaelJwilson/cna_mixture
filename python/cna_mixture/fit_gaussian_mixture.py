@@ -1,4 +1,5 @@
 import logging
+import warnings
 
 import numpy as np
 from sklearn.mixture import GaussianMixture
@@ -43,11 +44,16 @@ def fit_gaussian_mixture(
 
     logger.info(f"Fit Gaussian mixture means:\n{means}")
 
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+
+        ln_state_posteriors=np.log(onehot_encode_states(decoded_states))
+        
     plot_rdr_baf_flat(
         fpath,
         samples[:, 0],
         samples[:, 1],
-        ln_state_posteriors=np.log(onehot_encode_states(decoded_states)),
+        ln_state_posteriors=ln_state_posteriors,
         states_bag=means,
         title=r"Best-fit Gaussian Mixture Model samples",
     )

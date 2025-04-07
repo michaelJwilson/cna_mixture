@@ -31,7 +31,7 @@ TODOs:
 """
 
 
-def run_inference(sim_dir, sim_id=0):
+def run_inference(sim_dir, sim_id, state_prior, initialize_mode):
     start = time.time()
 
     plots_dir = f"{sim_dir}/cna_sim_{sim_id}/plots/"
@@ -47,7 +47,8 @@ def run_inference(sim_dir, sim_id=0):
         cna_sim.num_states,
         cna_sim.genome_coverage,
         cna_sim.data,
-        state_prior="categorical",
+        state_prior=state_prior,
+        initialize_mode=initialize_mode,
     )
 
     cna_inf.initialize()
@@ -67,7 +68,7 @@ def run_inference(sim_dir, sim_id=0):
 
 
 def main():
-    # NB python python/cna_mixture/scripts/run_inference.py --sim-dir ~/scratch/cna_mixture/sims/ --sim-id=0
+    # NB python python/cna_mixture/scripts/run_inference.py --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0
     parser = argparse.ArgumentParser(description="Run CNA inference.")
     parser.add_argument(
         "--sim-dir",
@@ -81,10 +82,22 @@ def main():
         default=0,
         help="Simulation ID",
     )
+    parser.add_argument(
+        "--state-prior",
+        type=str,
+        default="categorical",
+        help="Assumed model for state priors."
+    )
+    parser.add_argument(
+	"--initialize-mode",
+        type=str,
+        default="random",
+        help="Assumed model for initialization of state parameters."
+    )
 
     args = parser.parse_args()
 
-    run_inference(args.sim_dir, args.sim_id)
+    run_inference(args.sim_dir, args.sim_id, args.state_prior, args.initialize_mode)
 
 
 if __name__ == "__main__":

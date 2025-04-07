@@ -121,7 +121,7 @@ class CNA_inference:
                 f"{initialize_mode} style initialization is not supported."
             )
 
-        logger.info(f"Initializing CNA states:\n{mixture_params.cna_states}\n")
+        logger.info(f"Initialized CNA states:\n{mixture_params.cna_states}\n")
 
         self.initial_params = mixture_params.params
         self.last_params, self.params = None, self.initial_params
@@ -299,8 +299,11 @@ class CNA_inference:
         )
 
         msg = f"Iteration {nit}:  Minimized cost to value: {cost:.6f} for:\n"
-        msg += f"{self.state_prior_model}\nread_depths={state_read_depths}\nread_depth_overdispersion={rdr_overdispersion}\n"
-        msg += f"bafs={bafs}\nbaf_overdispersion={baf_overdispersion}"
-        msg += f"\nMax. frac. parameter diff. compared to last and current state posterior: {param_diff(last_params, new_params)}, {param_diff(params, new_params)}"
+        msg += f"\t{self.state_prior_model}\n"
+        msg += f"\tread_depths={state_read_depths}\n"
+        msg += f"\tread_depth_overdispersion={rdr_overdispersion}\n"
+        msg += f"\tbafs={bafs}\n"
+        msg += f"\tbaf_overdispersion={baf_overdispersion}\n"
+        msg += f"\tMax. frac. parameter diff. compared to last and current state posterior: {param_diff(last_params, new_params)}, {param_diff(params, new_params)}"
 
         logger.info(msg)
