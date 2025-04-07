@@ -12,21 +12,29 @@ logger = logging.getLogger()
 
 
 class CNA_categorical_prior:
-    def __init__(self, num_segments, num_states):
+    def __init__(self, num_segments, num_states, production_mode=True):
         logger.info(
             f"Initializing CNA_categorical_prior for num. segments, num. states = {num_segments}, {num_states} respectively."
         )
 
         self.num_segments = num_segments
         self.num_states = num_states
-
+        self.production_mode = production_mode
+        
     def __str__(self):
         return f"lambdas={np.exp(self.ln_lambdas)}"
 
     def ln_lambdas_equal(self):
+        """
+        Initialize categorical prior probs. (lambdas) to be equal.
+        """
         self.ln_lambdas = np.log((1.0 / self.num_states) * np.ones(self.num_states))
 
     def ln_lambdas_closest(self, rdr_baf, cna_states):
+        """
+        Initialize categorical prior probs. (lambdas) according to
+        an assignment of each (RDR, BAF) point to it's nearest state.
+        """
         assert len(cna_states) == self.num_states
 
         decoded_states = assign_closest(rdr_baf, cna_states)
@@ -47,23 +55,32 @@ class CNA_categorical_prior:
             self.ln_lambdas - ln_norm, (self.num_segments, len(self.ln_lambdas))
         ).copy()
 
-    # TODO outlier masking?
     def get_ln_state_posteriors(self, ln_state_emission):
+        """
+        Given the log. state emission probability, return the ln state
+        posteriors.
+        """
         ln_state_prior = self.get_ln_state_priors()
 
         return normalize_ln_probs(ln_state_emission + ln_state_prior)
 
     def initialize(self, **kwargs):
+        logger.info(
+            f"Initializing Categorical state prior with lambdas defined by nearest state assignment"
+        )
+
         self.ln_lambdas_closest(kwargs["rdr_baf"], kwargs["cna_states"])
 
-    def update(self, ln_state_posteriors):
+    def update(self, ln_state_posteriors, production=False):
         """
-        Given updated ln_state_posteriors, calculate the updated ln_lambdas.
+        Given updated ln_state_posteriors, calculate the updated ln_lambdas for a
+        Categorical model.
         """
         assert ln_state_posteriors.ndim == 2
 
-        # HACK *slow* guard against being passed probabilities, instead of log probs.
-        assert np.all(ln_state_posteriors <= 0.0)
+        # NB *slow* guard against being passed probabilities, instead of log probs.
+        if not self.production_mode:
+            assert np.all(ln_state_posteriors <= 0.0)
 
         self.ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
             ln_state_posteriors

@@ -18,7 +18,9 @@ class CNA_mixture_params:
         Initialize an instance of the class with random values in the assumed bounds.
         """
         # NB normal state is treated independently
-        self.num_states = 1 + num_cna_states
+        self.num_cna_states = num_cna_states
+        self.num_states = 1 + self.num_cna_states
+        
         self.genome_coverage = genome_coverage
 
         # NB BAF overdispersion.  Random between 25. and 55.
@@ -28,6 +30,7 @@ class CNA_mixture_params:
         self.overdisp_phi = phi
 
         self.normal_state = np.array([1.0, 0.5])
+        self.cna_states = None
         
     def __verify(self):
         assert isinstance(
@@ -50,10 +53,10 @@ class CNA_mixture_params:
             ]
         )
 
-    def initialize(self, ):
+    def initialize(self):
         # NB list of (baf, rdr) for k=4 states, without replacement.                                                                                                                                             
         integers = np.random.choice(
-            np.arange(3, 10), size=num_cna_states, replace=False
+            np.arange(3, 10), size=self.num_cna_states, replace=False
         )
 
         self.cna_states = [

@@ -56,6 +56,7 @@ class CNA_inference:
         self.maxiter = maxiter
         self.optimizer = optimizer
         self.num_states = num_states
+        self.num_cna_states = num_states - 1.
         self.num_segments = len(data)
         self.genome_coverage = genome_coverage
         self.initialize_mode = initialize_mode
@@ -103,7 +104,7 @@ class CNA_inference:
         """
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         mixture_params = CNA_mixture_params(
-            num_cna_states=self.num_states - 1, genome_coverage=self.genome_coverage
+            num_cna_states=self.num_cna_states, genome_coverage=self.genome_coverage
         )
 
         # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1. 
