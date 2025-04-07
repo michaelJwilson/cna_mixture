@@ -51,7 +51,9 @@ def test_cna_sim_plot(cna_sim, tmp_path):
     cna_sim.plot_realization_true_flat(tmp_path)
 
 
-def test_cna_sim_save(cna_sim, tmp_path):
+def test_cna_sim_save_and_load(cna_sim, tmp_path):
     cna_sim.save(tmp_path)
-
-    loaded_cna_sim = CNA_sim.load(tmp_path, 0)
+    
+    cna_sim = CNA_sim.load(tmp_path, 0)
+    cna_sim.print()
+    

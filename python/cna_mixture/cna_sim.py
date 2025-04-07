@@ -3,6 +3,7 @@ import logging
 
 import numpy as np
 from scipy.stats import betabinom, nbinom
+from rich.pretty import pprint
 
 from cna_mixture.cna_emission import reparameterize_beta_binom, reparameterize_nbinom
 from cna_mixture.encoding import onehot_encode_states
@@ -65,7 +66,11 @@ class CNA_sim:
         # self.genome_coverage = np.sum(self.data[:,2]) / self.num_segments
         
         self.genome_coverage = self.normal_genome_coverage
-                
+
+    def print(self):
+        print(f"\nCNA_Sim({self.num_sim})=")
+        pprint(self.params)
+        
     def realize_data(self):
         """
         Generate a realization (one seed only) for given configuration settings.
