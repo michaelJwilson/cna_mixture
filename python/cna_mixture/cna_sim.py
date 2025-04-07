@@ -38,10 +38,10 @@ class CNA_sim:
     """
     A 1D genome simulation for a CNA markov model with NB/BB emission models.
     """
-
-    def __init__(self, params=None, data=None):
+    def __init__(self, num_sim=0, params=None, data=None):
         super().__init__()
 
+        self.num_sim = num_sim
         self.params = params if params is not None else get_sim_params()
         
         for key, value in self.params.items():
@@ -152,13 +152,13 @@ class CNA_sim:
             json.dump(sim_params, ff, indent=4)
 
         np.savetxt(
-            f"{output_dir}/cna_sim_data.txt",
+            f"{output_dir}/cna_sim_data_{self.num_sim}.txt",
             self.data,
             delimiter="\t",
             header=",".join(self.data.dtype.names),
         )
 
-        logger.info(f"Successfully saved sim. output to {output_dir}")
+        logger.info(f"Successfully saved sim. {self.num_sim} output to {output_dir}")
 
     @classmethod
     def load(cls):

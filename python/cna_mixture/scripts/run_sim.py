@@ -19,17 +19,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def run_sim(output_dir, plots_dir):
+def run_sim(output_dir, plots_dir, num_sims=1):
     start = time.time()
 
     # NB ensure the directory exists
     os.makedirs(output_dir, exist_ok=True)
 
-    cna_sim = CNA_sim()
-    cna_sim.save(output_dir)
+    for num_sim in range(num_sims):
+        cna_sim = CNA_sim()
+        cna_sim.save(output_dir)
 
-    # cna_sim.plot_realization_true_flat(f"{plots_dir}/truth_rdr_baf_flat.pdf")
-    # cna_sim.plot_realization_true_genome(f"{plots_dir}/truth_rdr_baf_genome.pdf")
+        # cna_sim.plot_realization_true_flat(f"{plots_dir}/truth_rdr_baf_flat.pdf")
+        # cna_sim.plot_realization_true_genome(f"{plots_dir}/truth_rdr_baf_genome.pdf")
 
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 
