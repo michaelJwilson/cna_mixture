@@ -187,6 +187,7 @@ class CNA_inference:
         self.state_prior_model.update(self.ln_state_posteriors)
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
 
+    # TODO rename post_mstep
     def emstep(self, intermediate_result: OptimizeResult):
         """
         Callable after each M-step iteration of optimizer.

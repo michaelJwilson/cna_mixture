@@ -102,6 +102,7 @@ def cna_mixture_nbinom_eval(
     return result, state_rs_ps
 
 
+# TODO rename cna_mixture_ln_emission_eval?
 def get_ln_state_emission(
     ks,
     xs,
@@ -180,7 +181,7 @@ class CNA_emission:
 
     def cna_mixture_betabinom_update(self, params):
         """
-        Evaluate log prob. under BetaBinom model given parameter vector.
+        Evaluate log prob. under BetaBinom model given model parameter vector.
         Returns (# sample, # state) array.
         """
         xs, ns = self.xs, self.ns
