@@ -39,12 +39,13 @@ class CNA_sim:
     """
     A 1D genome simulation for a CNA markov model with NB/BB emission models.
     """
+
     def __init__(self, num_sim=0, params=None, data=None):
         super().__init__()
 
         self.num_sim = num_sim
         self.params = params if params is not None else get_sim_params()
-        
+
         for key, value in self.params.items():
             setattr(self, key, value)
 
@@ -52,25 +53,29 @@ class CNA_sim:
 
         if data is None:
             # NB guard against inconsistent data/params.
-            assert params is None, f"Parameters must not be provided when generating new data"
-            
+            assert (
+                params is None
+            ), f"Parameters must not be provided when generating new data"
+
             self.data = self.realize_data()
         else:
-            assert params is not None, f"Parameters are required when loading pre-generated data."
-            
+            assert (
+                params is not None
+            ), f"Parameters are required when loading pre-generated data."
+
             self.data = data
-            
-        # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage                                                                                                            
-        # TODO? biases RDR estimates, particularly if many CNAs.                                                                                                                                   
-        #                                                                                                                                                                                           
+
+        # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage
+        # TODO? biases RDR estimates, particularly if many CNAs.
+        #
         # self.genome_coverage = np.sum(self.data[:,2]) / self.num_segments
-        
+
         self.genome_coverage = self.normal_genome_coverage
 
     def print(self):
         print(f"\nCNA_Sim({self.num_sim})=")
         pprint(self.params)
-        
+
     def realize_data(self):
         """
         Generate a realization (one seed only) for given configuration settings.
@@ -140,13 +145,13 @@ class CNA_sim:
         return np.array(result, dtype=dtype)
 
     def save(self, output_dir):
-        # BUG TODO 
+        # BUG TODO
         numpy_state = np.random.get_state()
 
         sim_params = self.params.copy()
         sim_params["genome_coverage"] = self.genome_coverage
         sim_params["numpy_seed"] = int(numpy_state[1][0])
-        
+
         sim_params = {
             key: value.tolist() if isinstance(value, np.ndarray) else value
             for key, value in sim_params.items()
@@ -175,7 +180,7 @@ class CNA_sim:
         logger.info(f"Successfully loaded sim. output from {output_dir}")
 
         return CNA_sim(num_sim=num_sim, params=params, data=data)
-        
+
     @property
     def rdr(self):
         return self.data["read_coverage"] / self.genome_coverage
