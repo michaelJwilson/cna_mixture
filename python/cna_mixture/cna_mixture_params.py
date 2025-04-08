@@ -9,10 +9,10 @@ logger = logging.getLogger(__name__)
 
 class CNA_mixture_params:
     """
-    Data class for parameters required by CNA mixture model,
-    with shared overdispersions.
+    Data class for parameters required by CNA mixture model, with shared
+    overdispersions.
     """
-    def __init__(self, num_cna_states=3, tau=50.0, phi=2.0e-2, genome_coverage=1.0):
+    def __init__(self, num_cna_states=3, tau=50.0, phi=2.0e-2, genome_coverage=1.0, seed=314):
         """
         Initialize an instance of the class with random values in the assumed bounds.
         """
@@ -30,6 +30,9 @@ class CNA_mixture_params:
 
         self.normal_state = np.array([1.0, 0.5])
         self.cna_states = None
+
+        self.seed = seed  
+        self.rng = np.random.default_rng(self.seed)
         
     def __verify(self):
         assert isinstance(
@@ -54,7 +57,7 @@ class CNA_mixture_params:
 
     def initialize(self):
         # NB list of (baf, rdr) for k=4 states, without replacement.                                                                                                                                             
-        integers = np.random.choice(
+        integers = self.rng.choice(
             np.arange(3, 10), size=self.num_cna_states, replace=False
         )
 
@@ -124,7 +127,7 @@ class CNA_mixture_params:
         logger.info(f"Initializing CNA mixture params with random_rdr_baf with non_normal={non_normal}")
             
         xx = np.arange(len(samples))
-        idx = random.choice(xx, size=self.num_states - 1, replace=False)
+        idx = self.rng.choice(xx, size=self.num_states - 1, replace=False)
             
         self.cna_states = np.vstack([self.normal_state, samples[idx]])
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
@@ -184,7 +187,7 @@ class CNA_mixture_params:
                     title=None,
                 )
 
-            new_samples = samples[np.random.choice(idx, p=ps, size=N, replace=False)]
+            new_samples = samples[self.rng.choice(idx, p=ps, size=N, replace=False)]
 
             # NB state read depth (RDR x genome coverage) and BAF.
             #
