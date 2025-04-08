@@ -11,7 +11,7 @@ np.random.seed(314)
 #    e.g. for every module, of every test function.
 @pytest.fixture
 def cna_sim():
-    return CNA_sim()
+    return CNA_sim(seed=314)
 
 
 @pytest.fixture

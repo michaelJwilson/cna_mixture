@@ -57,3 +57,15 @@ def test_cna_sim_save_and_load(cna_sim, tmp_path):
     cna_sim = CNA_sim.load(tmp_path, 0)
     cna_sim.print()
     
+def test_cna_sim_reproducibility(cna_sim):
+    new_cna_sim = CNA_sim(seed=314)
+
+    # NB tested test fails if cna_sim.data[0] is updated.
+    assert np.all(new_cna_sim.data == cna_sim.data)
+
+def test_cna_sim_seeding(cna_sim):
+    new_cna_sim = CNA_sim(seed=42)
+    
+    with pytest.raises(AssertionError):
+        assert np.all(new_cna_sim.data == cna_sim.data)
+    
