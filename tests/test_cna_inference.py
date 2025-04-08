@@ -11,9 +11,6 @@ from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim
 from scipy.optimize import approx_fprime
 
-np.random.seed(1234)
-
-
 @pytest.mark.regression
 def test_cna_inference(cna_sim):
     cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data)
@@ -24,12 +21,13 @@ def test_cna_inference(cna_sim):
 
     # DEPRECATE
     # exp = np.array([0.50015511, 0.28714097, 0.09091853, 0.10101394])
-    
+
     # NB ensure best-fit BAFs are conserved.
     exp = np.array([0.4988744, 0.24292388, 0.32728927, 0.18725148])
     bafs = params[2]
-    
+
     npt.assert_allclose(bafs, exp, rtol=1.0e-2, atol=1.0e-2)
+
 
 @pytest.mark.parametrize("state_prior", ["categorical", "markov"])
 def test_cna_inference_pre_initialize(state_prior, cna_sim):
@@ -40,7 +38,7 @@ def test_cna_inference_pre_initialize(state_prior, cna_sim):
         state_prior=state_prior,
     )
 
-    # NB  to be set by initialize method.                                                                                                                                                                                                                                      
+    # NB  to be set by initialize method.
     assert not hasattr(cna_inf, "ln_state_prior")
     assert not hasattr(cna_inf, "ln_state_emission")
     assert not hasattr(cna_inf, "ln_state_posteriors")
@@ -59,6 +57,7 @@ def test_cna_inference_pre_initialize(state_prior, cna_sim):
     ):
         _ = cna_inf.jac(np.zeros(2 + 2 * cna_sim.num_states))
 
+
 @pytest.mark.parametrize("state_prior", ["categorical", "markov"])
 def test_cna_inference_grad(state_prior, cna_sim):
     cna_inf = CNA_inference(
@@ -67,7 +66,7 @@ def test_cna_inference_grad(state_prior, cna_sim):
         cna_sim.data,
         state_prior=state_prior,
     )
-    
+
     if state_prior == "categorical":
         cna_inf.initialize()
     else:

@@ -7,9 +7,6 @@ from cna_mixture.state_priors import CNA_categorical_prior, CNA_markov_prior
 from scipy.special import logsumexp
 from scipy.stats import norm
 
-np.random.seed(314)
-
-
 def test_CNA_categorical_prior(mixture_params, rdr_baf):
     equal_priors = CNA_categorical_prior(10, mixture_params.num_states)
     equal_priors.ln_lambdas_equal()
@@ -69,16 +66,12 @@ def test_CNA_markov_prior():
 
     assert ln_state_emission.shape == (num_segments, num_states)
 
-    # print("\n", ln_state_emission)
-
     ln_state_priors = markov_prior.get_ln_state_priors()
     ln_state_posteriors = markov_prior.get_ln_state_posteriors(ln_state_emission)
 
-    # print("\n", state_priors)
-
     decoded_states = np.argmax(ln_state_emission, axis=1)
     markov_decoded_states = np.argmax(ln_state_posteriors, axis=1)
-
+    
     print("\n\n")
 
     print(

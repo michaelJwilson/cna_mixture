@@ -4,8 +4,6 @@ import numpy as np
 import pytest
 from cna_mixture.cna_sim import CNA_sim, CNA_transfer
 
-np.random.seed(314)
-
 
 def reduce_by_state(states, values):
     """
