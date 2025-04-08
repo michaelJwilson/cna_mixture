@@ -2,10 +2,9 @@ import logging
 
 import numpy as np
 from cna_mixture_rs.core import ln_transition_probs_rs
-from numba import njit
 from scipy.special import logsumexp
 
-from cna_mixture.transfer import CNA_transfer
+from cna_mixture.hidden_markov import CNA_transfer, forward, backward
 from cna_mixture.utils import assign_closest, logmatexp, normalize_ln_probs
 
 logger = logging.getLogger()
@@ -54,7 +53,7 @@ class CNA_categorical_prior:
         )
 
         self.ln_lambdas_closest(kwargs["rdr_baf"], kwargs["cna_states"])
-    
+
     def get_ln_state_priors(self):
         ln_norm = logsumexp(self.ln_lambdas)
 
@@ -122,17 +121,13 @@ class CNA_markov_prior:
         self.num_states = num_states
 
     def initialize(self, **kwargs):
-        if "ln_start_prior" in kwargs:
-            self.ln_start_prior = kwargs["ln_start_prior"]
-        else:
-            self.ln_start_prior = np.log(
-                (1.0 / self.num_states) * np.ones(self.num_states)
-            )
+        self.ln_start_prior = kwargs.get(
+            "ln_start_prior", np.log((1.0 / self.num_states) * np.ones(self.num_states))
+        )
 
-        jump_rate = kwargs.get("jump_rate", 0.1)
-
+        self.jump_rate = kwargs.get("jump_rate", 0.1)
         self.transfer = CNA_transfer(
-            jump_rate=jump_rate, num_states=self.num_states
+            jump_rate=self.jump_rate, num_states=self.num_states
         ).transfer_matrix
 
     def update(self, ln_state_emission):
@@ -150,13 +145,12 @@ class CNA_markov_prior:
 
         self.transfer = np.exp(new_ln_transfer)
 
-    # TODO HACK
     def get_ln_state_priors(self):
-        return forward(
-            self.ln_start_prior,
-            self.transfer,
-            np.zeros(shape=(self.num_segments, self.num_states)),
-        )
+        """
+        Returns a zeros-array, i.e. delegating solely to emission prob.
+        """
+        # TODO check this is appropriate?
+        return (np.zeros(shape=(self.num_segments, self.num_states)),)
 
     # TODO outlier masking?
     def get_ln_state_posteriors(self, ln_state_emission):

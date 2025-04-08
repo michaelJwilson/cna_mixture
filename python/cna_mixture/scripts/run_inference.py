@@ -80,7 +80,7 @@ def main():
     parser.add_argument(
         "--state-prior",
         type=str,
-        default="categorical",
+        default="markov",
         help="Assumed model for state priors.",
     )
     parser.add_argument(
