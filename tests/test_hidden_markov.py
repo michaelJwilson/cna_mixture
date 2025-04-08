@@ -3,17 +3,23 @@ import numpy as np
 import numpy.testing as npt
 from cna_mixture.hidden_markov import forward, backward, CNA_transfer
 from cna_mixture.state_priors import CNA_markov_prior
+from cna_mixture.utils import uniform_ln_probs
 from scipy.special import logsumexp
 from scipy.stats import norm
 
 
 def test_hidden_markov_forward():
-    num_segments, num_states = 100, 5
+    num_segments, num_states = 100, 2
 
-    ln_start_prior = 
+    transfer = np.array([[],[]])
+    ln_start_prior = np.array([0.5, 0.5])
+    ln_state_emission = np.zeros(shape=(num_segments, num_states))
     
-    ln_start_prior, transfer, ln_state_emission
-    
+    result = forward(ln_start_prior, transfer, ln_state_emission)
+
+    print()
+    print(ln_start_prior)
+    print(result[:10])
 
     
     
