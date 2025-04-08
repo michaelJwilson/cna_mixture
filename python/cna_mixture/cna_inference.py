@@ -55,7 +55,7 @@ class CNA_inference:
 
         self.data = data
         self.seed = seed
-        self.rng = np.random.default_rng(int(seed)) if isinstance(seed, (int, float)) else seed
+        self.rng = np.random.default_rng(int(seed)) if isinstance(seed, int | float) else seed
         self.maxiter = maxiter
         self.optimizer = optimizer
         self.num_states = num_states

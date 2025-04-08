@@ -1,6 +1,8 @@
 import numpy as np
 from numba import njit
 
+from cna_mixture.utils import logmatexp
+
 
 class CNA_transfer:
     def __init__(self, jump_rate=0.1, num_states=4):

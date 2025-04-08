@@ -1,9 +1,9 @@
 import argparse
 import logging
 import time
-import numpy as np
 from pathlib import Path
 
+import numpy as np
 from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim
 
