@@ -159,7 +159,7 @@ class CNA_markov_prior:
         )
 
     # TODO outlier masking?
-    def get_ln_state_posteriors(self, ln_state_emission, *args, **kwargs):
+    def get_ln_state_posteriors(self, ln_state_emission):
         self.ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
         self.ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
 

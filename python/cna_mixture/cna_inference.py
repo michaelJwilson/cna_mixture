@@ -38,6 +38,7 @@ class CNA_inference:
         state_prior="categorical",
         initialize_mode="random",
         maxiter=250,
+        seed=314,
     ):
         """
         Fit CNA mixture model via Expectation Maximization.  Assumes RDR + BAF are independent
@@ -53,6 +54,8 @@ class CNA_inference:
         assert initialize_mode in ["random", "mixture_plusplus"]
 
         self.data = data
+        self.seed = seed
+        self.rng = np.random.default_rng(seed)
         self.maxiter = maxiter
         self.optimizer = optimizer
         self.num_states = num_states
@@ -97,14 +100,14 @@ class CNA_inference:
     def rdr_baf(self):
         return np.c_[self.rdr, self.baf]
 
-    def initialize_params(self, **kwargs):
+    def initialize_params(self):
         """                                                                                                                                                                                                                         
         Initialize mixture parameters, state prior model given said parameters &                                                                                                                                                   
         update state priors & emissions.                                                                                                                                                                                            
         """
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                                                                                                            
         mixture_params = CNA_mixture_params(
-            num_cna_states=self.num_cna_states, genome_coverage=self.genome_coverage
+            num_cna_states=self.num_cna_states, genome_coverage=self.genome_coverage, seed=self.seed,
         )
 
 	# NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.                                                                                                                                          
@@ -119,7 +122,7 @@ class CNA_inference:
                 self.data["snp_coverage"],
             )
         else:
-            msg = f"{initialize_mode} style initialization is not supported."
+            msg = f"{self.initialize_mode} style initialization is not supported."
             raise ValueError(msg)
 
         return mixture_params, initial_cost

@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from pathlib import Path
 
 import numpy as np
@@ -160,10 +159,10 @@ class CNA_sim:
             for key, value in sim_params.items()
         }
 
-        with open(f"{output_dir}/cna_sim_parameters.json", "w") as ff:
+        with Path.open(f"{output_dir}/cna_sim_parameters.json") as ff:
             json.dump(sim_params, ff, indent=4)
 
-        os.makedirs(f"{output_dir}/cna_sim_{self.sim_id}", exist_ok=True)
+        Path.mkdir(f"{output_dir}/cna_sim_{self.sim_id}", exist_ok=True, parents=True)
             
         np.savetxt(
             f"{output_dir}/cna_sim_{self.sim_id}/cna_sim_data_{self.sim_id}.txt",

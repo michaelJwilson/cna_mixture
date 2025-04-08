@@ -1,6 +1,7 @@
 import argparse
 import logging
 import time
+import numpy as np
 from pathlib import Path
 
 from cna_mixture.cna_inference import CNA_inference
@@ -33,6 +34,8 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=314, **kwa
 
     # fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat_{sim_id}.pdf", cna_sim.rdr_baf, seed=seed)
 
+    rng = np.random.default_rng(seed)
+
     # NB total number of states (inc. normal).
     cna_inf = CNA_inference(
         cna_sim.num_states,
@@ -40,6 +43,7 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=314, **kwa
         cna_sim.data,
         state_prior=state_prior,
         initialize_mode=initialize_mode,
+        seed=rng,
     )
 
     cna_inf.initialize(**kwargs)
