@@ -318,7 +318,7 @@ class CNA_inference:
             method=self.optimizer,
             jac=self.jac,
             bounds=self.bounds,
-            callback=self.post_mstep_simple,
+            callback=self.post_mstep,
             constraints=None,
             options={"disp": True, "maxiter": self.maxiter},
         )
