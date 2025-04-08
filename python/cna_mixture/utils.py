@@ -51,3 +51,17 @@ def assign_closest(points, centers):
 def logmatexp(transfer, ln_probs):
     max_ln_probs = np.max(ln_probs)
     return max_ln_probs + np.log(np.dot(transfer, np.exp(ln_probs - max_ln_probs)))
+
+@njit
+def cosine_similarity_origin(array):
+    norm = np.linalg.norm(array[0])
+
+    result = []
+    
+    for row in array:
+        row_norm = np.linalg.norm(row)
+        result.append(
+            np.dot(row, array[0]) / norm / row_norm
+        )
+
+    return np.array(result)
