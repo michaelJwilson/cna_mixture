@@ -67,13 +67,13 @@ class CNA_sim:
             # NB guard against inconsistent data/params.
             assert (
                 params is None
-            ), f"Parameters must not be provided when generating new data"
+            ), "Parameters must not be provided when generating new data"
 
             self.data = self.realize_data()
         else:
             assert (
                 params is not None
-            ), f"Parameters are required when loading pre-generated data."
+            ), "Parameters are required when loading pre-generated data."
 
             self.data = data
 

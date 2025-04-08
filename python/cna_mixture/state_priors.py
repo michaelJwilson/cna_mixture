@@ -50,7 +50,7 @@ class CNA_categorical_prior:
 
     def initialize(self, **kwargs):
         logger.info(
-            f"Initializing Categorical state prior with lambdas defined by nearest state assignment"
+            "Initializing Categorical state prior with lambdas defined by nearest state assignment"
         )
 
         self.ln_lambdas_closest(kwargs["rdr_baf"], kwargs["cna_states"])
@@ -129,10 +129,7 @@ class CNA_markov_prior:
                 (1.0 / self.num_states) * np.ones(self.num_states)
             )
 
-        if "jump_rate" in kwargs:
-            jump_rate = kwargs["jump_rate"]
-        else:
-            jump_rate = 0.1
+        jump_rate = kwargs.get("jump_rate", 0.1)
 
         self.transfer = CNA_transfer(
             jump_rate=jump_rate, num_states=self.num_states
