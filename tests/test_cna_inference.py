@@ -78,6 +78,7 @@ def test_cna_inference_grad(state_prior):
         #             numerical is zeros => no dependence?  killed by posterior?
         npt.assert_allclose(approx_grad, grad, rtol=1.0, atol=7.7)
 
+
 """
 @pytest.mark.slow
 def test_cna_inference_mixture_initialize(num_trials=50):

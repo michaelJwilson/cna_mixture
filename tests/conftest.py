@@ -5,8 +5,6 @@ import pytest
 from cna_mixture.cna_mixture_params import CNA_mixture_params
 from cna_mixture.cna_sim import CNA_sim
 
-np.random.seed(314)
-
 # NB scope defines the event for which a new instance is generated.
 #    e.g. for every module, of every test function.
 @pytest.fixture
@@ -16,10 +14,11 @@ def cna_sim():
 
 @pytest.fixture
 def mixture_params():
-    params = CNA_mixture_params()
+    params = CNA_mixture_params(seed=314)
     params.initialize()
 
     return params
+
 
 @pytest.fixture
 def rdr_baf():

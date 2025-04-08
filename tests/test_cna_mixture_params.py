@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 from cna_mixture.cna_sim import get_sim_params
-
-np.random.seed(314)
+from cna_mixture_params import CNA_mixture_params
 
 
 def test_cna_mixture_params_dict_update(mixture_params):
@@ -11,7 +10,9 @@ def test_cna_mixture_params_dict_update(mixture_params):
     assert np.array_equal(mixture_params.cna_states[0], np.array([1.0, 0.5]))
 
     # TODO HACK?
-    mixture_params.dict_update(get_sim_params() | {"genome_coverage": 500} | {"num_cna_states": 3})
+    mixture_params.dict_update(
+        get_sim_params() | {"genome_coverage": 500} | {"num_cna_states": 3}
+    )
 
     exp = np.array([[1.0, 0.5], [3.0, 0.33], [4.0, 0.25], [10.0, 0.1]])
 
@@ -24,7 +25,7 @@ def test_cna_mixture_params_dict_update(mixture_params):
     )
 
 
-def test_initialize_random_nonnormal_rdr_baf(mixture_params, rdr_baf):    
+def test_initialize_random_nonnormal_rdr_baf(mixture_params, rdr_baf):
     mixture_params.initialize_random_nonnormal_rdr_baf(rdr_baf)
 
     # TODO exp changes whether the test is run individually, or all tests run.
@@ -36,3 +37,13 @@ def test_initialize_random_nonnormal_rdr_baf(mixture_params, rdr_baf):
         exp,
         atol=1e-2,
     )
+
+
+def test_cna_mixture_params_reproducibility(mixture_params):
+    new_params = CNA_mixture_params(seed=314)
+
+    print(mixture_params.params)
+    print(new_params.params)
+
+
+# def test_cna_mixture_params_seeding(mixture_params):
