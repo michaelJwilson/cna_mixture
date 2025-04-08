@@ -12,7 +12,7 @@ from scipy.stats import norm
 
 @pytest.fixture
 def transfer_params():
-    num_segments, num_states, jump_rate = 1_000, 4, 1.e-2
+    num_segments, num_states, jump_rate = 1_000, 2, 0.1
     return num_segments, num_states, jump_rate
 
 
