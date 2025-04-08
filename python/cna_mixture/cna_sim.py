@@ -57,7 +57,8 @@ class CNA_sim:
         self.seed = seed
         self.rng = np.random.default_rng(self.seed)
         self.params = params if params is not None else get_sim_params()
-        
+
+        # TODO BUG generate new cna_states.
         for key, value in self.params.items():
             setattr(self, key, value)
 
@@ -93,7 +94,7 @@ class CNA_sim:
         """
         Generate a realization (one seed only) for given configuration settings.
         """
-        logger.info(f"Simulating copy number states:\n{self.cna_states}.")
+        logger.info(f"Simulating copy number states:\n{self.cna_states} for seed={self.seed}.")
 
         # NB SNP-covering reads per segment.
         snp_coverages = self.rng.integers(

@@ -18,10 +18,9 @@ def run_sim(output_dir, num_sims=1, seed=314):
     start = time.time()
     
     for sim_id in range(num_sims):
-        # NB ensure the directory exists
-        Path.mkdir(f"{output_dir}/cna_sim_{sim_id}/plots", exist_ok=True, parents=True)
+        Path(f"{output_dir}/cna_sim_{sim_id}/plots").mkdir(exist_ok=True, parents=True)
         
-        cna_sim = CNA_sim(sim_id=sim_id, seed=seed)
+        cna_sim = CNA_sim(sim_id=sim_id, seed=seed + sim_id)
         cna_sim.save(output_dir)
 
         cna_sim.plot_realization_true_flat(f"{output_dir}/cna_sim_{sim_id}/plots/truth_rdr_baf_flat_{sim_id}.pdf")
@@ -31,7 +30,7 @@ def run_sim(output_dir, num_sims=1, seed=314):
 
 
 def main():
-    # NB python python/cna_mixture/scripts/run_sim.py --output-dir ~/scratch/cna_mixture/sims/ --num_sims 2
+    # NB python python/cna_mixture/scripts/run_sim.py --output-dir ~/scratch/cna_mixture/sims/
     parser = argparse.ArgumentParser(description="Create CNA simulation.")
     parser.add_argument(
         "--output-dir",
