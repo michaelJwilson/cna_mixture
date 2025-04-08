@@ -132,7 +132,7 @@ class CNA_inference:
         Initialize parameters, state prior model given said parameters &
         update state priors & emissions.
         """
-        mixture_params, initial_cost = self.initialize_params(**kwargs)
+        mixture_params, initial_cost = self.initialize_params()
         
         self.initial_params = mixture_params.params
         self.initial_cost = initial_cost

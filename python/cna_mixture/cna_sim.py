@@ -159,7 +159,7 @@ class CNA_sim:
             for key, value in sim_params.items()
         }
 
-        with Path.open(f"{output_dir}/cna_sim_parameters.json") as ff:
+        with Path(f"{output_dir}/cna_sim_parameters.json").open("w") as ff:
             json.dump(sim_params, ff, indent=4)
 
         Path(f"{output_dir}/cna_sim_{self.sim_id}").mkdir(exist_ok=True, parents=True)
