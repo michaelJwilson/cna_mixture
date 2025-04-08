@@ -221,7 +221,7 @@ class CNA_inference:
             raise StopIteration
 
         # NB assumed convergence tolerance.
-	PARAM_FRAC_TOL = 1.0e-3
+        PARAM_FRAC_TOL = 1.0e-3
         
         # NB parameter difference across E+M step.  i.e. converged with respect to last posterior?
         #    note: relies on self.last_params == None at start of fitting, which evaluates False.
