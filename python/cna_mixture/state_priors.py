@@ -5,7 +5,7 @@ from cna_mixture_rs.core import ln_transition_probs_rs
 from scipy.special import logsumexp
 
 from cna_mixture.hidden_markov import CNA_transfer, backward, forward
-from cna_mixture.utils import assign_closest, normalize_ln_probs
+from cna_mixture.utils import assign_closest, normalize_ln_probs, uniform_ln_probs
 
 logger = logging.getLogger()
 
@@ -27,7 +27,7 @@ class CNA_categorical_prior:
         """
         Initialize categorical prior probs. (lambdas) to be equal.
         """
-        self.ln_lambdas = np.log((1.0 / self.num_states) * np.ones(self.num_states))
+        self.ln_lambdas = uniform_ln_probs(self.num_states)
 
     def ln_lambdas_closest(self, rdr_baf, cna_states):
         """
@@ -109,22 +109,20 @@ class CNA_markov_prior:
 
     def sample_hidden(self):
         start_prior = np.exp(self.ln_start_prior)
-        state = self.rng.choice(
-            np.arange(self.num_states), size=1, p=start_prior
-        )[0]
+        state = self.rng.choice(np.arange(self.num_states), size=1, p=start_prior)[0]
 
         result = [state]
-        
-        for ii in range(self.num_segments -1):
+
+        for ii in range(self.num_segments - 1):
             transfer_probs = self.transfer[state]
             state = self.rng.choice(
                 np.arange(self.num_states), size=1, p=transfer_probs
             )[0]
 
             result.append(state)
-            
+
         return np.array(result)
-            
+
     def update(self, ln_state_emission):
         new_ln_transfer = np.array(
             ln_transition_probs_rs(
@@ -150,6 +148,8 @@ class CNA_markov_prior:
         self.ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
         self.ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
 
+        # NB per-segment normalization across states.
         norm = logsumexp(self.ln_fs + self.ln_bs, axis=1)
 
+        # NB broadcast normalization across states.
         return -norm[:, None] + (self.ln_fs + self.ln_bs)

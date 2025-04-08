@@ -6,7 +6,18 @@ from cna_mixture.state_priors import CNA_markov_prior
 from scipy.special import logsumexp
 from scipy.stats import norm
 
-def test_CNA_markov_prior():
+
+def test_hidden_markov_forward():
+    num_segments, num_states = 100, 5
+
+    ln_start_prior = 
+    
+    ln_start_prior, transfer, ln_state_emission
+    
+
+    
+    
+def test_hidden_markov_sample_hidden():
     num_segments, num_states, jump_rate = 1_000, 4, 1.0e-2
 
     markov_prior = CNA_markov_prior(

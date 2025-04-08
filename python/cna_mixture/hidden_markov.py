@@ -19,22 +19,29 @@ class CNA_transfer:
 
 @njit
 def forward(ln_start_prior, transfer, ln_state_emission):
+    # NB (# segments, # states)
     ln_fs = np.zeros_like(ln_state_emission)
+
+    # NB forward start == categorical (where lambdas given by backward)?
     ln_fs[0, :] = ln_start_prior + ln_state_emission[0, :]
 
     for ii in range(1, len(ln_state_emission)):
-        ln_fs[ii, :] = ln_state_emission[ii, :]
-        ln_fs[ii, :] += logmatexp(transfer, ln_fs[ii - 1, :].T)
+        ln_fs[ii, :] = ln_state_emission[ii, :] + logmatexp(transfer, ln_fs[ii - 1, :].T)
 
     return ln_fs
 
 
 @njit
 def backward(ln_start_prior, transfer, ln_state_emission):
+    # NB (# segments, # states)
     ln_bs = np.zeros_like(ln_state_emission)
+
+    # NB forward start == categorical (where lambdas given by forward)?
     ln_bs[-1, :] = ln_start_prior
 
+    # NB starts with element preceeding the last.
     for ii in range(len(ln_state_emission) - 2, -1, -1):
+        # TODO BUG? assumes transfer matrix is symmetric, e.g. 3->2 == 2->3.
         ln_bs[ii, :] = logmatexp(
             transfer.T, ln_bs[ii + 1, :] + ln_state_emission[ii + 1, :]
         )

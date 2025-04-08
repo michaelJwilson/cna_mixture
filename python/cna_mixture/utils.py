@@ -8,6 +8,10 @@ from scipy.special import logsumexp
 logger = logging.getLogger(__name__)
 
 
+def uniform_ln_probs(num_states):
+    return np.log((1.0 / num_states) * np.ones(num_states))
+
+
 def normalize_ln_probs(ln_probs):
     """
     Return the normalized log probs (# samples, # states).
