@@ -33,7 +33,7 @@ class CNA_categorical_prior:
     def ln_lambdas_closest(self, rdr_baf, cna_states):
         """
         Initialize categorical prior probs. (lambdas) according to
-        an assignment of each (RDR, BAF) point to it's nearest state.
+        an assignment of each (RDR, BAF) point to it's nearest current state.
         """
         assert len(cna_states) == self.num_states
 
@@ -48,6 +48,13 @@ class CNA_categorical_prior:
         # NB i.e. normalized ln_lambdas.
         self.ln_lambdas = np.log(counts) - np.log(np.sum(counts))
 
+    def initialize(self, **kwargs):
+        logger.info(
+            f"Initializing Categorical state prior with lambdas defined by nearest state assignment"
+        )
+
+        self.ln_lambdas_closest(kwargs["rdr_baf"], kwargs["cna_states"])
+    
     def get_ln_state_priors(self):
         ln_norm = logsumexp(self.ln_lambdas)
 
@@ -63,13 +70,6 @@ class CNA_categorical_prior:
         ln_state_prior = self.get_ln_state_priors()
 
         return normalize_ln_probs(ln_state_emission + ln_state_prior)
-
-    def initialize(self, **kwargs):
-        logger.info(
-            f"Initializing Categorical state prior with lambdas defined by nearest state assignment"
-        )
-
-        self.ln_lambdas_closest(kwargs["rdr_baf"], kwargs["cna_states"])
 
     def update(self, ln_state_posteriors, production=False):
         """

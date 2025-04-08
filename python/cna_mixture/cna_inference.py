@@ -97,21 +97,21 @@ class CNA_inference:
     def rdr_baf(self):
         return np.c_[self.rdr, self.baf]
 
-    def initialize(self, **kwargs):
+    def initialize_params(self, **kwargs):
+        """                                                                                                                                                                                                                         
+        Initialize mixture parameters, state prior model given said parameters &                                                                                                                                                   
+        update state priors & emissions.                                                                                                                                                                                            
         """
-        Initialize parameters, state prior model given said parameters &
-        update state priors & emissions.
-        """
-        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
+        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                                                                                                            
         mixture_params = CNA_mixture_params(
             num_cna_states=self.num_cna_states, genome_coverage=self.genome_coverage
         )
 
-        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1. 
+	# NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.                                                                                                                                          
         if self.initialize_mode == "random":
             initial_cost = mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
 
-        # NB Negative-Binomial derived read counts, b reads and snp covering reads.
+        # NB Negative-Binomial derived read counts, b reads and snp covering reads.                                                                                                                                                 
         elif self.initialize_mode == "mixture_plusplus":
             initial_cost = mixture_params.initialize_mixture_plusplus(
                 self.data["read_coverage"],
@@ -123,8 +123,15 @@ class CNA_inference:
                 f"{initialize_mode} style initialization is not supported."
             )
 
-        logger.info(f"Initialized CNA states:\n{mixture_params.cna_states}\n")
-
+        return mixture_params, initial_cost
+            
+    def initialize(self, **kwargs):
+        """
+        Initialize parameters, state prior model given said parameters &
+        update state priors & emissions.
+        """
+        mixture_params, initial_cost = self.initialize_params(**kwargs)
+        
         self.initial_params = mixture_params.params
         self.initial_cost = initial_cost
         
@@ -139,6 +146,8 @@ class CNA_inference:
         if "rdr_baf" not in kwargs:
             kwargs["rdr_baf"] = self.rdr_baf
 
+        logger.info(f"Initialized CNA states:\n{mixture_params.cna_states}\n")
+            
         # BUG TODO generalizable to Markov chain?
         # NB assign ln_lambdas based on fractions hard assigned to states.
         self.state_prior_model.initialize(**kwargs)
@@ -186,7 +195,7 @@ class CNA_inference:
         ).sum()
 
         if verbose:
-            self.update_message(self.nit, self.last_params, self.params, params, cost)
+            self.log_mstep(self.nit, self.last_params, self.params, params, cost)
 
         return cost
 
@@ -197,17 +206,13 @@ class CNA_inference:
         """
         Callable after each M-step iteration of optimizer.  e.g. this approach
         benefits from 'conserving' Hessian.
-        """
-
-        # NB assumed convergence tolerance for *fractional* change in parameter.
-        parameter_frac_tol = 1.0e-3
-        
+        """        
         # NB callback evaluated after each iteration of optimizer.
         self.nit += 1
 
         new_params, new_cost = intermediate_result.x, intermediate_result.fun
 
-        self.update_message(
+        self.log_mstep(
             self.nit, self.last_params, self.params, new_params, new_cost
         )
 
@@ -215,9 +220,12 @@ class CNA_inference:
             logger.error(f"Failed to converge in {self.maxiter}")
             raise StopIteration
 
+        # NB assumed convergence tolerance.
+	PARAM_FRAC_TOL = 1.0e-3
+        
         # NB parameter difference across E+M step.  i.e. converged with respect to last posterior?
         #    note: relies on self.last_params == None at start of fitting, which evaluates False.
-        if (pdiff := param_diff(self.last_params, new_params)) < parameter_frac_tol:
+        if (pdiff := param_diff(self.last_params, new_params)) < PARAM_FRAC_TOL:
             logger.info(
                 f"Converged to {100 * pdiff:.6e}% wrt last state posteriors.  Optimization complete."
             )
@@ -229,7 +237,7 @@ class CNA_inference:
             raise StopIteration
 
         # NB has parameter differences across M step converged?
-        if (pdiff := param_diff(self.params, new_params)) < parameter_frac_tol:
+        if (pdiff := param_diff(self.params, new_params)) < PARAM_FRAC_TOL:
             logger.info(
                 f"Converged to {100 * pdiff:.6e}% wrt current state posteriors.  Updating posteriors."
             )
@@ -288,6 +296,21 @@ class CNA_inference:
 
         return res
 
+    def log_mstep(self, nit, last_params, params, new_params, cost):
+        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+            self.emission_model.unpack_params(params)
+        )
+
+        msg = f"Iteration {nit}:  Minimized cost to value: {cost:.6f} for:\n"
+        msg += f"\t{self.state_prior_model}\n"
+        msg += f"\tread_depths={state_read_depths}\n"
+        msg += f"\tread_depth_overdispersion={rdr_overdispersion}\n"
+        msg += f"\tbafs={bafs}\n"
+        msg += f"\tbaf_overdispersion={baf_overdispersion}\n"
+        msg += f"\tMax. frac. parameter diff. compared to last and current state posterior: {param_diff(last_params, new_params)}, {param_diff(params, new_params)}"
+
+        logger.info(msg)
+    
     def plot(self, plots_dir, params, label, title=None):
         plot_rdr_baf_flat(
             f"{plots_dir}/{label}_rdr_baf_flat.pdf",
@@ -306,18 +329,3 @@ class CNA_inference:
             states_bag=self.emission_model.get_states_bag(params),
             title=title,
         )
-
-    def update_message(self, nit, last_params, params, new_params, cost):
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
-            self.emission_model.unpack_params(params)
-        )
-
-        msg = f"Iteration {nit}:  Minimized cost to value: {cost:.6f} for:\n"
-        msg += f"\t{self.state_prior_model}\n"
-        msg += f"\tread_depths={state_read_depths}\n"
-        msg += f"\tread_depth_overdispersion={rdr_overdispersion}\n"
-        msg += f"\tbafs={bafs}\n"
-        msg += f"\tbaf_overdispersion={baf_overdispersion}\n"
-        msg += f"\tMax. frac. parameter diff. compared to last and current state posterior: {param_diff(last_params, new_params)}, {param_diff(params, new_params)}"
-
-        logger.info(msg)
