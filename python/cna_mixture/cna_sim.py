@@ -162,7 +162,7 @@ class CNA_sim:
         with Path.open(f"{output_dir}/cna_sim_parameters.json") as ff:
             json.dump(sim_params, ff, indent=4)
 
-        Path.mkdir(f"{output_dir}/cna_sim_{self.sim_id}", exist_ok=True, parents=True)
+        Path(f"{output_dir}/cna_sim_{self.sim_id}").mkdir(exist_ok=True, parents=True)
             
         np.savetxt(
             f"{output_dir}/cna_sim_{self.sim_id}/cna_sim_data_{self.sim_id}.txt",

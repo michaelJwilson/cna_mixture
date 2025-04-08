@@ -28,7 +28,7 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=314, **kwa
 
     plots_dir = f"{sim_dir}/cna_sim_{sim_id}/plots/"
 
-    Path.mkdir(plots_dir, exist_ok=True, parents=True)
+    Path(plots_dir).mkdir(exist_ok=True, parents=True)
 
     cna_sim = CNA_sim.load(sim_dir, sim_id)
 
