@@ -204,6 +204,39 @@ class CNA_inference:
     def jac(self, params):
         return self.emission_model.grad_em_cost(params, self.state_posteriors)
 
+    def post_mstep_simple(self, intermediate_result: OptimizeResult):
+        """
+        Callable after each M-step iteration of optimizer.  e.g. this approach                                                                                                                                                                                                  
+        benefits from 'conserving' Hessian.
+
+        Simplified form where posteriors are updated after every M.  Primarily
+        for debugging / validation.
+        """
+        self.nit += 1
+
+        new_params, new_cost = intermediate_result.x, intermediate_result.fun
+
+        self.log_mstep(
+            self.nit, self.last_params, self.params, new_params, new_cost
+        )
+
+        if self.nit > self.maxiter:
+            logger.error(f"Failed to converge in {self.maxiter}")
+            raise StopIteration
+
+        self.ln_state_emission = self.emission_model.get_ln_state_emission_update(
+            new_params
+        )
+
+        # NB update ln/state posteriors based on new emission.                                                                                                                                                                                                               
+        self.estep()
+
+        # NB update state priors based on new state posteriors.                                                                                                                                                                                                              
+        self.pstep()
+
+        # NB update ln/state posteriors based on new state priors.                                                                                                                                                                                                           
+        self.estep()
+    
     def post_mstep(self, intermediate_result: OptimizeResult):
         """
         Callable after each M-step iteration of optimizer.  e.g. this approach
@@ -285,7 +318,7 @@ class CNA_inference:
             method=self.optimizer,
             jac=self.jac,
             bounds=self.bounds,
-            callback=self.post_mstep,
+            callback=self.post_mstep_simple,
             constraints=None,
             options={"disp": True, "maxiter": self.maxiter},
         )
