@@ -38,7 +38,7 @@ class CNA_inference:
         state_prior="categorical",
         initialize_mode="random",
         maxiter=250,
-        seed=314,
+        seed=42,
     ):
         """
         Fit CNA mixture model via Expectation Maximization.  Assumes RDR + BAF are independent
@@ -55,7 +55,7 @@ class CNA_inference:
 
         self.data = data
         self.seed = seed
-        self.rng = np.random.default_rng(seed)
+        self.rng = np.random.default_rng(int(seed)) if isinstance(seed, (int, float)) else seed
         self.maxiter = maxiter
         self.optimizer = optimizer
         self.num_states = num_states

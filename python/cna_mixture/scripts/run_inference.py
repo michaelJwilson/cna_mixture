@@ -23,7 +23,7 @@ TODOs:
 """
 
 
-def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=314, **kwargs):
+def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=42, **kwargs):
     start = time.time()
 
     plots_dir = f"{sim_dir}/cna_sim_{sim_id}/plots/"
@@ -63,7 +63,7 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=314, **kwa
 
 
 def main():
-    # NB python python/cna_mixture/scripts/run_inference.py --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0
+    # NB python python/cna_mixture/scripts/run_inference.py --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --initialize-mode mixture_plusplus
     parser = argparse.ArgumentParser(description="Run CNA inference.")
     parser.add_argument(
         "--sim-dir",
@@ -92,7 +92,7 @@ def main():
     parser.add_argument(
         "--seed",
         type=int,
-        default=314,
+        default=42,
         help="Seed for random number generation",
     )
 
