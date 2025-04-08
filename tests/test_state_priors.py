@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import numpy.testing as npt
+from collections import Counter
 from cna_mixture.state_priors import CNA_categorical_prior, CNA_markov_prior
 from scipy.special import logsumexp
 from scipy.stats import norm
@@ -43,8 +44,7 @@ def hamming(first_states, second_states):
 
 
 def transfers(states):
-    interim = states != np.roll(states, 1)
-    return np.count_nonzero(interim[:-1])
+    return Counter(zip(states[:-1], states[1:]))
 
 
 def test_CNA_markov_prior():
@@ -71,7 +71,7 @@ def test_CNA_markov_prior():
 
     decoded_states = np.argmax(ln_state_emission, axis=1)
     markov_decoded_states = np.argmax(ln_state_posteriors, axis=1)
-    
+
     print("\n\n")
 
     print(

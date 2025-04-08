@@ -85,12 +85,15 @@ class CNA_categorical_prior:
             ln_state_posteriors
         )
 
+
 class CNA_markov_prior:
-    def __init__(self, num_segments, num_states):
+    def __init__(self, num_segments, num_states, seed=314):
         logger.info(
             f"Initializing CNA_markov_prior for num. segments, num. states = {num_segments}, {num_states} respectively."
         )
 
+        self.seed = seed
+        self.rng = np.random.default_rng(self.seed)
         self.num_segments = num_segments
         self.num_states = num_states
 
@@ -104,9 +107,25 @@ class CNA_markov_prior:
             jump_rate=self.jump_rate, num_states=self.num_states
         ).transfer_matrix
 
-    def update(self, ln_state_emission):
-        logger.warning("CNA_markov_prior.update is *not* implemented.")
+    def sample_hidden(self):
+        start_prior = np.exp(self.ln_start_prior)
+        state = self.rng.choice(
+            np.arange(self.num_states), size=1, p=start_prior
+        )[0]
 
+        result = [state]
+        
+        for ii in range(self.num_segments -1):
+            transfer_probs = self.transfer[state]
+            state = self.rng.choice(
+                np.arange(self.num_states), size=1, p=transfer_probs
+            )[0]
+
+            result.append(state)
+            
+        return np.array(result)
+            
+    def update(self, ln_state_emission):
         new_ln_transfer = np.array(
             ln_transition_probs_rs(
                 self.num_states,
