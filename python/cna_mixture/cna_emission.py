@@ -212,7 +212,6 @@ class CNA_emission:
         return ln_state_emission_betabinom + ln_state_emission_nbinom
 
     def grad_em_cost_nb(self, params, state_posteriors):
-        # TODO
         ks = self.ks
         state_read_depths, rdr_overdispersion, _, _ = self.unpack_params(params)
 
@@ -262,9 +261,7 @@ class CNA_emission:
         return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
 
     def grad_em_cost_bb(self, params, state_posteriors):
-        # TODO
-        xs = self.xs
-        ns = self.ns
+        xs, ns = self.xs, self.ns
 
         _, _, bafs, baf_overdispersion = self.unpack_params(params)
         state_alpha_betas = reparameterize_beta_binom(
@@ -286,7 +283,6 @@ class CNA_emission:
             sample_grad_ps = np.array(sample_grad_ps)
             sample_grad_tau = np.array(sample_grad_tau)
         else:
-
             def grad_ln_bb_ab_zeropoint(a, b):
                 gab = digamma(a + b)
                 ga = digamma(a)
@@ -323,9 +319,10 @@ class CNA_emission:
 
         return np.concatenate([grad_ps, np.atleast_1d(grad_tau)])
 
-    def grad_em_cost(self, params, state_posteriors):
-        # HACK *slow* guard against log probs.
-        assert np.all(state_posteriors >= 0.0)
+    def grad_em_cost(self, params, state_posteriors, production_mode=True):
+        if not production_mode:
+            # HACK *slow* guard against log probs.
+            assert np.all(state_posteriors >= 0.0)
 
         return np.concatenate(
             [
