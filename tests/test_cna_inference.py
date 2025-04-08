@@ -15,23 +15,25 @@ np.random.seed(1234)
 
 
 @pytest.mark.regression
-def test_cna_inference():
-    cna_sim = CNA_sim()
-    cna_model = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data)
-    cna_model.initialize()
+def test_cna_inference(cna_sim):
+    cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data)
+    cna_inf.initialize()
 
-    res = cna_model.fit()
-    params = cna_model.emission_model.unpack_params(res.x)
+    res = cna_inf.fit()
+    params = cna_inf.emission_model.unpack_params(res.x)
 
-    exp = np.array([0.50015511, 0.28714097, 0.09091853, 0.10101394])
+    # DEPRECATE
+    # exp = np.array([0.50015511, 0.28714097, 0.09091853, 0.10101394])
+    
+    # NB ensure best-fit BAFs are conserved.
+    exp = np.array([0.4988744, 0.24292388, 0.32728927, 0.18725148])
     bafs = params[2]
-
-    npt.assert_allclose(bafs, exp, rtol=1.0e-2, atol=2.3)
+    
+    npt.assert_allclose(bafs, exp, rtol=1.0e-2, atol=1.0e-2)
 
 
 @pytest.mark.parametrize("state_prior", ["categorical", "markov"])
-def test_cna_inference_grad(state_prior):
-    cna_sim = CNA_sim()
+def test_cna_inference_grad(state_prior, cna_sim):
     cna_model = CNA_inference(
         cna_sim.num_states,
         cna_sim.genome_coverage,
