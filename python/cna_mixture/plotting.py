@@ -9,14 +9,13 @@ def ln_probs_to_rgb(ln_probs):
     if ln_probs.ndim == 1:
         # NB black
         rgb = np.zeros(shape=(len(ln_probs), 3))
-        
         alpha = np.exp(ln_probs)
-        cmap = "viridis"
+        
     else:
         # NB assumed to be normal probability.
-        alpha = 0.25        
         rgb = np.zeros(shape=(len(ln_probs), 3))
-
+        alpha = 0.25
+        
         for ii in range(ln_probs.shape[1]):
             if ii <= 2:
                 rgb[:, -(1 + ii)] = np.exp(ln_probs[:, -(1 + ii)])
@@ -24,7 +23,7 @@ def ln_probs_to_rgb(ln_probs):
                 logger.warning(f"Failed to map all of {ln_probs.shape[1]} states to RGB when plotting")
                 break
                 
-        cmap = None
+    cmap = None
         
     return rgb, alpha, cmap
 
