@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import pytest
 import numpy as np
 import numpy.testing as npt
 from cna_mixture.state_priors import CNA_categorical_prior, CNA_markov_prior
 from scipy.special import logsumexp
 from scipy.stats import norm
+
 
 def test_CNA_categorical_prior(mixture_params, rdr_baf):
     equal_priors = CNA_categorical_prior(10, mixture_params.num_states)

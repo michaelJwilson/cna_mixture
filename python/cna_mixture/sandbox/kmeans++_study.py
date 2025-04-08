@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 
 from numba import njit
 from scipy.stats import norm
-from multiprocessing import Pool
 
 """
 A study of kmeans++ like assignments for a 1D Gaussian mixture simulation.

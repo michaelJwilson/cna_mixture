@@ -1,12 +1,9 @@
-import os
-import logging
 import argparse
+import logging
+import os
 import time
 
-import numpy as np
-from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim
-from cna_mixture.fit_gaussian_mixture import fit_gaussian_mixture
 
 logging.basicConfig(
     level=logging.INFO,

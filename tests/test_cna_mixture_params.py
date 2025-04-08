@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import pytest
 import numpy as np
-from cna_mixture.cna_sim import get_sim_params
+import pytest
 from cna_mixture.cna_mixture_params import CNA_mixture_params
+from cna_mixture.cna_sim import get_sim_params
 
 
 def test_cna_mixture_params_dict_update(mixture_params):

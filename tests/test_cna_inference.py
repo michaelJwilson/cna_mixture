@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import pytest
-import multiprocessing
-import numpy as np
-import pylab as pl
-import numpy.testing as npt
 import matplotlib.pyplot as plt
-from functools import partial
+import numpy as np
+import numpy.testing as npt
+import pylab as pl
+import pytest
 from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim
 from scipy.optimize import approx_fprime
+
 
 @pytest.mark.regression
 def test_cna_inference(cna_sim):

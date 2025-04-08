@@ -2,8 +2,8 @@ import logging
 import warnings
 
 import numpy as np
-from sklearn.mixture import GaussianMixture
 from sklearn.exceptions import ConvergenceWarning
+from sklearn.mixture import GaussianMixture
 
 from cna_mixture.encoding import onehot_encode_states
 from cna_mixture.plotting import plot_rdr_baf_flat

@@ -1,6 +1,5 @@
 import numpy as np
 import numpy.testing as npt
-
 from cna_mixture.utils import logmatexp
 
 

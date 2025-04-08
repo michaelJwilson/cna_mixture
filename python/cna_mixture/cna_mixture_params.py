@@ -1,8 +1,9 @@
 import logging
+
 import numpy as np
-from numpy import random
+
 from cna_mixture.cna_emission import get_ln_state_emission
-from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
+from cna_mixture.plotting import plot_rdr_baf_flat
 
 logger = logging.getLogger(__name__)
 

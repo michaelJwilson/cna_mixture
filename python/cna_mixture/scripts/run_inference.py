@@ -1,12 +1,10 @@
-import os
-import logging
 import argparse
+import logging
+import os
 import time
 
-import numpy as np
 from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim
-from cna_mixture.fit_gaussian_mixture import fit_gaussian_mixture
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,7 +22,7 @@ TODOs:
 """
 
 
-def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=314):
+def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=314, **kwargs):
     start = time.time()
 
     plots_dir = f"{sim_dir}/cna_sim_{sim_id}/plots/"
@@ -44,7 +42,7 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=314):
         initialize_mode=initialize_mode,
     )
 
-    cna_inf.initialize()
+    cna_inf.initialize(**kwargs)
 
     cna_inf.plot(
         plots_dir,
