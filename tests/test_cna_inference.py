@@ -31,47 +31,53 @@ def test_cna_inference(cna_sim):
     
     npt.assert_allclose(bafs, exp, rtol=1.0e-2, atol=1.0e-2)
 
-
 @pytest.mark.parametrize("state_prior", ["categorical", "markov"])
-def test_cna_inference_grad(state_prior, cna_sim):
-    cna_model = CNA_inference(
+def test_cna_inference_pre_initialize(state_prior, cna_sim):
+    cna_inf = CNA_inference(
         cna_sim.num_states,
         cna_sim.genome_coverage,
         cna_sim.data,
         state_prior=state_prior,
     )
 
-    # NB  to be set by initialize method.
-    assert not hasattr(cna_model, "ln_state_prior")
-    assert not hasattr(cna_model, "ln_state_emission")
-    assert not hasattr(cna_model, "ln_state_posteriors")
-    assert not hasattr(cna_model, "state_posteriors")
-    assert not hasattr(cna_model, "initial_params")
+    # NB  to be set by initialize method.                                                                                                                                                                                                                                      
+    assert not hasattr(cna_inf, "ln_state_prior")
+    assert not hasattr(cna_inf, "ln_state_emission")
+    assert not hasattr(cna_inf, "ln_state_posteriors")
+    assert not hasattr(cna_inf, "state_posteriors")
+    assert not hasattr(cna_inf, "initial_params")
 
     with pytest.raises(
         AttributeError,
         match="'CNA_inference' object has no attribute 'state_posteriors'",
     ):
-        _ = cna_model.em_cost(np.zeros(2 + 2 * cna_sim.num_states))
+        _ = cna_inf.em_cost(np.zeros(2 + 2 * cna_sim.num_states))
 
     with pytest.raises(
         AttributeError,
         match="'CNA_inference' object has no attribute 'state_posteriors'",
     ):
-        _ = cna_model.jac(np.zeros(2 + 2 * cna_sim.num_states))
+        _ = cna_inf.jac(np.zeros(2 + 2 * cna_sim.num_states))
 
+@pytest.mark.parametrize("state_prior", ["categorical", "markov"])
+def test_cna_inference_grad(state_prior, cna_sim):
+    cna_inf = CNA_inference(
+        cna_sim.num_states,
+        cna_sim.genome_coverage,
+        cna_sim.data,
+        state_prior=state_prior,
+    )
+    
     if state_prior == "categorical":
-        cna_model.initialize()
+        cna_inf.initialize()
     else:
-        cna_model.initialize(jump_rate=0.1)
+        cna_inf.initialize(jump_rate=0.1)
 
-    params = cna_model.initial_params
+    params = cna_inf.initial_params
 
-    cost = cna_model.em_cost(params)
-    grad = cna_model.jac(params)
-    approx_grad = approx_fprime(params, cna_model.em_cost, np.sqrt(np.finfo(float).eps))
-
-    print(state_prior, "\n", grad, "\n", approx_grad)
+    cost = cna_inf.em_cost(params)
+    grad = cna_inf.jac(params)
+    approx_grad = approx_fprime(params, cna_inf.em_cost, np.sqrt(np.finfo(float).eps))
 
     if state_prior == "categorical":
         npt.assert_allclose(approx_grad, grad, rtol=1.0e-2, atol=2.3)
