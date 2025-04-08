@@ -20,14 +20,9 @@ logger = logging.getLogger(__name__)
 
 """
 TODOs:
-
-  - kmean++ like.
   - multiple starts + best likelihood. 
   - regularizer for state overlap.
   - prior to prevent single-state occupancy.                                                                                            
-  - callback forward.
-  - unit tests.
-
 """
 
 
@@ -39,7 +34,7 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode):
     os.makedirs(plots_dir, exist_ok=True)
 
     cna_sim = CNA_sim.load(sim_dir, sim_id)
-    
+
     # fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat_{sim_id}.pdf", cna_sim.rdr_baf)
 
     # NB total number of states (inc. normal).
@@ -86,13 +81,13 @@ def main():
         "--state-prior",
         type=str,
         default="categorical",
-        help="Assumed model for state priors."
+        help="Assumed model for state priors.",
     )
     parser.add_argument(
-	"--initialize-mode",
+        "--initialize-mode",
         type=str,
         default="random",
-        help="Assumed model for initialization of state parameters."
+        help="Assumed model for initialization of state parameters.",
     )
 
     args = parser.parse_args()

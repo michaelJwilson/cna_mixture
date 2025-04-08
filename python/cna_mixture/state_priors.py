@@ -17,8 +17,8 @@ class CNA_categorical_prior:
             f"Initializing CNA_categorical_prior for num. segments, num. states = {num_segments}, {num_states} respectively."
         )
 
-        self.num_segments = num_segments
         self.num_states = num_states
+        self.num_segments = num_segments
         self.production_mode = production_mode
 
     def __str__(self):
@@ -45,7 +45,7 @@ class CNA_categorical_prior:
         counts = dict(zip(ustates, counts))
         counts = [counts.get(ii, 0) for ii in range(self.num_states)]
 
-        # NB i.e. ln_lambdas
+        # NB i.e. normalized ln_lambdas.
         self.ln_lambdas = np.log(counts) - np.log(np.sum(counts))
 
     def get_ln_state_priors(self):
