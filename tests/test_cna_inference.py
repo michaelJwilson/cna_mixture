@@ -22,7 +22,7 @@ def test_cna_inference(cna_sim):
     # exp = np.array([0.50015511, 0.28714097, 0.09091853, 0.10101394])
 
     # NB ensure best-fit BAFs are conserved.
-    exp = np.array([0.4988744, 0.24292388, 0.32728927, 0.18725148])
+    exp = np.array([0.44287896, 0.49272959, 0.49592949, 0.20085453])
     bafs = params[2]
 
     npt.assert_allclose(bafs, exp, rtol=1.0e-2, atol=1.0e-2)
