@@ -16,9 +16,9 @@ def fit_gaussian_mixture(
     rdr_baf,
     num_samples=100_000,
     num_components=4,
-    random_state=0,
     max_iter=1,
     covariance_type="diag",
+    seed=314,
 ):
     """
     See:  https://github.com/raphael-group/CalicoST/blob/5e4a8a1230e71505667d51390dc9c035a69d60d9/src/calicost/utils_hmm.py#L163    
@@ -26,7 +26,7 @@ def fit_gaussian_mixture(
     logger.info(
         f"Fitting Gaussian mixture model with {num_components} components and {covariance_type} covariance, {max_iter} max. iterations."
     )
-
+    
     # NB covariance_type = {diag, full}; see https://scikit-learn.org/stable/modules/generated/sklearn.mixture.GaussianMixture.html
     # NB catch ill-convergence warning due to max_iter=1. 
     with warnings.catch_warnings():
@@ -34,9 +34,9 @@ def fit_gaussian_mixture(
 
         gmm = GaussianMixture(
             n_components=num_components,
-            random_state=random_state,
             max_iter=max_iter,
             covariance_type=covariance_type,
+            random_state=seed,
         ).fit(rdr_baf)
 
     means = np.c_[gmm.means_[:, 0], gmm.means_[:, 1]]

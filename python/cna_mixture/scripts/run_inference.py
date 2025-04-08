@@ -8,8 +8,6 @@ from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim
 from cna_mixture.fit_gaussian_mixture import fit_gaussian_mixture
 
-np.random.seed(1234)
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s",
@@ -26,7 +24,7 @@ TODOs:
 """
 
 
-def run_inference(sim_dir, sim_id, state_prior, initialize_mode):
+def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=314):
     start = time.time()
 
     plots_dir = f"{sim_dir}/cna_sim_{sim_id}/plots/"
@@ -35,8 +33,8 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode):
 
     cna_sim = CNA_sim.load(sim_dir, sim_id)
 
-    # fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat_{sim_id}.pdf", cna_sim.rdr_baf)
-
+    fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat_{sim_id}.pdf", cna_sim.rdr_baf, seed=seed)
+    """
     # NB total number of states (inc. normal).
     cna_inf = CNA_inference(
         cna_sim.num_states,
@@ -58,7 +56,7 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode):
     res = cna_inf.fit()
 
     cna_inf.plot(plots_dir, res.x, "final", "Final state posteriors")
-
+    """
     logger.info(f"Done ({time.time() - start:.3f} seconds).\n\n")
 
 
@@ -89,10 +87,16 @@ def main():
         default="random",
         help="Assumed model for initialization of state parameters.",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=314,
+        help="Seed for random number generation",
+    )
 
     args = parser.parse_args()
 
-    run_inference(args.sim_dir, args.sim_id, args.state_prior, args.initialize_mode)
+    run_inference(args.sim_dir, args.sim_id, args.state_prior, args.initialize_mode, args.seed)
 
 
 if __name__ == "__main__":
