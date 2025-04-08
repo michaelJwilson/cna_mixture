@@ -1,23 +1,31 @@
 import matplotlib.pyplot as plt
+import logging
 import numpy as np
 import pylab as pl
 
+logger = logging.getLogger(__name__)
 
 def ln_probs_to_rgb(ln_probs):
     if ln_probs.ndim == 1:
-        rgb = np.exp(ln_probs)
-        alpha = 0.25
+        # NB black
+        rgb = np.zeros(shape=(len(ln_probs), 3))
+        
+        alpha = np.exp(ln_probs)
         cmap = "viridis"
-
     else:
-        assert ln_probs.shape[1] == 4
-
         # NB assumed to be normal probability.
-        alpha = 0.25
+        alpha = 0.25        
+        rgb = np.zeros(shape=(len(ln_probs), 3))
 
-        rgb = np.exp(ln_probs[:, 1:4])
+        for ii in range(ln_probs.shape[1]):
+            if ii <= 2:
+                rgb[:, -(1 + ii)] = np.exp(ln_probs[:, -(1 + ii)])
+            else:
+                logger.warning(f"Failed to map all of {ln_probs.shape[1]} states to RGB when plotting")
+                break
+                
         cmap = None
-
+        
     return rgb, alpha, cmap
 
 
@@ -32,23 +40,10 @@ def plot_rdr_baf_flat(
     pl.clf()
 
     if ln_state_posteriors is not None:
-        """
-        # DEPRECATE
-        if ln_state_posteriors.ndim == 1:
-            rgb = np.exp(ln_state_posteriors)
-            alpha = 0.25
-            cmap = "viridis"
+        assert len(ln_state_posteriors) == len(
+            rdr
+        ), f"Found inconsistent RDR, BAF and state posteriors (size {len(rdr)} and {len(ln_state_posteriors)} respectively)"
 
-        else:
-            assert ln_state_posteriors.shape[1] == 4
-
-            # NB assumed to be normal probability.
-            # alpha = 0.25 + 3.0 * (1.0 - state_posteriors[:, 0]) / 4.0
-            alpha = 0.25
-
-            rgb = np.exp(ln_state_posteriors[:, 1:4])
-            cmap = None
-        """
         rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
 
     pl.axhline(0.5, c="k", lw=0.5)
@@ -57,7 +52,12 @@ def plot_rdr_baf_flat(
     if states_bag is not None:
         for state_rdr, state_baf in states_bag:
             pl.scatter(
-                state_rdr, state_baf, marker="*", edgecolors="black", facecolors="white", s=45
+                state_rdr,
+                state_baf,
+                marker="*",
+                edgecolors="black",
+                facecolors="white",
+                s=45,
             )
 
     pl.xlim(-0.05, 15.0)
@@ -70,6 +70,8 @@ def plot_rdr_baf_flat(
         pl.title(title)
 
     pl.savefig(fpath)
+
+    logger.info(f"Plotted rdr_baf_flat to {fpath}")
 
 
 def tophat_smooth(data, window_size):
@@ -119,5 +121,7 @@ def plot_rdr_baf_genome(
 
     if title is not None:
         pl.title(title)
-    
+
     pl.savefig(fpath)
+
+    logger.info(f"Plotted rdr_baf_genome to {fpath}")

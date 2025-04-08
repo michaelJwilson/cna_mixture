@@ -11,7 +11,7 @@ def test_cna_mixture_params_dict_update(mixture_params):
     assert np.array_equal(mixture_params.cna_states[0], np.array([1.0, 0.5]))
 
     # TODO HACK?
-    mixture_params.dict_update(get_sim_params() | {"genome_coverage": 500})
+    mixture_params.dict_update(get_sim_params() | {"genome_coverage": 500} | {"num_cna_states": 3})
 
     exp = np.array([[1.0, 0.5], [3.0, 0.33], [4.0, 0.25], [10.0, 0.1]])
 
@@ -24,8 +24,8 @@ def test_cna_mixture_params_dict_update(mixture_params):
     )
 
 
-def test_cna_mixture_params_rdr_baf_choice_update(mixture_params, rdr_baf):    
-    mixture_params.rdr_baf_choice_update(rdr_baf)
+def test_initialize_random_nonnormal_rdr_baf(mixture_params, rdr_baf):    
+    mixture_params.initialize_random_nonnormal_rdr_baf(rdr_baf)
 
     # TODO exp changes whether the test is run individually, or all tests run.
     # NB matches rdr_baf realization

@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from cna_mixture.cna_sim import CNA_transfer
+from cna_mixture.cna_sim import CNA_sim, CNA_transfer
 
 np.random.seed(314)
 
 
 def reduce_by_state(states, values):
+    """
+    Calculate the per-state means of values, for aligned states,
+    values arrays.
+    """
     ustates, state_counts = np.unique(states, return_counts=True)
     result = np.zeros_like(ustates)
 
@@ -45,3 +49,11 @@ def test_cna_sim_rdr_baf(cna_sim):
 
 def test_cna_sim_plot(cna_sim, tmp_path):
     cna_sim.plot_realization_true_flat(tmp_path)
+
+
+def test_cna_sim_save_and_load(cna_sim, tmp_path):
+    cna_sim.save(tmp_path)
+    
+    cna_sim = CNA_sim.load(tmp_path, 0)
+    cna_sim.print()
+    

@@ -1,12 +1,15 @@
+import os
+import json
 import logging
 
 import numpy as np
 from scipy.stats import betabinom, nbinom
+from rich.pretty import pprint
 
-from cna_mixture.cna_emission import reparameterize_beta_binom, reparameterize_nbinom
 from cna_mixture.encoding import onehot_encode_states
 from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
 from cna_mixture.transfer import CNA_transfer
+from cna_mixture.cna_emission import reparameterize_beta_binom, reparameterize_nbinom
 
 logger = logging.getLogger(__name__)
 
@@ -33,27 +36,66 @@ def get_sim_params():
     }
 
 
+def get_sim_output_dtype():
+    return [
+        ("state", np.float64),
+        ("read_coverage", np.float64),
+        ("true_read_coverage", np.float64),
+        ("b_reads", np.float64),
+        ("snp_coverage", np.float64),
+    ]
+
+
 class CNA_sim:
     """
     A 1D genome simulation for a CNA markov model with NB/BB emission models.
     """
-    def __init__(self):
+
+    def __init__(self, sim_id=0, params=None, data=None):
         super().__init__()
 
-        for key, value in get_sim_params().items():
+        self.sim_id = sim_id
+        self.params = params if params is not None else get_sim_params()
+
+        for key, value in self.params.items():
             setattr(self, key, value)
 
         self.transfer = CNA_transfer(self.jump_rate, self.num_states)
-        self.realize()
 
-    def realize(self):
+        if data is None:
+            # NB guard against inconsistent data/params.
+            assert (
+                params is None
+            ), f"Parameters must not be provided when generating new data"
+
+            self.data = self.realize_data()
+        else:
+            assert (
+                params is not None
+            ), f"Parameters are required when loading pre-generated data."
+
+            self.data = data
+
+        # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage
+        # TODO? biases RDR estimates, particularly if many CNAs.
+        #
+        # self.genome_coverage = np.sum(self.data[:,2]) / self.num_segments
+
+        self.genome_coverage = self.normal_genome_coverage
+
+    def print(self):
+        print(f"\nCNA_Sim({self.sim_id})=")
+        pprint(self.params)
+        print(f"with data=\n{self.data}")
+
+    def realize_data(self):
         """
         Generate a realization (one seed only) for given configuration settings.
         """
         logger.info(f"Simulating copy number states:\n{self.cna_states}.")
 
         # NB SNP-covering reads per segment.
-        self.snp_coverages = np.random.randint(
+        snp_coverages = np.random.randint(
             self.min_snp_coverage, self.max_snp_coverage, self.num_segments
         )
 
@@ -77,11 +119,11 @@ class CNA_sim:
 
             # NB simulate variation in realized BAF according to betabinom model;
             #    b_reads have an expected BAF, as encoded by beta.
-            b_reads = betabinom.rvs(self.snp_coverages[ii], beta, alpha)
+            b_reads = betabinom.rvs(snp_coverages[ii], beta, alpha)
 
             # NB we expect for baf ~0.5, some baf estimate to NOT be the minor allele,
             #    i.e. to occur at a rate > 0.5;
-            baf = b_reads / self.snp_coverages[ii]
+            baf = b_reads / snp_coverages[ii]
 
             # NB stochastic, given rdr derived from state sampling.
             true_read_coverage = rdr * self.normal_genome_coverage
@@ -100,26 +142,62 @@ class CNA_sim:
                     read_coverage,
                     true_read_coverage,  # NB not an observable, to be inferrred.
                     b_reads,
-                    self.snp_coverages[ii],
+                    snp_coverages[ii],
                 )
             )
 
-        dtype = [
-            ("state", np.float64),
-            ("read_coverage", np.float64),
-            ("true_read_coverage", np.float64),
-            ("b_reads", np.float64),
-            ("snp_coverage", np.float64),
-        ]
+        return np.array(result, dtype=get_sim_output_dtype())
 
-        self.data = np.array(result, dtype=dtype)
+    def save(self, output_dir):
+        # BUG TODO
+        numpy_state = np.random.get_state()
 
-        # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage
-        # TODO? biases RDR estimates, particularly if many CNAs.
-        #
-        # self.genome_coverage = np.sum(self.data[:,2]) / self.num_segments
+        sim_params = self.params.copy()
+        sim_params["genome_coverage"] = self.genome_coverage
+        sim_params["numpy_seed"] = int(numpy_state[1][0])
 
-        self.genome_coverage = self.normal_genome_coverage
+        sim_params = {
+            key: value.tolist() if isinstance(value, np.ndarray) else value
+            for key, value in sim_params.items()
+        }
+
+        with open(f"{output_dir}/cna_sim_parameters.json", "w") as ff:
+            json.dump(sim_params, ff, indent=4)
+
+        os.makedirs(f"{output_dir}/cna_sim_{self.sim_id}", exist_ok=True)
+            
+        np.savetxt(
+            f"{output_dir}/cna_sim_{self.sim_id}/cna_sim_data_{self.sim_id}.txt",
+            self.data,
+            delimiter="\t",
+            header=",".join(self.data.dtype.names),
+            fmt="%.6f",
+        )
+
+        logger.info(f"Successfully saved sim. {self.sim_id} output to {output_dir}")
+
+    @classmethod
+    def load(cls, output_dir, sim_id):
+        # TODO guard against missing/corrupted file.
+        params_path = f"{output_dir}/cna_sim_parameters.json"
+        
+        with open(params_path, "r") as ff:
+            params = json.load(ff)
+
+        logger.info(f"Loading simulation parameters @ {params_path}")
+            
+        data_path = f"{output_dir}/cna_sim_{sim_id}/cna_sim_data_{sim_id}.txt"            
+        data = np.loadtxt(data_path, dtype=np.float64)
+
+        logger.info(f"Loading simulation data @ {data_path}")
+
+        # TODO UGH comprehension is slow
+        data = np.array([tuple(row) for row in data], dtype=get_sim_output_dtype())
+        
+        cna_sim = CNA_sim(sim_id=sim_id, params=params, data=data)
+        cna_sim.print()
+
+        return cna_sim
 
     @property
     def rdr(self):

@@ -1,38 +1,39 @@
-[tool.poetry]
+[project]
 name = "cna_mixture"
 version = "0.1.0"
 description = ""
+authors = [{ name = "M. J. Wilson", email = "mjwilson@princeton.edu" }]
+requires-python = "==3.12.2"
 readme = "README.md"
-authors = ["M. J. Wilson <mjwilson@princeton.edu>"]
-packages = [
-    { include = "cna_mixture", from = "python" },
+dependencies = [
+    "numpy>=1.26.0,<2",
+    "matplotlib",
+    "scipy",
+    "scikit-learn",
+    "pytest>=8.3.5,<9",
+    "ruff>=0.9.9,<0.10",
+    "black>=25.1.0",
+    "maturin>=1.8.3",
+    "numba>=0.61.0",
+    "rich==14.0.0",
 ]
 
-[tool.poetry.dependencies]
-python = "3.12.2"
-numpy = "^1.26.0"
-maturin = "^1.1.0"
-matplotlib = "*"
-scipy = "*"
-scikit-learn = "*"
-pytest = "^8.3.5"
-ruff = "^0.9.9"
+[project.scripts]
+run_sim = "cna_mixture.scripts.run_sim:main"
+run_inference = "cna_mixture.scripts.run_inference:main"
 
-[tool.poetry.scripts]
-run_model = 'cna_mixture.scripts.run_model:main'
+[tool.hatch.build.targets.sdist]
+include = ["python/cna_mixture"]
+
+[tool.hatch.build.targets.wheel]
+include = ["python/cna_mixture"]
+
+[tool.hatch.build.targets.wheel.sources]
+"python/cna_mixture" = "cna_mixture"
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = ["-ra -q", "--showlocals", "--strict-markers", "--strict-config"]
-xfail_strict = false
-filterwarnings = ["error"]
-testpaths = [
-    "tests",
-]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.ruff]
 ignore = [

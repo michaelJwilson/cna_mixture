@@ -11,15 +11,15 @@ np.random.seed(314)
 #    e.g. for every module, of every test function.
 @pytest.fixture
 def cna_sim():
-    cna_sim = CNA_sim()
-    cna_sim.realize()
-
-    return cna_sim
+    return CNA_sim()
 
 
 @pytest.fixture
 def mixture_params():
-    return CNA_mixture_params()
+    params = CNA_mixture_params()
+    params.initialize()
+
+    return params
 
 @pytest.fixture
 def rdr_baf():
