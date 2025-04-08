@@ -50,17 +50,17 @@ class CNA_sim:
     """
     A 1D genome simulation for a CNA markov model with NB/BB emission models.
     """
-
-    def __init__(self, sim_id=0, params=None, data=None):
+    def __init__(self, sim_id=0, params=None, data=None, seed=314):
         super().__init__()
 
         self.sim_id = sim_id
+        self.seed = seed
+        self.rng = np.random.default_rng(self.seed)
         self.params = params if params is not None else get_sim_params()
-
+        self.transfer = CNA_transfer(self.jump_rate, self.num_states)
+        
         for key, value in self.params.items():
             setattr(self, key, value)
-
-        self.transfer = CNA_transfer(self.jump_rate, self.num_states)
 
         if data is None:
             # NB guard against inconsistent data/params.
@@ -95,20 +95,20 @@ class CNA_sim:
         logger.info(f"Simulating copy number states:\n{self.cna_states}.")
 
         # NB SNP-covering reads per segment.
-        snp_coverages = np.random.randint(
+        snp_coverages = self.rng.randint(
             self.min_snp_coverage, self.max_snp_coverage, self.num_segments
         )
 
         result = []
 
         # NB Equal-probability for categorical states: {0, .., K-1}.
-        state = np.random.randint(0, self.num_states)
+        state = self.rng.randint(0, self.num_states)
 
         # NB we loop over genomic segments, sampling a state and assigning appropriate
         #    emission values.
         for ii in range(self.num_segments):
             transfer_probs = self.transfer.transfer_matrix[state]
-            state = np.random.choice(
+            state = self.rng.choice(
                 np.arange(self.num_states), size=1, p=transfer_probs
             )[0]
 
@@ -119,7 +119,7 @@ class CNA_sim:
 
             # NB simulate variation in realized BAF according to betabinom model;
             #    b_reads have an expected BAF, as encoded by beta.
-            b_reads = betabinom.rvs(snp_coverages[ii], beta, alpha)
+            b_reads = betabinom.rvs(snp_coverages[ii], beta, alpha, seed=self.rng)
 
             # NB we expect for baf ~0.5, some baf estimate to NOT be the minor allele,
             #    i.e. to occur at a rate > 0.5;
@@ -133,7 +133,7 @@ class CNA_sim:
                 [true_read_coverage], self.overdisp_phi
             )[0]
 
-            read_coverage = nbinom.rvs(lost_reads, dropout_rate, size=1)[0]
+            read_coverage = nbinom.rvs(lost_reads, dropout_rate, size=1, seed=self.rng)[0]
 
             # NB CNA state, obs. transcripts (NegBin), lost transcripts (NegBin), B-allele support transcripts, vis a vis A.
             result.append(
@@ -149,12 +149,9 @@ class CNA_sim:
         return np.array(result, dtype=get_sim_output_dtype())
 
     def save(self, output_dir):
-        # BUG TODO
-        numpy_state = np.random.get_state()
-
         sim_params = self.params.copy()
         sim_params["genome_coverage"] = self.genome_coverage
-        sim_params["numpy_seed"] = int(numpy_state[1][0])
+        sim_params["seed"] = self.seed
 
         sim_params = {
             key: value.tolist() if isinstance(value, np.ndarray) else value

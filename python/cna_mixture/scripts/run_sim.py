@@ -8,8 +8,6 @@ from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim
 from cna_mixture.fit_gaussian_mixture import fit_gaussian_mixture
 
-np.random.seed(1234)
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s",
@@ -19,14 +17,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def run_sim(output_dir, num_sims=1):
+def run_sim(output_dir, num_sims=1, seed=314):
     start = time.time()
     
     for num_sim in range(num_sims):
         # NB ensure the directory exists
         os.makedirs(f"{output_dir}/cna_sim_{num_sim}/plots", exist_ok=True)
         
-        cna_sim = CNA_sim(num_sim=num_sim)
+        cna_sim = CNA_sim(num_sim=num_sim, seed=seed)
         cna_sim.save(output_dir)
 
         cna_sim.plot_realization_true_flat(f"{output_dir}/cna_sim_{num_sim}/plots/truth_rdr_baf_flat_{num_sim}.pdf")
@@ -51,10 +49,16 @@ def main():
         default=1,
         help="Number of simulations to generate.",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=314,
+        help="Seed for random number generation.",
+    )
 
     args = parser.parse_args()
 
-    run_sim(args.output_dir, args.num_sims)
+    run_sim(args.output_dir, args.num_sims, args.seed)
 
 
 if __name__ == "__main__":
