@@ -13,7 +13,7 @@ def reduce_by_state(states, values):
     ustates, state_counts = np.unique(states, return_counts=True)
     result = np.zeros_like(ustates)
 
-    for s, v in zip(states, values):
+    for s, v in zip(states, values, strict=False):
         result[int(s)] += v
 
     return result / state_counts

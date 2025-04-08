@@ -119,9 +119,8 @@ class CNA_inference:
                 self.data["snp_coverage"],
             )
         else:
-            raise ValueError(
-                f"{initialize_mode} style initialization is not supported."
-            )
+            msg = f"{initialize_mode} style initialization is not supported."
+            raise ValueError(msg)
 
         return mixture_params, initial_cost
             

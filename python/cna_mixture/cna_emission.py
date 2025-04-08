@@ -65,7 +65,7 @@ def cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion, rust_backend=Tr
         result = np.zeros((len(xs), len(state_alpha_betas)))
 
         for col, (alpha, beta) in enumerate(state_alpha_betas):
-            for row, (x, n) in enumerate(zip(xs, ns)):
+            for row, (x, n) in enumerate(zip(xs, ns, strict=False)):
                 result[row, col] = betabinom.logpmf(x, n, beta, alpha)
 
     return result, state_alpha_betas
@@ -306,7 +306,7 @@ class CNA_emission:
 
                 zero_point = grad_ln_bb_ab_zeropoint(beta, alpha)
 
-                for row, (x, n) in enumerate(zip(xs, ns)):
+                for row, (x, n) in enumerate(zip(xs, ns, strict=False)):
                     interim = zero_point + grad_ln_bb_ab_data(beta, alpha, x, n)
 
                     sample_grad_ps[row, col] = -tau * interim[1] + tau * interim[0]

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from pathlib import Path
 
 import numpy as np
 from rich.pretty import pprint
@@ -179,7 +180,7 @@ class CNA_sim:
         # TODO guard against missing/corrupted file.
         params_path = f"{output_dir}/cna_sim_parameters.json"
         
-        with open(params_path, "r") as ff:
+        with Path.open(params_path) as ff:
             params = json.load(ff)
 
         logger.info(f"Loading simulation parameters @ {params_path}")

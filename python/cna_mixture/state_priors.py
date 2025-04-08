@@ -42,7 +42,7 @@ class CNA_categorical_prior:
         # NB categorical prior on state fractions
         ustates, counts = np.unique(decoded_states, return_counts=True)
 
-        counts = dict(zip(ustates, counts))
+        counts = dict(zip(ustates, counts, strict=False))
         counts = [counts.get(ii, 0) for ii in range(self.num_states)]
 
         # NB i.e. normalized ln_lambdas.
@@ -71,7 +71,7 @@ class CNA_categorical_prior:
 
         return normalize_ln_probs(ln_state_emission + ln_state_prior)
 
-    def update(self, ln_state_posteriors, production=False):
+    def update(self, ln_state_posteriors):
         """
         Given updated ln_state_posteriors, calculate the updated ln_lambdas for a
         Categorical model.

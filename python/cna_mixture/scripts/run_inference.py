@@ -1,7 +1,7 @@
 import argparse
 import logging
-import os
 import time
+from pathlib import Path
 
 from cna_mixture.cna_inference import CNA_inference
 from cna_mixture.cna_sim import CNA_sim
@@ -27,7 +27,7 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=314, **kwa
 
     plots_dir = f"{sim_dir}/cna_sim_{sim_id}/plots/"
 
-    os.makedirs(plots_dir, exist_ok=True)
+    Path.mkdir(plots_dir, exist_ok=True, parents=True)
 
     cna_sim = CNA_sim.load(sim_dir, sim_id)
 

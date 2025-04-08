@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 import time
+from pathlib import Path
 
 from cna_mixture.cna_sim import CNA_sim
 
@@ -19,7 +20,7 @@ def run_sim(output_dir, num_sims=1, seed=314):
     
     for sim_id in range(num_sims):
         # NB ensure the directory exists
-        os.makedirs(f"{output_dir}/cna_sim_{sim_id}/plots", exist_ok=True)
+        Path.mkdir(f"{output_dir}/cna_sim_{sim_id}/plots", exist_ok=True, parents=True)
         
         cna_sim = CNA_sim(sim_id=sim_id, seed=seed)
         cna_sim.save(output_dir)
