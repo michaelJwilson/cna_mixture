@@ -37,7 +37,7 @@ def test_initialize_random_nonnormal_rdr_baf(mixture_params, rdr_baf):
 
     # TODO exp changes whether the test is run individually, or all tests run.
     # NB matches rdr_baf realization
-    exp = [5.64958905, 8.76022735, 9.61271087]
+    exp = [5.88586121, 6.11213014, 9.22835512]
 
     assert np.allclose(
         mixture_params.cna_states[1:, 0],

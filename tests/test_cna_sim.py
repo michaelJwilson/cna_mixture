@@ -34,7 +34,7 @@ def test_cna_sim_states(cna_sim):
     ustates, state_counts = np.unique(cna_sim.data["state"], return_counts=True)
 
     # NB approx. equal state distribution
-    exp = np.array([2853, 2312, 2545, 2290])
+    exp = np.array([1890, 3169, 2910, 2031])
 
     assert np.array_equal(state_counts, exp)
 
