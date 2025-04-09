@@ -23,16 +23,15 @@ def transfer(transfer_params):
 
 
 def test_hidden_markov_det(transfer):
+    # NB transfer matrix is not a rotation matrix as the
+    #    normalization constraint is on sum p, not p.p;
     det = np.linalg.det(transfer)
     inv = np.linalg.inv(transfer)
-
-    print(f"\nDET:\n{det}")
-    print(f"\nINV:\n{inv}")
-
 
 def test_hidden_markov_forward(transfer_params, transfer):
     num_segments, num_states, jump_rate = transfer_params
 
+    # NB correlation length definition  marginalizes over start.
     ln_start_prior = np.log(np.array([0.2, 0.4, 0.3, 0.1]))
     ln_state_emission = np.zeros(shape=(num_segments, num_states))
 
