@@ -26,6 +26,8 @@ def test_CNA_categorical_prior(mixture_params, rdr_baf):
     # NB rdr_baf fixture does not populate the first state when assigned closest.
     assert state_priors.ln_lambdas[0] == -np.inf
 
+    ln_state_emission = np.log(np.ones(mixture_params.num_states))
+    
     state_priors.update(ln_state_emission=ln_state_emission)
 
     ln_state_posteriors = state_priors.get_ln_state_posteriors(
@@ -94,9 +96,9 @@ def test_CNA_markov_prior(plot=True):
 
     _, true_state_counts = np.unique(states, return_counts=True)
 
-    pl.plot(range(num_segments), markov_decoded_states, marker=",", c="k", lw=0.0)
-    pl.ylim(-0.5, num_states + 0.5)
-    pl.show()
+    # pl.plot(range(num_segments), markov_decoded_states, marker=",", c="k", lw=0.0)
+    # pl.ylim(-0.5, num_states + 0.5)
+    # pl.show()
 
     """
     print("\n\n")
