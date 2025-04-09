@@ -30,7 +30,7 @@ def test_hidden_markov_det(transfer):
     inv = np.linalg.inv(transfer)
 
 
-def test_hidden_markov_forward(transfer_params, transfer):
+def test_hidden_markov_forward(transfer_params, transfer, plot=False):
     num_segments, num_states, jump_rate = transfer_params
 
     # NB correlation length definition  marginalizes over start.
@@ -41,14 +41,18 @@ def test_hidden_markov_forward(transfer_params, transfer):
     ln_fs = forward(ln_start_prior, transfer, ln_state_emission)
     sims = cosine_similarity_origin(np.exp(ln_fs))
 
-    asymptotic = np.exp(-1.)
+    print(f"\n{np.exp(ln_fs)}")
+    
+    if plot:
+        asymptotic = np.exp(-1.)
  
-    # pl.axhline(asymptotic, c="k", lw=0.5)
-    pl.plot(range(num_segments)[:50], sims[:50])
-
-    pl.ylabel(r"Cosine similarity, $p \cdot p$")
-    pl.xlabel("Jumps")
-    pl.show()
+        # pl.axhline(asymptotic, c="k", lw=0.5)
+        pl.plot(range(num_segments)[:50], sims[:50])
+        
+        pl.ylabel(r"Cosine similarity, $p \cdot p$")
+        pl.xlabel("Jumps")
+        plt.tight_layout()
+        pl.show()
 
 
 def test_hidden_markov_backward():
