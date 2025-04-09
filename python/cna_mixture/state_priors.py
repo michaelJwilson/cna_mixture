@@ -125,8 +125,7 @@ class CNA_markov_prior:
 
     def get_ln_state_priors(self, ln_state_emission):
         """
-        Equivalent to ln_state_posterior - ln_state_emission for each
-        state.
+        Equivalent to ln_state_posterior - ln_state_emission for each state.
         """
         ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
         ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
