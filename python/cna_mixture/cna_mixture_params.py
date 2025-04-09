@@ -159,7 +159,7 @@ class CNA_mixture_params:
         # NB one cost for normal state per sample.
         assert len(cost) == len(ks)
 
-        logger.info(f"Initialized mixture++ with normal state cost: {cost.sum()}")
+        logger.info(f"Initialized mixture++ with mixture++ cost for a normal state: {cost.sum()}")
 
         while len(centers) < self.num_states:
             ps = cost / cost.sum()
@@ -195,7 +195,7 @@ class CNA_mixture_params:
             # TODO here, we would also select based on BAF error, i.e. for high coverage.
             trial_centers = np.c_[new_samples[:, 0], new_samples[:, 1] / new_samples[:, 2]]
 
-            logger.info(f"Found trial centers:\n{trial_centers}")
+            logger.debug(f"Found trial centers:\n{trial_centers}")
 
             costs = [
                 self.mixture_plusplus_cost(

@@ -60,14 +60,14 @@ class CNA_categorical_prior:
 
         self.ln_lambdas_closest(kwargs["rdr_baf"], kwargs["cna_states"])
 
-    def get_ln_state_priors(self, ln_state_emission=None):
+    def get_ln_state_priors(self, *, ln_state_emission=None): # noqa: ARG002
         ln_norm = logsumexp(self.ln_lambdas)
 
         return np.broadcast_to(
             self.ln_lambdas - ln_norm, (self.num_segments, len(self.ln_lambdas))
         ).copy()
 
-    def get_ln_state_posteriors(self, ln_state_emission=None):
+    def get_ln_state_posteriors(self, *, ln_state_emission=None):
         """
         Given the log. state emission probability, return the ln state
         posteriors.
@@ -78,7 +78,7 @@ class CNA_categorical_prior:
 
         return normalize_ln_probs(ln_state_emission + ln_state_prior)
 
-    def update(self, ln_state_posteriors=None):
+    def update(self, *, ln_state_posteriors=None):
         """
         Given updated ln_state_posteriors, calculate the updated ln_lambdas for a
         Categorical model.
@@ -134,7 +134,7 @@ class CNA_markov_prior:
 
         return np.array(result)
 
-    def get_ln_state_priors(self, ln_state_emission=None):
+    def get_ln_state_priors(self, *, ln_state_emission=None):
         """
         Equivalent to ln_state_posterior - ln_state_emission for each state.
         """
@@ -143,7 +143,7 @@ class CNA_markov_prior:
         ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
         ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
 
-        ln_state_posteriors = self.ln_fs + self.ln_bs
+        ln_state_posteriors = ln_fs + ln_bs
 
         # NB removes emission contribution of x_i from forward lattice.
         ln_state_priors = ln_state_posteriors - ln_state_emission
@@ -154,7 +154,7 @@ class CNA_markov_prior:
         return -norm[:, None] + ln_state_priors
 
     # TODO outlier masking?
-    def get_ln_state_posteriors(self, ln_state_emission=None):
+    def get_ln_state_posteriors(self, *, ln_state_emission=None):
         """
         Returns HMM ln_state_posterior probability.
         """
@@ -164,13 +164,13 @@ class CNA_markov_prior:
         ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
 
         # NB per-segment normalization across states.
-        ln_state_posteriors = self.ln_fs + self.ln_bs
+        ln_state_posteriors = ln_fs + ln_bs
         norm = logsumexp(ln_state_posteriors, axis=1)
 
         # NB broadcast normalization across states.
         return -norm[:, None] + ln_state_posteriors
 
-    def update(self, ln_state_emission=None):
+    def update(self, *, ln_state_emission=None):
         """
         Updates state prior parameters in the HMM model, i.e. start categorical
         prior and transfer matrix.

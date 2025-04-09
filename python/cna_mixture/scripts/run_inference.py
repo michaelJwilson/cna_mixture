@@ -45,9 +45,9 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=42, **kwar
         initialize_mode=initialize_mode,
         seed=rng,
     )
-    """
-    cna_inf.initialize(**kwargs)
 
+    cna_inf.initialize(**kwargs)
+    """
     cna_inf.plot(
         plots_dir,
         cna_inf.initial_params,

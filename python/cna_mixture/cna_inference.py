@@ -103,8 +103,7 @@ class CNA_inference:
 
     def initialize_params(self):
         """                                                                                                                                                                                                                         
-        Initialize mixture parameters, state prior model given said parameters &                                                                                                                                                   
-        update state priors & emissions.                                                                                                                                                                                            
+        Initialize mixture parameters, i.e. (RDR, BAF) for all cna_states and their dispersions.
         """
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                                                                                                            
         mixture_params = CNA_mixture_params(
@@ -130,8 +129,7 @@ class CNA_inference:
             
     def initialize(self, **kwargs):
         """
-        Initialize parameters, state prior model given said parameters &
-        update state priors & emissions.
+        Initialize parameters, state prior model given said parameters & update state priors & emissions.
         """
         mixture_params, initial_cost = self.initialize_params()
         
@@ -149,16 +147,17 @@ class CNA_inference:
         if "rdr_baf" not in kwargs:
             kwargs["rdr_baf"] = self.rdr_baf
 
-        logger.info(f"Initialized CNA states:\n{mixture_params.cna_states}\n")
+        logger.info(f"Initialized CNA states:\n{kwargs["cna_states"]}\n")
             
-        # BUG TODO generalizable to Markov chain?
-        # NB assign ln_lambdas based on fractions hard assigned to states.
         self.state_prior_model.initialize(**kwargs)
 
-        self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
         self.ln_state_emission = self.emission_model.get_ln_state_emission_update(
             self.initial_params
         )
+
+        # NB Markov requires emission probabilities for all other states to define state prior.
+        #    Categorical ignores 
+        self.ln_state_prior = self.state_prior_model.get_ln_state_priors(ln_state_emission=self.ln_state_emission)
 
         self.estep()
 
@@ -167,7 +166,7 @@ class CNA_inference:
         Calculate normalized state posteriors based on current parameter + lambda settings.
         """
         self.ln_state_posteriors = self.state_prior_model.get_ln_state_posteriors(
-            self.ln_state_emission
+            ln_state_emission=self.ln_state_emission
         )
         self.state_posteriors = np.exp(self.ln_state_posteriors)
 
@@ -176,8 +175,8 @@ class CNA_inference:
         Update the state prior model based on the current state posteriors,                                                                                                                                      
         and re-compute the ln_state_priors.                                                                                                                                                                      
         """
-        self.state_prior_model.update(self.ln_state_posteriors)
-        self.ln_state_prior = self.state_prior_model.get_ln_state_priors()
+        self.state_prior_model.update(ln_state_posteriors=self.ln_state_posteriors)
+        self.ln_state_prior = self.state_prior_model.get_ln_state_priors(ln_state_emission=self.ln_state_emission)
 
     def em_cost(self, params, verbose=False):
         """
