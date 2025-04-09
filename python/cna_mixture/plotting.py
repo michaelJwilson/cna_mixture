@@ -30,7 +30,7 @@ def ln_probs_to_rgb(ln_probs):
         return rgb, alpha, cmap
 
 def plot_rdr_baf_flat(
-    fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None
+    fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None,
 ):
     """
     NB state_posteriors may be an integer, corresponding to a decoded state, or
@@ -43,7 +43,7 @@ def plot_rdr_baf_flat(
         assert len(ln_state_posteriors) == len(
             rdr
         ), f"Found inconsistent RDR, BAF and state posteriors (size {len(rdr)} and {len(ln_state_posteriors)} respectively)"
-
+        
         rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
 
     pl.axhline(0.5, c="k", lw=0.5)
@@ -83,7 +83,7 @@ def tophat_smooth(data, window_size):
 
 
 def plot_rdr_baf_genome(
-    fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None
+    fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None, outliers_mask=None
 ):
     pl.clf()
 

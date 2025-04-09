@@ -41,7 +41,7 @@ class CNA_inference:
         seed=42,
     ):
         """
-        Fit CNA mixture model via Expectation Maximization.  Assumes RDR + BAF are independent
+        Fit CNA mixture model via Expectation Maximization.  Assumes RDR + BAF are independent,
         given CNA state.
 
         See:
@@ -63,7 +63,17 @@ class CNA_inference:
         self.num_segments = len(data)
         self.genome_coverage = genome_coverage
         self.initialize_mode = initialize_mode
+        
+        self.bounds = get_cna_mixture_bounds(self.num_states)
 
+        self.emission_model = CNA_emission(
+            self.num_states,
+            self.genome_coverage,
+            data["read_coverage"],
+            data["b_reads"],
+            data["snp_coverage"],
+        )
+        
         match state_prior:
             case "categorical":
                 self.state_prior_model = CNA_categorical_prior
@@ -79,16 +89,6 @@ class CNA_inference:
             self.num_states,
         )
 
-        self.emission_model = CNA_emission(
-            self.num_states,
-            self.genome_coverage,
-            data["read_coverage"],
-            data["b_reads"],
-            data["snp_coverage"],
-        )
-
-        self.bounds = get_cna_mixture_bounds(self.num_states)
-
     @property
     def rdr(self):
         return self.data["read_coverage"] / self.genome_coverage
@@ -102,7 +102,7 @@ class CNA_inference:
         return np.c_[self.rdr, self.baf]
 
     def initialize_params(self):
-        """                                                                                                                                                                                                                         
+        """
         Initialize mixture parameters, i.e. (RDR, BAF) for all cna_states and their dispersions.
         """
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                                                                                                            
@@ -110,13 +110,13 @@ class CNA_inference:
             num_cna_states=self.num_cna_states, genome_coverage=self.genome_coverage, seed=self.seed,
         )
 
-	# NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.                                                                                                                                          
+	# NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
         match self.initialize_mode:
             case "random":
-                initial_cost = mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
+                initial_plusplus_cost = mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
 
             case "mixture_plusplus":
-                initial_cost = mixture_params.initialize_mixture_plusplus(
+                initial_plusplus_cost = mixture_params.initialize_mixture_plusplus(
                     self.data["read_coverage"],
                     self.data["b_reads"],
                     self.data["snp_coverage"],
@@ -125,7 +125,7 @@ class CNA_inference:
                 msg = f"{self.initialize_mode} style initialization is not supported."
                 raise ValueError(msg)
 
-        return mixture_params, initial_cost
+        return mixture_params, initial_plusplus_cost
             
     def initialize(self, **kwargs):
         """
@@ -140,7 +140,7 @@ class CNA_inference:
         self.last_cost, self.cost = None, self.initial_cost
         
         self.nit = 0
-
+        
         if "cna_states" not in kwargs:
             kwargs["cna_states"] = mixture_params.cna_states
 
@@ -186,7 +186,7 @@ class CNA_inference:
         NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
         """
         self.ln_state_emission = self.emission_model.get_ln_state_emission_update(params)
-
+            
         # NB responsibilites rik, where i is the sample and k is the state.
         #    this is *not* state-posterior weighted log-likelihood.
         #    sum over samples and states.  Maximization -> minimization.

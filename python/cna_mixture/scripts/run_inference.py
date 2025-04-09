@@ -63,7 +63,7 @@ def run_inference(sim_dir, sim_id, num_cna_states, state_prior, initialize_mode,
 
 
 def main():
-    # NB python python/cna_mixture/scripts/run_inference.py --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 4 --state-prior markov --initialize-mode mixture_plusplus
+    # NB python python/cna_mixture/scripts/run_inference.py --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 3 --state-prior markov --initialize-mode mixture_plusplus
     parser = argparse.ArgumentParser(description="Run CNA inference.")
     parser.add_argument(
         "--sim-dir",
