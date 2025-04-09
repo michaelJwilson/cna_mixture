@@ -45,7 +45,7 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=42, **kwar
         initialize_mode=initialize_mode,
         seed=rng,
     )
-
+    """
     cna_inf.initialize(**kwargs)
 
     cna_inf.plot(
@@ -58,7 +58,7 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=42, **kwar
     res = cna_inf.fit()
 
     cna_inf.plot(plots_dir, res.x, "final", "Final state posteriors")
-
+    """
     logger.info(f"Done ({time.time() - start:.3f} seconds).\n\n")
 
 

@@ -112,19 +112,19 @@ class CNA_inference:
         )
 
 	# NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.                                                                                                                                          
-        if self.initialize_mode == "random":
-            initial_cost = mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
+        match self.initialize_mode:
+            case "random":
+                initial_cost = mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
 
-        # NB Negative-Binomial derived read counts, b reads and snp covering reads.                                                                                                                                                 
-        elif self.initialize_mode == "mixture_plusplus":
-            initial_cost = mixture_params.initialize_mixture_plusplus(
-                self.data["read_coverage"],
-                self.data["b_reads"],
-                self.data["snp_coverage"],
-            )
-        else:
-            msg = f"{self.initialize_mode} style initialization is not supported."
-            raise ValueError(msg)
+            case "mixture_plusplus":
+                initial_cost = mixture_params.initialize_mixture_plusplus(
+                    self.data["read_coverage"],
+                    self.data["b_reads"],
+                    self.data["snp_coverage"],
+                )
+            case _:
+                msg = f"{self.initialize_mode} style initialization is not supported."
+                raise ValueError(msg)
 
         return mixture_params, initial_cost
             
