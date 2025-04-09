@@ -190,12 +190,14 @@ class CNA_inference:
         )
 
         # NB responsibilites rik, where i is the sample and k is the state.
-        # NB this is *not* state-posterior weighted log-likelihood.
-        # NB sum over samples and states.  Maximization -> minimization.
-        cost = -(
-            self.state_posteriors * (self.ln_state_prior + self.ln_state_emission)
-        ).sum()
+        #    this is *not* state-posterior weighted log-likelihood.
+        #    sum over samples and states.  Maximization -> minimization.
 
+        # DEPRECATE by holding state priors fixed in the M-step, zero point drops out.
+        # cost = -self.state_posteriors * self.ln_state_prior
+        
+        cost = -(self.state_posteriors * self.ln_state_emission).sum()
+        
         if verbose:
             self.log_mstep(self.nit, self.last_params, self.params, params, cost)
 
