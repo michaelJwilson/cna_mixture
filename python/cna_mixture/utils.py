@@ -55,7 +55,6 @@ def logmatexp(transfer, ln_probs):
 @njit
 def cosine_similarity_origin(array):
     norm = np.linalg.norm(array[0])
-
     result = []
     
     for row in array:
