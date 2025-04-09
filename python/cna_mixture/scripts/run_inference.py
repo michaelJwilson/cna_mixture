@@ -63,7 +63,7 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=42, **kwar
 
 
 def main():
-    # NB python python/cna_mixture/scripts/run_inference.py --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --initialize-mode mixture_plusplus
+    # NB python python/cna_mixture/scripts/run_inference.py --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --state-prior categorical --initialize-mode random
     parser = argparse.ArgumentParser(description="Run CNA inference.")
     parser.add_argument(
         "--sim-dir",
@@ -80,13 +80,15 @@ def main():
     parser.add_argument(
         "--state-prior",
         type=str,
-        default="markov",
+        default=None,
+        choices=["categorical", "markov"],
         help="Assumed model for state priors.",
     )
     parser.add_argument(
         "--initialize-mode",
         type=str,
-        default="random",
+        default=None,
+        choices=["random", "mixture_plusplus"],
         help="Assumed model for initialization of state parameters.",
     )
     parser.add_argument(
