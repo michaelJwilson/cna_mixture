@@ -136,20 +136,35 @@ class CNA_markov_prior:
 
         self.transfer = np.exp(new_ln_transfer)
 
-    def get_ln_state_priors(self):
-        """
-        Returns a zeros-array, i.e. delegating solely to emission prob.
-        """
-        # TODO check this is appropriate?
-        return (np.zeros(shape=(self.num_segments, self.num_states)),)
-
-    # TODO outlier masking?
-    def get_ln_state_posteriors(self, ln_state_emission):
         self.ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
         self.ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
 
+    # TODO outlier masking?
+    def get_ln_state_posteriors(self, ln_state_emission=None):
+        if ln_state_emission is not None:
+            self.update(ln_state_emission)
+
         # NB per-segment normalization across states.
-        norm = logsumexp(self.ln_fs + self.ln_bs, axis=1)
+        ln_state_posteriors = self.ln_fs + self.ln_bs
+        norm = logsumexp(ln_state_posteriors, axis=1)
 
         # NB broadcast normalization across states.
-        return -norm[:, None] + (self.ln_fs + self.ln_bs)
+        return -norm[:, None] + ln_state_posteriors
+
+    def get_ln_state_priors(self, ln_state_emission):
+        """
+        Equivalent to ln_state_posterior - ln_state_emission for each
+        state.
+        """
+        if ln_state_emission is not None:
+            self.update(ln_state_emission)
+
+        ln_state_posteriors = self.ln_fs + self.ln_bs
+
+        # NB removes emission contribution of x_i from forward lattice.
+        ln_state_priors = ln_state_posteriors - ln_state_emission
+
+        norm = logsumexp(ln_state_priors, axis=1)
+
+        # NB broadcast normalization across states.
+        return -norm[:, None] + ln_state_priors
