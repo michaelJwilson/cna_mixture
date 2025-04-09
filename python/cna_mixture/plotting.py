@@ -6,7 +6,8 @@ import pylab as pl
 
 logger = logging.getLogger(__name__)
 
-def ln_probs_to_rgb(ln_probs):
+
+def ln_probs_to_rgb(ln_probs):    
     if ln_probs.ndim == 1:
         # NB black
         rgb = np.zeros(shape=(len(ln_probs), 3))
@@ -24,10 +25,9 @@ def ln_probs_to_rgb(ln_probs):
                 logger.warning(f"Failed to map all of {ln_probs.shape[1]} states to RGB when plotting")
                 break
                 
-    cmap = None
+        cmap = None
         
-    return rgb, alpha, cmap
-
+        return rgb, alpha, cmap
 
 def plot_rdr_baf_flat(
     fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None
