@@ -9,7 +9,13 @@ from cna_mixture.utils import assign_closest, normalize_ln_probs, uniform_ln_pro
 
 logger = logging.getLogger()
 
+# NB setup is such that Categorical+Markov satisfy the same ABC; for clarity, keyword
+#    arguments are used.
+def validate_keyword_not_null(arg):
+    if arg is None:
+        raise ValueError(f"keyword argument must not be null.")
 
+    
 class CNA_categorical_prior:
     def __init__(self, num_segments, num_states, production_mode=True):
         logger.info(
@@ -54,27 +60,31 @@ class CNA_categorical_prior:
 
         self.ln_lambdas_closest(kwargs["rdr_baf"], kwargs["cna_states"])
 
-    def get_ln_state_priors(self):
+    def get_ln_state_priors(self, ln_state_emission=None):
         ln_norm = logsumexp(self.ln_lambdas)
 
         return np.broadcast_to(
             self.ln_lambdas - ln_norm, (self.num_segments, len(self.ln_lambdas))
         ).copy()
 
-    def get_ln_state_posteriors(self, ln_state_emission):
+    def get_ln_state_posteriors(self, ln_state_emission=None):
         """
         Given the log. state emission probability, return the ln state
         posteriors.
         """
+        validate_keyword_not_null(ln_state_emission)
+        
         ln_state_prior = self.get_ln_state_priors()
 
         return normalize_ln_probs(ln_state_emission + ln_state_prior)
 
-    def update(self, ln_state_posteriors):
+    def update(self, ln_state_posteriors=None):
         """
         Given updated ln_state_posteriors, calculate the updated ln_lambdas for a
         Categorical model.
         """
+        validate_keyword_not_null(ln_state_posteriors)
+        
         assert ln_state_posteriors.ndim == 2
 
         # NB *slow* guard against being passed probabilities, instead of log probs.
@@ -108,6 +118,7 @@ class CNA_markov_prior:
         ).transfer_matrix
 
     def sample_hidden(self):
+        # TODO njit
         start_prior = np.exp(self.ln_start_prior)
         state = self.rng.choice(np.arange(self.num_states), size=1, p=start_prior)[0]
 
@@ -123,10 +134,12 @@ class CNA_markov_prior:
 
         return np.array(result)
 
-    def get_ln_state_priors(self, ln_state_emission):
+    def get_ln_state_priors(self, ln_state_emission=None):
         """
         Equivalent to ln_state_posterior - ln_state_emission for each state.
         """
+        validate_keyword_not_null(ln_state_emission)
+        
         ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
         ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
 
@@ -141,7 +154,12 @@ class CNA_markov_prior:
         return -norm[:, None] + ln_state_priors
 
     # TODO outlier masking?
-    def get_ln_state_posteriors(self, ln_state_emission):
+    def get_ln_state_posteriors(self, ln_state_emission=None):
+        """
+        Returns HMM ln_state_posterior probability.
+        """
+        validate_keyword_not_null(ln_state_emission)
+        
         ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
         ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
 
@@ -152,7 +170,14 @@ class CNA_markov_prior:
         # NB broadcast normalization across states.
         return -norm[:, None] + ln_state_posteriors
 
-    def update(self, ln_state_emission):
+    def update(self, ln_state_emission=None):
+        """
+        Updates state prior parameters in the HMM model, i.e. start categorical
+        prior and transfer matrix.
+        """
+        validate_keyword_not_null(ln_state_emission)
+
+        # TODO update start priors, based on state prior at 0?
         ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
         ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
 
