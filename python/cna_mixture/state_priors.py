@@ -123,41 +123,13 @@ class CNA_markov_prior:
 
         return np.array(result)
 
-    def update(self, ln_state_emission):
-        new_ln_transfer = np.array(
-            ln_transition_probs_rs(
-                self.num_states,
-                self.ln_fs,
-                self.ln_bs,
-                np.log(self.transfer),
-                ln_state_emission,
-            )
-        )
-
-        self.transfer = np.exp(new_ln_transfer)
-
-        self.ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
-        self.ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
-
-    # TODO outlier masking?
-    def get_ln_state_posteriors(self, ln_state_emission=None):
-        if ln_state_emission is not None:
-            self.update(ln_state_emission)
-
-        # NB per-segment normalization across states.
-        ln_state_posteriors = self.ln_fs + self.ln_bs
-        norm = logsumexp(ln_state_posteriors, axis=1)
-
-        # NB broadcast normalization across states.
-        return -norm[:, None] + ln_state_posteriors
-
     def get_ln_state_priors(self, ln_state_emission):
         """
         Equivalent to ln_state_posterior - ln_state_emission for each
         state.
         """
-        if ln_state_emission is not None:
-            self.update(ln_state_emission)
+        ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
+        ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
 
         ln_state_posteriors = self.ln_fs + self.ln_bs
 
@@ -168,3 +140,31 @@ class CNA_markov_prior:
 
         # NB broadcast normalization across states.
         return -norm[:, None] + ln_state_priors
+
+    # TODO outlier masking?
+    def get_ln_state_posteriors(self, ln_state_emission):
+        ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
+        ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
+
+        # NB per-segment normalization across states.
+        ln_state_posteriors = self.ln_fs + self.ln_bs
+        norm = logsumexp(ln_state_posteriors, axis=1)
+
+        # NB broadcast normalization across states.
+        return -norm[:, None] + ln_state_posteriors
+
+    def update(self, ln_state_emission):
+        ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
+        ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
+
+        new_ln_transfer = np.array(
+            ln_transition_probs_rs(
+                self.num_states,
+                ln_fs,
+                ln_bs,
+                np.log(self.transfer),
+                ln_state_emission,
+            )
+        )
+
+        self.transfer = np.exp(new_ln_transfer)
