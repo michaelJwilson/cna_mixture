@@ -78,19 +78,22 @@ class CNA_categorical_prior:
 
         return normalize_ln_probs(ln_state_emission + ln_state_prior)
 
-    def update(self, *, ln_state_posteriors=None):
+    # NB passing ln_state_posteriors is more natural, but this conforms to Markov interface.
+    def update(self, *, ln_state_emission=None):
         """
         Given updated ln_state_posteriors, calculate the updated ln_lambdas for a
         Categorical model.
         """
-        validate_keyword_not_null(ln_state_posteriors)
+        validate_keyword_not_null(ln_state_emission)
         
-        assert ln_state_posteriors.ndim == 2
-
-        # NB *slow* guard against being passed probabilities, instead of log probs.
         if not self.production_mode:
+            assert ln_state_emission.ndim == 2
+
+            # NB *slow* guard against being passed probabilities, instead of log probs.
             assert np.all(ln_state_posteriors <= 0.0)
 
+        ln_state_posteriors = self.get_ln_state_posteriors(ln_state_emission=ln_state_emission)
+            
         self.ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
             ln_state_posteriors
         )

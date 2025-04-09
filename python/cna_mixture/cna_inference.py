@@ -175,7 +175,7 @@ class CNA_inference:
         Update the state prior model based on the current state posteriors,                                                                                                                                      
         and re-compute the ln_state_priors.                                                                                                                                                                      
         """
-        self.state_prior_model.update(ln_state_posteriors=self.ln_state_posteriors)
+        self.state_prior_model.update(ln_state_emission=self.ln_state_emission)
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors(ln_state_emission=self.ln_state_emission)
 
     def em_cost(self, params, verbose=False):
@@ -185,9 +185,7 @@ class CNA_inference:
 
         NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
         """
-        self.ln_state_emission = self.emission_model.get_ln_state_emission_update(
-            params
-        )
+        self.ln_state_emission = self.emission_model.get_ln_state_emission_update(params)
 
         # NB responsibilites rik, where i is the sample and k is the state.
         #    this is *not* state-posterior weighted log-likelihood.
@@ -204,6 +202,7 @@ class CNA_inference:
         return cost
 
     def jac(self, params):
+        # NB gradients of responsibility weighted emission probabilities.
         return self.emission_model.grad_em_cost(params, self.state_posteriors)
 
     def post_mstep_simple(self, intermediate_result: OptimizeResult):
@@ -308,8 +307,6 @@ class CNA_inference:
         )
 
         cost = self.em_cost(self.initial_params, verbose=True)
-
-        exit(0)
         
         self.nit = 0
         self.last_params, self.params = None, self.initial_params
