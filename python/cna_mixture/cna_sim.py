@@ -18,7 +18,7 @@ def get_sim_params():
     return {
         "num_segments": 10_000,
         "num_states": 4,
-        "jump_rate": 0.1,
+        "jump_rate": 1.e-2,
         "normal_state": np.array([1.0, 0.5]),
         "cna_states": np.array(
             [
