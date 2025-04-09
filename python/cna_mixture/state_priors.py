@@ -101,24 +101,27 @@ class CNA_categorical_prior:
 
 class CNA_markov_prior:
     def __init__(self, num_segments, num_states, seed=314):
-        logger.info(
-            f"Initializing CNA_markov_prior for num. segments, num. states = {num_segments}, {num_states} respectively."
-        )
-
         self.seed = seed
         self.rng = np.random.default_rng(self.seed)
         self.num_segments = num_segments
         self.num_states = num_states
+
+    def __str__(self):
+        return f"PI={np.exp(self.ln_start_prior)}\n\tT=\n{self.transfer}"
 
     def initialize(self, **kwargs):
         self.ln_start_prior = kwargs.get(
             "ln_start_prior", np.log((1.0 / self.num_states) * np.ones(self.num_states))
         )
 
-        self.jump_rate = kwargs.get("jump_rate", 0.1)
+        self.jump_rate = kwargs.get("jump_rate", 1.e-1)
         self.transfer = CNA_transfer(
             jump_rate=self.jump_rate, num_states=self.num_states
         ).transfer_matrix
+
+        logger.info(
+            f"Initializing CNA_markov_prior for num. segments, num. states = {self.num_segments}, {self.num_states} and jump rate={self.jump_rate}."
+        )
 
     def sample_hidden(self):
         # TODO njit
@@ -179,6 +182,9 @@ class CNA_markov_prior:
         prior and transfer matrix.
         """
         validate_keyword_not_null(ln_state_emission)
+
+        # TODO HACK
+        return
 
         # TODO update start priors, based on state prior at 0?
         ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
