@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import numpy as np
+import pylab as pl
 import numpy.testing as npt
 from collections import Counter
+from numba import njit
 from cna_mixture.state_priors import CNA_categorical_prior, CNA_markov_prior
 from scipy.special import logsumexp
 from scipy.stats import norm
@@ -42,14 +44,20 @@ def test_CNA_categorical_prior(mixture_params, rdr_baf):
 def hamming(first_states, second_states):
     return np.count_nonzero(first_states == second_states)
 
+@njit
+def transfers(num_states, states):
+    mat = np.zeros(shape=(num_states, num_states))
 
-def transfers(states):
-    return Counter(zip(states[:-1], states[1:]))
+    for i,j in zip(states[:-1], states[1:]):
+        mat[i,j] += 1
+        
+    return mat
 
 
-def test_CNA_markov_prior():
-    num_segments, num_states, jump_rate = 5, 4, 1.0e-2
-
+def test_CNA_markov_prior(plot=True):
+    scale = 10.
+    num_segments, num_states, jump_rate = 5_000, 4, 1.0e-20
+    
     markov_prior = CNA_markov_prior(
         num_segments=num_segments,
         num_states=num_states,
@@ -57,35 +65,57 @@ def test_CNA_markov_prior():
 
     markov_prior.initialize(jump_rate=jump_rate)
 
+    # NB states have zero correlation length.
     states = np.array([np.random.randint(0, num_states) for ii in range(num_segments)])
-    samples = np.array([norm.rvs(loc=10 * ss, scale=1.0, size=1) for ss in states])
+    samples = np.array([norm.rvs(loc=10 * ss, scale=scale, size=1) for ss in states])
 
     ln_state_emission = np.hstack(
-        [-0.5 * (samples - 10.0 * ii) ** 2.0 for ii in range(num_states)]
+        [-0.5 * ((samples - 10.0 * ii) / scale) ** 2.0 for ii in range(num_states)]
     )
 
     assert ln_state_emission.shape == (num_segments, num_states)
 
-    ln_state_priors = markov_prior.get_ln_state_priors()
-    ln_state_posteriors = markov_prior.get_ln_state_posteriors(ln_state_emission)
+    ln_state_priors = markov_prior.get_ln_state_priors(ln_state_emission=ln_state_emission)
+    ln_state_posteriors = markov_prior.get_ln_state_posteriors(ln_state_emission=ln_state_emission)
 
     decoded_states = np.argmax(ln_state_emission, axis=1)
+
+    markov_prior_states = np.argmax(ln_state_priors, axis=1)
     markov_decoded_states = np.argmax(ln_state_posteriors, axis=1)
 
+    _, true_state_counts = np.unique(states, return_counts=True)
+
+    pl.plot(range(num_segments), markov_decoded_states, marker=',', c="k", lw=0.0)
+    pl.ylim(-0.5, num_states + 0.5)
+    pl.show()
+    
+    """
     print("\n\n")
 
+    print(f"True state distribution: {true_state_counts}")
+    
     print(
-        f"Hamming distance and transfers for emission: {hamming(states, decoded_states)}, {transfers(decoded_states)}"
-    )
-    print(
-        f"Hamming distance and transfers for Markov: {hamming(states, markov_decoded_states)}, {transfers(markov_decoded_states)}"
+        f"Hamming distance and transfers for emission only: {hamming(states, decoded_states)},\n{transfers(num_states, decoded_states)}"
     )
 
+    print()
+
+    print(
+        f"Hamming distance and transfers for Markov prior only: {hamming(states, markov_prior_states)},\n{transfers(num_states, markov_prior_states)}"
+    )
+
+    print()
+    
+    print(
+        f"Hamming distance and transfers for Markov prior & emission: {hamming(states, markov_decoded_states)},\n{transfers(num_states, markov_decoded_states)}"
+    )
+    
     print(states)
     print(markov_decoded_states)
 
     print(markov_prior.transfer)
 
-    markov_prior.update(ln_state_emission)
+    markov_prior.update(ln_state_emission=ln_state_emission)
 
     print(markov_prior.transfer)
+    """
