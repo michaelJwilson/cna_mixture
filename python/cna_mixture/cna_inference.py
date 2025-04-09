@@ -309,6 +309,8 @@ class CNA_inference:
 
         cost = self.em_cost(self.initial_params, verbose=True)
 
+        exit(0)
+        
         self.nit = 0
         self.last_params, self.params = None, self.initial_params
         self.last_cost, self.cost = None, cost
