@@ -23,7 +23,7 @@ TODOs:
 """
 
 
-def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=42, **kwargs):
+def run_inference(sim_dir, sim_id, num_cna_states, state_prior, initialize_mode, seed=42, **kwargs):
     start = time.time()
 
     plots_dir = f"{sim_dir}/cna_sim_{sim_id}/plots/"
@@ -38,9 +38,10 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=42, **kwar
 
     # NB total number of states (inc. normal).
     cna_inf = CNA_inference(
-        cna_sim.num_states,
+        num_cna_states,
         cna_sim.genome_coverage,
         cna_sim.data,
+        num_components,
         state_prior=state_prior,
         initialize_mode=initialize_mode,
         seed=rng,
@@ -63,7 +64,7 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=42, **kwar
 
 
 def main():
-    # NB python python/cna_mixture/scripts/run_inference.py --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --state-prior markov --initialize-mode mixture_plusplus
+    # NB python python/cna_mixture/scripts/run_inference.py --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 4 --state-prior markov --initialize-mode mixture_plusplus
     parser = argparse.ArgumentParser(description="Run CNA inference.")
     parser.add_argument(
         "--sim-dir",
@@ -76,6 +77,12 @@ def main():
         type=int,
         default=0,
         help="Simulation ID",
+    )
+    parser.add_argument(
+        "--num_cna_states",
+        type=int,
+        default=4,
+        help="Number of CNA components - does not include normal.",
     )
     parser.add_argument(
         "--state-prior",
@@ -100,7 +107,7 @@ def main():
 
     args = parser.parse_args()
 
-    run_inference(args.sim_dir, args.sim_id, args.state_prior, args.initialize_mode, args.seed)
+    run_inference(args.sim_dir, args.sim_id, args.num_cna_states, args.state_prior, args.initialize_mode, args.seed)
 
 
 if __name__ == "__main__":

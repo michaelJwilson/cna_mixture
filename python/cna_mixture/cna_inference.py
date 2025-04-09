@@ -31,7 +31,7 @@ def get_cna_mixture_bounds(num_states):
 class CNA_inference:
     def __init__(
         self,
-        num_states,
+        num_cna_states,
         genome_coverage,
         data,
         optimizer="L-BFGS-B",
@@ -58,8 +58,8 @@ class CNA_inference:
         self.rng = np.random.default_rng(int(seed)) if isinstance(seed, int | float) else seed
         self.maxiter = maxiter
         self.optimizer = optimizer
-        self.num_states = num_states
-        self.num_cna_states = num_states - 1
+        self.num_cna_states = num_cna_states
+        self.num_states = self.num_cna_states + 1
         self.num_segments = len(data)
         self.genome_coverage = genome_coverage
         self.initialize_mode = initialize_mode
