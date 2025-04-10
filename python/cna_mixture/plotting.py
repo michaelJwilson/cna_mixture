@@ -69,6 +69,7 @@ def plot_rdr_baf_flat(
     if title is not None:
         pl.title(title)
 
+    # plt.tight_layout()
     pl.savefig(fpath)
 
     logger.info(f"Plotted rdr_baf_flat to {fpath}")
@@ -121,7 +122,8 @@ def plot_rdr_baf_genome(
 
     if title is not None:
         pl.title(title)
-
+        
+    # plt.tight_layout()
     pl.savefig(fpath)
 
     logger.info(f"Plotted rdr_baf_genome to {fpath}")
