@@ -19,6 +19,9 @@ rand = "0.8.5"
 ordered-float = "2.10.0"
 GSL = "*"
 
+[dev-dependencies]
+criterion = ">0.4"
+
 [profile.release]
 opt-level = 3
 lto = true
