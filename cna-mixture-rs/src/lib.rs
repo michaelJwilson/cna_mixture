@@ -1,23 +1,26 @@
 extern crate statrs;
 
-use numpy::{PyReadonlyArray1, PyReadonlyArray2};
-use pyo3::prelude::*;
-use statrs::function::gamma::{ln_gamma, digamma};
-use statrs::function::factorial::ln_factorial;
-use ndarray::parallel::prelude::IntoParallelRefIterator;
 use ndarray::parallel::prelude::IndexedParallelIterator;
+use ndarray::parallel::prelude::IntoParallelRefIterator;
 use ndarray::parallel::prelude::ParallelIterator;
-use rayon::ThreadPoolBuilder;
-use once_cell::sync::Lazy;
-use std::env;
 use num_cpus;
+use numpy::{PyReadonlyArray1, PyReadonlyArray2};
+use once_cell::sync::Lazy;
+use pyo3::prelude::*;
+use rayon::ThreadPoolBuilder;
+use statrs::function::factorial::ln_factorial;
+use statrs::function::gamma::{digamma, ln_gamma};
+use std::env;
 
 static THREAD_POOL: Lazy<rayon::ThreadPool> = Lazy::new(|| {
     let num_threads = env::var("RAYON_NUM_THREADS")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or_else(|| num_cpus::get());
-    ThreadPoolBuilder::new().num_threads(num_threads).build().unwrap()
+    ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build()
+        .unwrap()
 });
 
 #[pyfunction]
@@ -41,23 +44,28 @@ fn nbinom_logpmf<'py>(
 
     // TODO: ndarray for vectorization?
     let result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
-        k.par_iter().enumerate().map(|(_ii, &k_val)| {
-	    //  NB data-dependent only
-            let zero_point = -ln_factorial(k_val as u64);
-	    
-            let row: Vec<f64> = r.iter().enumerate().map(|(ss, &r_val)| {
-                let mut interim = zero_point;
+        k.par_iter()
+            .enumerate()
+            .map(|(_ii, &k_val)| {
+                //  NB data-dependent only
+                let zero_point = -ln_factorial(k_val as u64);
 
-                interim += k_val * lnq[ss] + r_val * lnp[ss] - gr[ss];
-                interim += ln_gamma(k_val + r_val);
+                let row: Vec<f64> = r
+                    .iter()
+                    .enumerate()
+                    .map(|(ss, &r_val)| {
+                        let mut interim = zero_point;
 
-		interim
+                        interim += k_val * lnq[ss] + r_val * lnp[ss] - gr[ss];
+                        interim += ln_gamma(k_val + r_val);
 
-            }).collect();
+                        interim
+                    })
+                    .collect();
 
-            row
-
-            }).collect::<Vec<Vec<f64>>>()
+                row
+            })
+            .collect::<Vec<Vec<f64>>>()
     });
 
     Ok(result)
@@ -81,25 +89,36 @@ fn betabinom_logpmf<'py>(
 
     let ga: Vec<f64> = a.iter().map(|&x| ln_gamma(x)).collect();
     let gb: Vec<f64> = b.iter().map(|&x| ln_gamma(x)).collect();
-    let gab: Vec<f64> = a.iter().zip(b.iter()).map(|(&x, &y)| ln_gamma(x + y)).collect();
+    let gab: Vec<f64> = a
+        .iter()
+        .zip(b.iter())
+        .map(|(&x, &y)| ln_gamma(x + y))
+        .collect();
 
     // let pool = ThreadPoolBuilder::new().num_threads(num_threads).build().unwrap();
     let result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
-        k.par_iter().enumerate().map(|(ii, &k_val)| {
-            let zero_point = ln_gamma(n[ii] + 1.0) - ln_gamma(k_val + 1.0) - ln_gamma(n[ii] - k_val + 1.0);	
-            let row: Vec<f64> = a.iter().enumerate().map(|(ss, &a_val)| {
-            	let mut interim = zero_point;
-	    
-		interim += ln_gamma(k_val + a_val) + ln_gamma(n[ii] - k_val + b[ss]) - ln_gamma(n[ii] + a_val + b[ss]);
-            	interim += gab[ss] - ga[ss] - gb[ss];
-	    
-		interim
-	    
-            }).collect();
-	
-	    row
-	
-    	    }).collect::<Vec<Vec<f64>>>()
+        k.par_iter()
+            .enumerate()
+            .map(|(ii, &k_val)| {
+                let zero_point =
+                    ln_gamma(n[ii] + 1.0) - ln_gamma(k_val + 1.0) - ln_gamma(n[ii] - k_val + 1.0);
+                let row: Vec<f64> = a
+                    .iter()
+                    .enumerate()
+                    .map(|(ss, &a_val)| {
+                        let mut interim = zero_point;
+
+                        interim += ln_gamma(k_val + a_val) + ln_gamma(n[ii] - k_val + b[ss])
+                            - ln_gamma(n[ii] + a_val + b[ss]);
+                        interim += gab[ss] - ga[ss] - gb[ss];
+
+                        interim
+                    })
+                    .collect();
+
+                row
+            })
+            .collect::<Vec<Vec<f64>>>()
     });
 
     Ok(result)
@@ -114,26 +133,38 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
 ) -> PyResult<(Vec<Vec<f64>>, Vec<Vec<f64>>)> {
     //
     //  Gradient of the negative binomial component to the
-    //  EM cost for the CNA mixture problem.  
+    //  EM cost for the CNA mixture problem.
     //
     let ks = ks.to_vec()?;
     let mus = mus.to_vec()?;
     let rs = rs.to_vec()?;
 
-    let zero_points: Vec<f64> = mus.iter().zip(rs.iter()).map(|(&mu, &rr)| digamma(rr) / (phi * phi) + (1.0 + phi * mu).ln() / phi / phi - phi * mu * rr / phi / (1.0 + phi * mu)).collect();
+    let zero_points: Vec<f64> = mus
+        .iter()
+        .zip(rs.iter())
+        .map(|(&mu, &rr)| {
+            digamma(rr) / (phi * phi) + (1.0 + phi * mu).ln() / phi / phi
+                - phi * mu * rr / phi / (1.0 + phi * mu)
+        })
+        .collect();
     let result: (Vec<Vec<f64>>, Vec<Vec<f64>>) = THREAD_POOL.install(|| {
-        ks.par_iter().map(|&k_val| {
-	   let (mus_row, phi_row): (Vec<f64>, Vec<f64>) = mus.iter().enumerate().map(|(ss, &mu)| {
-            	let mus_val = (k_val - phi * mu * rs[ss]) / mu / (1.0 + phi * mu);
-		let phi_val = zero_points[ss] - digamma(k_val + rs[ss]) / (phi * phi) + k_val / phi / (1.0 + phi * mu);
+        ks.par_iter()
+            .map(|&k_val| {
+                let (mus_row, phi_row): (Vec<f64>, Vec<f64>) = mus
+                    .iter()
+                    .enumerate()
+                    .map(|(ss, &mu)| {
+                        let mus_val = (k_val - phi * mu * rs[ss]) / mu / (1.0 + phi * mu);
+                        let phi_val = zero_points[ss] - digamma(k_val + rs[ss]) / (phi * phi)
+                            + k_val / phi / (1.0 + phi * mu);
 
-		(mus_val, phi_val)
-		
-	    }).unzip();
-		
-	    (mus_row, phi_row)
-		
-	}).unzip()
+                        (mus_val, phi_val)
+                    })
+                    .unzip();
+
+                (mus_row, phi_row)
+            })
+            .unzip()
     });
 
     Ok(result)
@@ -144,19 +175,19 @@ fn vector_sum(vec1: Vec<f64>, vec2: Vec<f64>) -> Vec<f64> {
 }
 
 fn grad_ln_bb_ab_zeropoint(a: f64, b: f64) -> Vec<f64> {
-   let gab = digamma(a + b);
-   let ga = digamma(a);
-   let gb = digamma(b);
+    let gab = digamma(a + b);
+    let ga = digamma(a);
+    let gb = digamma(b);
 
-   vec![gab - ga, gab - gb]
+    vec![gab - ga, gab - gb]
 }
 
 fn grad_ln_bb_ab_data(k: f64, n: f64, a: f64, b: f64) -> Vec<f64> {
-   let gka = digamma(k + a);
-   let gnab = digamma(n + a + b);
-   let gnkb = digamma(n - k + b);
+    let gka = digamma(k + a);
+    let gnab = digamma(n + a + b);
+    let gnkb = digamma(n - k + b);
 
-   vec![gka - gnab, gnkb - gnab]
+    vec![gka - gnab, gnkb - gnab]
 }
 
 #[pyfunction]
@@ -175,29 +206,36 @@ fn grad_cna_mixture_em_cost_bb_rs<'py>(
     let alphas = alphas.to_vec()?;
     let betas = betas.to_vec()?;
 
-    let zero_points: Vec<Vec<f64>> = alphas.iter().zip(betas.iter()).map(|(&aa, &bb)| {
-    	grad_ln_bb_ab_zeropoint(bb, aa)
-    }).collect();
+    let zero_points: Vec<Vec<f64>> = alphas
+        .iter()
+        .zip(betas.iter())
+        .map(|(&aa, &bb)| grad_ln_bb_ab_zeropoint(bb, aa))
+        .collect();
 
     let result: (Vec<Vec<f64>>, Vec<Vec<f64>>) = THREAD_POOL.install(|| {
-        ks.par_iter().enumerate().map(|(ii, &k_val)| {
-            let (ps_row, tau_row): (Vec<f64>, Vec<f64>) = alphas.iter().enumerate().map(|(ss, &aa)| {
-	        let tau = aa + betas[ss];
-		let baf = betas[ss] / tau;
+        ks.par_iter()
+            .enumerate()
+            .map(|(ii, &k_val)| {
+                let (ps_row, tau_row): (Vec<f64>, Vec<f64>) = alphas
+                    .iter()
+                    .enumerate()
+                    .map(|(ss, &aa)| {
+                        let tau = aa + betas[ss];
+                        let baf = betas[ss] / tau;
 
-		let data_points = grad_ln_bb_ab_data(k_val, ns[ii], betas[ss], aa);
-		let interim = vector_sum(zero_points[ss].clone(), data_points);
+                        let data_points = grad_ln_bb_ab_data(k_val, ns[ii], betas[ss], aa);
+                        let interim = vector_sum(zero_points[ss].clone(), data_points);
 
-		let ps_val = -tau * interim[1] + tau * interim[0];
-		let tau_val = (1.0 - baf) * interim[1] + baf * interim[0];
+                        let ps_val = -tau * interim[1] + tau * interim[0];
+                        let tau_val = (1.0 - baf) * interim[1] + baf * interim[0];
 
-                (ps_val, tau_val)
-		
-            }).unzip();
+                        (ps_val, tau_val)
+                    })
+                    .unzip();
 
-            (ps_row, tau_row)
-	    
-        }).unzip()
+                (ps_row, tau_row)
+            })
+            .unzip()
     });
 
     Ok(result)
@@ -206,7 +244,7 @@ fn grad_cna_mixture_em_cost_bb_rs<'py>(
 fn logsumexp(array: &Vec<f64>) -> f64 {
     let max_val = array.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
     let sum_exp: f64 = array.iter().map(|&x| (x - max_val).exp()).sum();
-    
+
     max_val + sum_exp.ln()
 }
 
@@ -231,22 +269,25 @@ fn ln_transition_probs_rs<'py>(
     let num_segments = ln_fs.shape()[0];
     let mut result: Vec<Vec<f64>> = vec![vec![0.0; num_states]; num_states];
 
-    for ii in 0..(num_segments - 1){
-    	for kk in 0..num_states {
-	    for ll in 0..num_states {
-	    	result[kk][ll] += ln_trans[[kk, ll]] + ln_ems[[ii+1, ll]] + ln_fs[[ii, kk]] + ln_bs[[ii + 1, ll]];
-	    }
-	}
+    for ii in 0..(num_segments - 1) {
+        for kk in 0..num_states {
+            for ll in 0..num_states {
+                result[kk][ll] += ln_trans[[kk, ll]]
+                    + ln_ems[[ii + 1, ll]]
+                    + ln_fs[[ii, kk]]
+                    + ln_bs[[ii + 1, ll]];
+            }
+        }
     }
- 
+
     for ii in 0..num_states {
-    	let norm = logsumexp(&result[ii]);
-	
+        let norm = logsumexp(&result[ii]);
+
         for jj in 0..num_states {
             result[ii][jj] -= norm;
         }
     }
- 
+
     Ok(result)
 }
 
@@ -268,10 +309,15 @@ mod tests {
     #[test]
     fn test_logsumexp() {
         let array = vec![1.0, 2.0, 3.0];
-	
+
         let result = logsumexp(&array);
         let expected = 3.4076059644443806;
 
-        assert!((result - expected).abs() < 1e-6, "result: {}, expected: {}", result, expected);
+        assert!(
+            (result - expected).abs() < 1e-6,
+            "result: {}, expected: {}",
+            result,
+            expected
+        );
     }
 }
