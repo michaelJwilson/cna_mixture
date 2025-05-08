@@ -1,5 +1,6 @@
 extern crate statrs;
 
+use itertools::izip;
 use ndarray::parallel::prelude::IndexedParallelIterator;
 use ndarray::parallel::prelude::IntoParallelRefIterator;
 use ndarray::parallel::prelude::ParallelIterator;
@@ -22,6 +23,30 @@ static THREAD_POOL: Lazy<rayon::ThreadPool> = Lazy::new(|| {
         .build()
         .unwrap()
 });
+
+// NB  8.4824 ms -> 11.915 µs
+pub fn nbinom_logpmf_core(k: &[f64], r: &[f64], p: &[f64]) -> f64 {
+    let gr: Vec<f64> = r.iter().map(|&x| ln_gamma(x)).collect();
+    let lnp: Vec<f64> = p.iter().map(|&x| x.ln()).collect();
+    let lnq: Vec<f64> = p.iter().map(|&x| (1.0 - x).ln()).collect();
+
+    let mut result = 0.0;
+
+    for &k_val in k {
+        let zero_point = -ln_gamma(k_val + 1.0);
+
+        for (&r_val, &lnp_val, &lnq_val, &gg) in izip!(r, &lnp, &lnq, &gr) {
+            let mut interim = zero_point;
+            
+            interim += k_val * lnq_val + r_val * lnp_val - gg;
+            interim += ln_gamma(k_val + r_val);
+
+            result += interim;
+        }
+    }
+
+    result
+}
 
 #[pyfunction]
 fn nbinom_logpmf<'py>(
