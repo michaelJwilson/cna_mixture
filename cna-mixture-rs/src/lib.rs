@@ -37,7 +37,7 @@ pub fn nbinom_logpmf_core(k: &[f64], r: &[f64], p: &[f64]) -> f64 {
 
         for (&r_val, &lnp_val, &lnq_val, &gg) in izip!(r, &lnp, &lnq, &gr) {
             let mut interim = zero_point;
-            
+
             interim += k_val * lnq_val + r_val * lnp_val - gg;
             interim += ln_gamma(k_val + r_val);
 
@@ -94,6 +94,39 @@ fn nbinom_logpmf<'py>(
     });
 
     Ok(result)
+}
+
+// NB 4.4646 ms -> 22.998 µs
+pub fn betabinom_logpmf_core<'py>(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> f64 {
+    //
+    //  Efficient beta binomial evaluation for many samples x many states.
+    //
+    //  see: https://en.wikipedia.org/wiki/Beta-binomial_distribution
+    let ga: Vec<f64> = a.iter().map(|&x| ln_gamma(x)).collect();
+    let gb: Vec<f64> = b.iter().map(|&x| ln_gamma(x)).collect();
+    let gab: Vec<f64> = a
+        .iter()
+        .zip(b.iter())
+        .map(|(&x, &y)| ln_gamma(x + y))
+        .collect();
+
+    let mut result = 0.0;
+
+    for (k_val, n_val) in k.iter().zip(n.iter()) {
+        let zero_point =
+            ln_gamma(n_val + 1.0) - ln_gamma(k_val + 1.0) - ln_gamma(n_val - k_val + 1.0);
+
+        for (&a_val, &b_val, &ga_val, &gb_val, &gab_val) in izip!(a, b, &ga, &gb, &gab) {
+            let mut interim = zero_point + gab_val - ga_val - gb_val;
+
+            interim += ln_gamma(k_val + a_val) + ln_gamma(n_val - k_val + b_val)
+                - ln_gamma(n_val + a_val + b_val);
+
+            result += interim;
+        }
+    }
+
+    result
 }
 
 #[pyfunction]

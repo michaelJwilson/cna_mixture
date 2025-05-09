@@ -1,14 +1,28 @@
-use cna_mixture_rs::nbinom_logpmf_core;
+use cna_mixture_rs::{betabinom_logpmf_core, nbinom_logpmf_core};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn benchmark_cna_mixture_rs(c: &mut Criterion) {
     let k: Vec<f64> = (1..=1000).map(|x| x as f64).collect();
     let r: Vec<f64> = (1..=1000).map(|x| (x as f64) * 0.5).collect();
-    let p: Vec<f64> = vec![0.5; 1000]; // All elements set to 0.5
+    let p: Vec<f64> = vec![0.5; 1000];
 
     c.bench_function("nbinom_logpmf_core", |b| {
         b.iter(|| {
             let _result = nbinom_logpmf_core(black_box(&k), black_box(&r), black_box(&p));
+        })
+    });
+
+    let alpha: Vec<f64> = (1..=1000).map(|x| x as f64).collect();
+    let beta: Vec<f64> = (1..=1000).map(|x| x as f64).collect();
+
+    c.bench_function("betabinomial_logpmf_core", |b| {
+        b.iter(|| {
+            let _result = betabinom_logpmf_core(
+                black_box(&k),
+                black_box(&r),
+                black_box(&alpha),
+                black_box(&beta),
+            );
         })
     });
 }
