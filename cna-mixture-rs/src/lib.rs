@@ -25,7 +25,7 @@ static THREAD_POOL: Lazy<rayon::ThreadPool> = Lazy::new(|| {
 });
 
 // NB  8.4824 ms -> 11.915 µs
-pub fn nbinom_logpmf_core(k: &[f64], r: &[f64], p: &[f64]) -> f64 {
+pub fn nbinom_logpmf_reduce(k: &[f64], r: &[f64], p: &[f64]) -> f64 {
     let gr: Vec<f64> = r.iter().map(|&x| ln_gamma(x)).collect();
     let lnp: Vec<f64> = p.iter().map(|&x| x.ln()).collect();
     let lnq: Vec<f64> = p.iter().map(|&x| (1.0 - x).ln()).collect();
@@ -48,20 +48,7 @@ pub fn nbinom_logpmf_core(k: &[f64], r: &[f64], p: &[f64]) -> f64 {
     result
 }
 
-#[pyfunction]
-fn nbinom_logpmf<'py>(
-    k: PyReadonlyArray1<'_, f64>,
-    r: PyReadonlyArray1<'_, f64>,
-    p: PyReadonlyArray1<'_, f64>,
-) -> PyResult<Vec<Vec<f64>>> {
-    //
-    //  Efficient negative binomial evaluation for many samples x many states.
-    //
-    //  see: https://en.wikipedia.org/wiki/Negative_binomial_distribution
-    let k = k.to_vec()?;
-    let r = r.to_vec()?;
-    let p = p.to_vec()?;
-
+pub fn nbinom_logpmf_core(k: &[f64], r: &[f64], p: &[f64]) -> Vec<Vec<f64>> {
     // NB parameter-dependent only
     let gr: Vec<f64> = r.iter().map(|&x| ln_gamma(x)).collect();
     let lnp: Vec<f64> = p.iter().map(|&x| x.ln()).collect();
@@ -92,6 +79,25 @@ fn nbinom_logpmf<'py>(
             })
             .collect::<Vec<Vec<f64>>>()
     });
+
+    result
+}
+
+#[pyfunction]
+fn nbinom_logpmf<'py>(
+    k: PyReadonlyArray1<'_, f64>,
+    r: PyReadonlyArray1<'_, f64>,
+    p: PyReadonlyArray1<'_, f64>,
+) -> PyResult<Vec<Vec<f64>>> {
+    //
+    //  Efficient negative binomial evaluation for many samples x many states.
+    //
+    //  see: https://en.wikipedia.org/wiki/Negative_binomial_distribution
+    let k = k.as_slice()?;
+    let r = r.as_slice()?;
+    let p = p.as_slice()?;
+
+    let result = nbinom_logpmf_core(&k, &r, &p);
 
     Ok(result)
 }

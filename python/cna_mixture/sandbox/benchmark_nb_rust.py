@@ -2,18 +2,13 @@ import numpy as np
 from cna_mixture_rs.core import nbinom_logpmf as nbinom_logpmf_rs
 from scipy.stats import nbinom
 
-def prepare_data():
-    k = np.arange(1, 1001, dtype=np.float64)
-    r = np.arange(1, 1001, dtype=np.float64) * 0.5
+def prepare_data(size=10_000):
+    k = np.arange(1, 1 + size, dtype=np.float64)
+    r = np.arange(1, 1 + size, dtype=np.float64) * 0.5
     
-    p = np.full(1000, 0.5, dtype=np.float64)
+    p = np.full(size, 0.5, dtype=np.float64)
     
     return k, r, p
-
-def test_nbinom_logpmf_benchmark(benchmark):
-    ks, rs, ps = prepare_data()
-    
-    benchmark(nbinom_logpmf, ks, rs, ps)
 
 # NB 108 ms, 90ms,
 def nbinom_logpmf(ks, rs, ps, RUST_BACKEND=True):
@@ -30,6 +25,10 @@ def nbinom_logpmf(ks, rs, ps, RUST_BACKEND=True):
                 
     return result
 
+def test_nbinom_logpmf_benchmark(benchmark):
+    ks, rs, ps = prepare_data()
+
+    benchmark(nbinom_logpmf, ks, rs, ps)
 
 if __name__ == "__main__":
     ks, rs, ps = prepare_data()
