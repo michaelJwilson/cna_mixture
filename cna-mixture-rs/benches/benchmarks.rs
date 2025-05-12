@@ -1,14 +1,20 @@
-use cna_mixture_rs::{betabinom_logpmf_core, nbinom_logpmf_core};
+use cna_mixture_rs::nbinom_logpmf;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn benchmark_cna_mixture_rs(c: &mut Criterion) {
     let k: Vec<f64> = (1..=1000).map(|x| x as f64).collect();
-    let r: Vec<f64> = (1..=1000).map(|x| (x as f64) * 0.5).collect();
-    let p: Vec<f64> = vec![0.5; 1000];
+    let x: Vec<f64> = k.clone().into_iter().map(|x| 10. * x).collect();
 
-    c.bench_function("nbinom_logpmf_core", |b| {
+    let means: Vec<f64> = (10..=15).map(|x| (x as f64)).collect();
+
+    c.bench_function("nbinom_logpmf", |b| {
         b.iter(|| {
-            let _result = nbinom_logpmf_core(black_box(&k), black_box(&r), black_box(&p));
+            let _result = nbinom_logpmf(
+                black_box(&k),
+                black_box(&x),
+                black_box(&means),
+                black_box(0.01),
+            );
         })
     });
 

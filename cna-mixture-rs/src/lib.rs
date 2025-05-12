@@ -25,21 +25,23 @@ static THREAD_POOL: Lazy<rayon::ThreadPool> = Lazy::new(|| {
 });
 
 // NB  8.4824 ms -> 11.915 µs
-pub fn nbinom_logpmf_reduce(k: &[f64], r: &[f64], p: &[f64]) -> f64 {
-    let gr: Vec<f64> = r.iter().map(|&x| ln_gamma(x)).collect();
-    let lnp: Vec<f64> = p.iter().map(|&x| x.ln()).collect();
-    let lnq: Vec<f64> = p.iter().map(|&x| (1.0 - x).ln()).collect();
-
+pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> f64 {
     let mut result = 0.0;
 
-    for &k_val in k {
-        let zero_point = -ln_gamma(k_val + 1.0);
+    for (&k_val, &x_val) in k.iter().zip(x.iter()) {
+        let zero_point = -ln_gamma(1. + k_val);
 
-        for (&r_val, &lnp_val, &lnq_val, &gg) in izip!(r, &lnp, &lnq, &gr) {
+        for &mean_val in means {
             let mut interim = zero_point;
 
-            interim += k_val * lnq_val + r_val * lnp_val - gg;
-            interim += ln_gamma(k_val + r_val);
+            let factor = 1.0 + overdisp * x_val * mean_val;
+            let ln_pp = -factor.ln();
+            let ln_qq = (1.0 - 1.0 / factor).ln();
+
+            let rr = 1. / overdisp;
+
+            interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
+            interim += ln_gamma(k_val + rr);
 
             result += interim;
         }
@@ -49,32 +51,33 @@ pub fn nbinom_logpmf_reduce(k: &[f64], r: &[f64], p: &[f64]) -> f64 {
 }
 
 pub fn nbinom_logpmf(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
-    let result: Vec<Vec<f64>> = k.iter().zip(x.iter())
-            .map(|&k_val, &x_val| {
-                let zero_point = -ln_gamma(1. + k_val);
+    let result: Vec<Vec<f64>> = k
+        .iter()
+        .zip(x.iter())
+        .map(|(&k_val, &x_val)| {
+            let zero_point = -ln_gamma(1. + k_val);
 
-                let row: Vec<f64> = means
-                    .iter()
-                    .enumerate()
-                    .map(|(ss, &mean_val)| {
-                        let mut interim = zero_point;
+            let row: Vec<f64> = means
+                .iter()
+                .map(|&mean_val| {
+                    let mut interim = zero_point;
 
-                        let ln_pp = -(1.0 + overdisp * mean_val).ln();
-                        let ln_qq = (1. - 1.0 / (1.0 + overdisp * mean_val)).ln();
-                        
-                        let rr = 1. / overdisp;
-                     
-                        interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
-                        interim += ln_gamma(k_val + rr);
+                    let factor = 1.0 + overdisp * x_val * mean_val;
+                    let ln_pp = -factor.ln();
+                    let ln_qq = (1.0 - 1.0 / factor).ln();
 
-                        interim
-                    })
-                    .collect();
+                    let rr = 1. / overdisp;
 
-                row
-            })
-            .collect::<Vec<Vec<f64>>>()
-    });
+                    interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
+                    interim += ln_gamma(k_val + rr);
+
+                    interim
+                })
+                .collect();
+
+            row
+        })
+        .collect::<Vec<Vec<f64>>>();
 
     result
 }
@@ -83,20 +86,19 @@ pub fn nbinom_logpmf(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> Vec<
 fn nbinom_logpmf_rs<'py>(
     k: PyReadonlyArray1<'_, f64>,
     x: PyReadonlyArray1<'_, f64>,
-    r: PyReadonlyArray1<'_, f64>,
-    p: PyReadonlyArray1<'_, f64>,
-) -> PyResult<Vec<Vec<f64>>> {
+    means: PyReadonlyArray1<'_, f64>,
+    overdisp: f64,
+) -> PyResult<f64> { // PyResult<Vec<Vec<f64>>>
     //
     //  Efficient negative binomial evaluation for many samples x many states.
     //
     //  see: https://en.wikipedia.org/wiki/Negative_binomial_distribution
     let k = k.as_slice()?;
     let x = x.as_slice()?;
-    
-    let r = r.as_slice()?;
-    let p = p.as_slice()?;
 
-    let result = nbinom_logpmf(&k, &x, &r, &p);
+    let means = means.as_slice()?;
+
+    let result = nbinom_logpmf_reduce(&k, &x, &means, overdisp);
 
     Ok(result)
 }
@@ -135,7 +137,7 @@ pub fn betabinom_logpmf_core<'py>(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) ->
 }
 
 #[pyfunction]
-fn betabinom_logpmf<'py>(
+fn betabinom_logpmf_rs<'py>(
     k: PyReadonlyArray1<'_, f64>,
     n: PyReadonlyArray1<'_, f64>,
     a: PyReadonlyArray1<'_, f64>,
@@ -357,8 +359,8 @@ fn ln_transition_probs_rs<'py>(
 #[pymodule]
 #[pyo3(name = "core")]
 fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(nbinom_logpmf, m)?)?;
-    m.add_function(wrap_pyfunction!(betabinom_logpmf, m)?)?;
+    m.add_function(wrap_pyfunction!(nbinom_logpmf_rs, m)?)?;
+    m.add_function(wrap_pyfunction!(betabinom_logpmf_rs, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_nb_rs, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_bb_rs, m)?)?;
     m.add_function(wrap_pyfunction!(ln_transition_probs_rs, m)?)?;
