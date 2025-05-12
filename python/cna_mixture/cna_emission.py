@@ -40,7 +40,7 @@ def reparameterize_nbinom(means, overdisp):
     # NB for overdisp << 1, r >> 1, Gamma(r) -> Stirling's / overflow.
     rs = np.ones_like(means) / overdisp
 
-    return np.c_[rs, ps]
+    return rs, ps
 
 
 def cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion, rust_backend=True):
@@ -72,22 +72,23 @@ def cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion, rust_backend=Tr
 
 
 def cna_mixture_nbinom_eval(
-    ks, means, overdispersion, rust_backend=True
+    ks, exposure, means, overdispersion, rust_backend=True
 ):
     """
     Evaluate log prob. under NegativeBinom model, given parameter vector.
     Return (# sample, # state) array.
     """
-    state_rs_ps = reparameterize_nbinom(
-        means,
+    rs, ps = reparameterize_nbinom(
+        exposure * means,
         overdispersion,
     )
 
     if rust_backend:
+        # TODO drop as contiguous.
         ks = np.ascontiguousarray(ks)
-
-        rs = np.ascontiguousarray(state_rs_ps[:, 0].copy())
-        ps = np.ascontiguousarray(state_rs_ps[:, 1].copy())
+        
+        rs = np.ascontiguousarray(rs.copy())
+        ps = np.ascontiguousarray(ps.copy())
 
         # TODO rs.shape len(states) -> len(ks) * len(states).
         result = nbinom_logpmf(ks, rs, ps)
@@ -99,7 +100,7 @@ def cna_mixture_nbinom_eval(
             for row, kk in enumerate(ks):
                 result[row, col] = nbinom.logpmf(kk, rr, pp)
 
-    return result, state_rs_ps
+    return result, rs, ps
 
 
 # TODO rename cna_mixture_ln_emission_eval?
@@ -113,7 +114,7 @@ def get_ln_state_emission(
     baf_overdispersion,
     rust_backend=True,
 ):
-    ln_state_emission_nbinom, _ = cna_mixture_nbinom_eval(
+    ln_state_emission_nbinom, _, _ = cna_mixture_nbinom_eval(
         ks, state_read_depths, rdr_overdispersion, rust_backend=rust_backend
     )
 
@@ -145,6 +146,7 @@ class CNA_emission:
     def __init__(self, num_states, genome_coverage, ks, xs, ns):
         # NB ks are NB derived.
         self.ks = ks
+        self.exposure = exposure # T_n x lambda_g.
 
         # NB xs and ns are BB derived.
         self.xs = xs
@@ -164,20 +166,20 @@ class CNA_emission:
             len(params) == num_states + 1 + num_states + 1
         ), f"{params} does not satisy {num_states} states."
 
-        rdr_means = params[:num_states]
+        rdrs = params[:num_states]
         rdr_overdispersion = params[num_states]
 
         bafs = params[num_states + 1 : 2 * num_states + 1]
         baf_overdispersion = params[2 * num_states + 1]
 
-        return rdr_means, rdr_overdispersion, bafs, baf_overdispersion
+        return rdrs, rdr_overdispersion, bafs, baf_overdispersion
 
     def get_states_bag(self, params):
-        rdr_means, rdr_overdispersion, bafs, baf_overdispersion = (
+        rdrs, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_params(params)
         )
 
-        return np.c_[rdr_means, bafs]
+        return np.c_[rdrs, bafs]
 
     def cna_mixture_betabinom_update(self, params):
         """
@@ -197,10 +199,10 @@ class CNA_emission:
         Return (# sample, # state) array.
         """
         ks = self.ks
-        rdr_means, rdr_overdispersion, _, _ = self.unpack_params(params)
+        rdrs, rdr_overdispersion, _, _ = self.unpack_params(params)
 
         return cna_mixture_nbinom_eval(
-            ks, state_read_depths, rdr_overdispersion, rust_backend=self.RUST_BACKEND
+            ks, exposure, rdrs, rdr_overdispersion, rust_backend=self.RUST_BACKEND
         )
 
     def get_ln_state_emission_update(self, params):
