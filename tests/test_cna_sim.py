@@ -34,7 +34,7 @@ def test_cna_sim_states(cna_sim):
     ustates, state_counts = np.unique(cna_sim.data["state"], return_counts=True)
 
     # NB approx. equal state distribution
-    exp = np.array([1890, 3169, 2910, 2031])
+    exp = np.array([2552, 1595, 2692, 3161])
 
     assert np.array_equal(state_counts, exp)
 
@@ -63,7 +63,7 @@ def test_cna_sim_reproducibility(cna_sim):
 
     # NB tested test fails if cna_sim.data[0] is updated.
     assert np.all(new_cna_sim.data == cna_sim.data)
-
+    
 
 def test_cna_sim_seeding(cna_sim):
     new_cna_sim = CNA_sim(seed=42)

@@ -90,7 +90,7 @@ class CNA_sim:
         logger.info(f"Simulating copy number states:\n{self.cna_states} for seed={self.seed}.")
 
         # NB All-covering reads per segment.
-        baseline_coverages = np.random.poisson(self.mean_baseline_expression, size=self.num_segments)
+        baseline_coverages = self.rng.poisson(self.mean_baseline_expression, size=self.num_segments)
         
         # NB SNP-covering reads per segment.
         snp_coverages = self.rng.integers(
