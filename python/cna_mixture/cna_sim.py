@@ -32,7 +32,7 @@ def get_sim_params():
         "overdisp_phi": 1.0e-2,
         "min_snp_coverage": 100,
         "max_snp_coverage": 1_000,
-        "normal_genome_coverage": 500,  # NB normal coverage per segment, i.e. for RDR=1.
+        "mean_baseline_expression": 500,  # NB normal coverage per segment, i.e. for RDR=1.
     }
 
 
@@ -40,7 +40,7 @@ def get_sim_output_dtype():
     return [
         ("state", np.float64),
         ("read_coverage", np.float64),
-        ("true_read_coverage", np.float64),
+        ("baseline_coverage", np.float64),
         ("b_reads", np.float64),
         ("snp_coverage", np.float64),
     ]
@@ -78,13 +78,6 @@ class CNA_sim:
 
             self.data = data
 
-        # NB if rdr=1 always, equates == self.num_segments * self.normal_genome_coverage
-        # TODO? biases RDR estimates, particularly if many CNAs.
-        #
-        # self.genome_coverage = np.sum(self.data[:,2]) / self.num_segments
-
-        self.genome_coverage = self.normal_genome_coverage
-
     def print(self):
         print(f"\nCNA_Sim({self.sim_id})=")
         pprint(self.params)
@@ -96,6 +89,9 @@ class CNA_sim:
         """
         logger.info(f"Simulating copy number states:\n{self.cna_states} for seed={self.seed}.")
 
+        # NB All-covering reads per segment.
+        baseline_coverages = np.random.poisson(self.mean_baseline_expression, size=self.num_segments)
+        
         # NB SNP-covering reads per segment.
         snp_coverages = self.rng.integers(
             self.min_snp_coverage, self.max_snp_coverage, self.num_segments
@@ -128,7 +124,7 @@ class CNA_sim:
             baf = b_reads / snp_coverages[ii]
 
             # NB stochastic, given rdr derived from state sampling.
-            true_read_coverage = rdr * self.normal_genome_coverage
+            true_read_coverage = rdr * baseline_coverages[ii]
 
             # NB equivalent to r and prob. for a bernoulli trial of r.
             lost_reads, dropout_rate = reparameterize_nbinom(
@@ -142,7 +138,7 @@ class CNA_sim:
                 (
                     state,
                     read_coverage,
-                    true_read_coverage,  # NB not an observable, to be inferrred.
+                    baseline_coverages[ii],
                     b_reads,
                     snp_coverages[ii],
                 )
@@ -152,7 +148,6 @@ class CNA_sim:
 
     def save(self, output_dir):
         sim_params = self.params.copy()
-        sim_params["genome_coverage"] = self.genome_coverage
         sim_params["seed"] = self.seed
 
         sim_params = {
@@ -190,7 +185,7 @@ class CNA_sim:
 
         logger.info(f"Loading simulation data @ {data_path}")
 
-        # TODO UGH comprehension is slow
+        # TODO ugh comprehension is slow.
         data = np.array([tuple(row) for row in data], dtype=get_sim_output_dtype())
         
         cna_sim = CNA_sim(sim_id=sim_id, params=params, data=data)
@@ -200,7 +195,7 @@ class CNA_sim:
 
     @property
     def rdr(self):
-        return self.data["read_coverage"] / self.genome_coverage
+        return self.data["read_coverage"] / self.data["baseline_coverage"]
 
     @property
     def baf(self):
