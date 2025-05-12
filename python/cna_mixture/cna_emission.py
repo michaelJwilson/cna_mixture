@@ -1,4 +1,4 @@
-import numpy as np
+Aimport numpy as np
 from cna_mixture_rs.core import (
     betabinom_logpmf,
     grad_cna_mixture_em_cost_bb_rs,
@@ -144,9 +144,9 @@ class CNA_emission:
     RUST_BACKEND = True
 
     def __init__(self, num_states, genome_coverage, ks, xs, ns):
-        # NB ks are NB derived.
+        # NB ks are NB derived.  exposure == T_n x lambda_g.
         self.ks = ks
-        self.exposure = exposure # T_n x lambda_g.
+        self.exposure = exposure
 
         # NB xs and ns are BB derived.
         self.xs = xs
@@ -198,11 +198,10 @@ class CNA_emission:
         Evaluate log prob. under NegativeBinom model.
         Return (# sample, # state) array.
         """
-        ks = self.ks
         rdrs, rdr_overdispersion, _, _ = self.unpack_params(params)
 
         return cna_mixture_nbinom_eval(
-            ks, exposure, rdrs, rdr_overdispersion, rust_backend=self.RUST_BACKEND
+            self.ks, self.exposure, rdrs, rdr_overdispersion, rust_backend=self.RUST_BACKEND
         )
 
     def get_ln_state_emission_update(self, params):
