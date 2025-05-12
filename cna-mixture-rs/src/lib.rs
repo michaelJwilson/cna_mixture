@@ -9,7 +9,6 @@ use numpy::{PyReadonlyArray1, PyReadonlyArray2};
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use rayon::ThreadPoolBuilder;
-use statrs::function::factorial::ln_factorial;
 use statrs::function::gamma::{digamma, ln_gamma};
 use std::env;
 
@@ -23,6 +22,32 @@ static THREAD_POOL: Lazy<rayon::ThreadPool> = Lazy::new(|| {
         .build()
         .unwrap()
 });
+
+#[pyclass]
+struct  CNA_Emission_rs{
+    data: Vec<f64>,
+}
+
+#[pymethods]
+impl CNA_Emission_rs {
+    #[new]
+    fn new(data: Vec<f64>) -> Self {
+        CNA_Emission_rs { data }
+    }
+
+    fn sum(&self) -> f64 {
+        self.data.iter().sum()
+    }
+
+    fn scale(&mut self, scalar: f64) {
+        self.data.iter_mut().for_each(|x| *x *= scalar);
+    }
+
+    fn get_data(&self) -> Vec<f64> {
+        self.data.clone()
+    }
+}
+
 
 // NB  71.838 µs
 pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> f64 {
@@ -359,6 +384,7 @@ fn ln_transition_probs_rs<'py>(
 #[pymodule]
 #[pyo3(name = "core")]
 fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_class::<MyStruct>()?;
     m.add_function(wrap_pyfunction!(nbinom_logpmf_rs, m)?)?;
     m.add_function(wrap_pyfunction!(betabinom_logpmf_rs, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_nb_rs, m)?)?;
