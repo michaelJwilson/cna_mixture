@@ -48,28 +48,24 @@ pub fn nbinom_logpmf_reduce(k: &[f64], r: &[f64], p: &[f64]) -> f64 {
     result
 }
 
-pub fn nbinom_logpmf(k: &[f64], r: &[f64], p: &[f64]) -> Vec<Vec<f64>> {
-    // NB parameter-dependent only
-    let gr: Vec<f64> = r.iter().map(|&x| ln_gamma(x)).collect();
-    let lnp: Vec<f64> = p.iter().map(|&x| x.ln()).collect();
-    let lnq: Vec<f64> = p.iter().map(|&x| (1. - x).ln()).collect();
+pub fn nbinom_logpmf(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
+    let result: Vec<Vec<f64>> = k.iter().zip(x.iter())
+            .map(|&k_val, &x_val| {
+                let zero_point = -ln_gamma(1. + k_val);
 
-    // TODO: ndarray for vectorization?
-    let result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
-        k.par_iter()
-            .enumerate()
-            .map(|(_ii, &k_val)| {
-                //  NB data-dependent only
-                let zero_point = -ln_factorial(k_val as u64);
-
-                let row: Vec<f64> = r
+                let row: Vec<f64> = means
                     .iter()
                     .enumerate()
-                    .map(|(ss, &r_val)| {
+                    .map(|(ss, &mean_val)| {
                         let mut interim = zero_point;
 
-                        interim += k_val * lnq[ss] + r_val * lnp[ss] - gr[ss];
-                        interim += ln_gamma(k_val + r_val);
+                        let ln_pp = -(1.0 + overdisp * mean_val).ln();
+                        let ln_qq = (1. - 1.0 / (1.0 + overdisp * mean_val)).ln();
+                        
+                        let rr = 1. / overdisp;
+                     
+                        interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
+                        interim += ln_gamma(k_val + rr);
 
                         interim
                     })
@@ -86,18 +82,21 @@ pub fn nbinom_logpmf(k: &[f64], r: &[f64], p: &[f64]) -> Vec<Vec<f64>> {
 #[pyfunction]
 fn nbinom_logpmf_rs<'py>(
     k: PyReadonlyArray1<'_, f64>,
-    r: PyReadonlyArray2<'_, f64>,
-    p: PyReadonlyArray2<'_, f64>,
+    x: PyReadonlyArray1<'_, f64>,
+    r: PyReadonlyArray1<'_, f64>,
+    p: PyReadonlyArray1<'_, f64>,
 ) -> PyResult<Vec<Vec<f64>>> {
     //
     //  Efficient negative binomial evaluation for many samples x many states.
     //
     //  see: https://en.wikipedia.org/wiki/Negative_binomial_distribution
     let k = k.as_slice()?;
+    let x = x.as_slice()?;
+    
     let r = r.as_slice()?;
     let p = p.as_slice()?;
 
-    let result = nbinom_logpmf(&k, &r, &p);
+    let result = nbinom_logpmf(&k, &x, &r, &p);
 
     Ok(result)
 }
