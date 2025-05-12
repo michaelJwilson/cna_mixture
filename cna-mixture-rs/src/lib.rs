@@ -48,7 +48,7 @@ pub fn nbinom_logpmf_reduce(k: &[f64], r: &[f64], p: &[f64]) -> f64 {
     result
 }
 
-pub fn nbinom_logpmf_core(k: &[f64], r: &[f64], p: &[f64]) -> Vec<Vec<f64>> {
+pub fn nbinom_logpmf(k: &[f64], r: &[f64], p: &[f64]) -> Vec<Vec<f64>> {
     // NB parameter-dependent only
     let gr: Vec<f64> = r.iter().map(|&x| ln_gamma(x)).collect();
     let lnp: Vec<f64> = p.iter().map(|&x| x.ln()).collect();
@@ -84,10 +84,10 @@ pub fn nbinom_logpmf_core(k: &[f64], r: &[f64], p: &[f64]) -> Vec<Vec<f64>> {
 }
 
 #[pyfunction]
-fn nbinom_logpmf<'py>(
+fn nbinom_logpmf_rs<'py>(
     k: PyReadonlyArray1<'_, f64>,
-    r: PyReadonlyArray1<'_, f64>,
-    p: PyReadonlyArray1<'_, f64>,
+    r: PyReadonlyArray2<'_, f64>,
+    p: PyReadonlyArray2<'_, f64>,
 ) -> PyResult<Vec<Vec<f64>>> {
     //
     //  Efficient negative binomial evaluation for many samples x many states.
@@ -97,7 +97,7 @@ fn nbinom_logpmf<'py>(
     let r = r.as_slice()?;
     let p = p.as_slice()?;
 
-    let result = nbinom_logpmf_core(&k, &r, &p);
+    let result = nbinom_logpmf(&k, &r, &p);
 
     Ok(result)
 }

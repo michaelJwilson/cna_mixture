@@ -1,9 +1,9 @@
-Aimport numpy as np
+import numpy as np
 from cna_mixture_rs.core import (
+    nbinom_logpmf,
     betabinom_logpmf,
     grad_cna_mixture_em_cost_bb_rs,
     grad_cna_mixture_em_cost_nb_rs,
-    nbinom_logpmf,
 )
 from scipy.special import digamma
 from scipy.stats import betabinom, nbinom, poisson
