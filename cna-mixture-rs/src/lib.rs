@@ -24,9 +24,10 @@ static THREAD_POOL: Lazy<rayon::ThreadPool> = Lazy::new(|| {
         .unwrap()
 });
 
-// NB  8.4824 ms -> 11.915 µs
+// NB  85.429 µs
 pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> f64 {
     let mut result = 0.0;
+    let rr = 1. / overdisp;
 
     for (&k_val, &x_val) in k.iter().zip(x.iter()) {
         let zero_point = -ln_gamma(1. + k_val);
@@ -37,8 +38,6 @@ pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) 
             let factor = 1.0 + overdisp * x_val * mean_val;
             let ln_pp = -factor.ln();
             let ln_qq = (1.0 - 1.0 / factor).ln();
-
-            let rr = 1. / overdisp;
 
             interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
             interim += ln_gamma(k_val + rr);
