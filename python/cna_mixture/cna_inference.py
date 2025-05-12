@@ -61,15 +61,14 @@ class CNA_inference:
         self.num_cna_states = num_cna_states
         self.num_states = self.num_cna_states + 1
         self.num_segments = len(data)
-        self.genome_coverage = genome_coverage
         self.initialize_mode = initialize_mode
         
         self.bounds = get_cna_mixture_bounds(self.num_states)
 
         self.emission_model = CNA_emission(
             self.num_states,
-            self.genome_coverage,
             data["read_coverage"],
+            data["baseline_coverage"],
             data["b_reads"],
             data["snp_coverage"],
         )

@@ -72,16 +72,15 @@ def cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion, rust_backend=Tr
 
 
 def cna_mixture_nbinom_eval(
-    ks, state_read_depths, rdr_overdispersion, rust_backend=True
+    ks, means, overdispersion, rust_backend=True
 ):
     """
     Evaluate log prob. under NegativeBinom model, given parameter vector.
     Return (# sample, # state) array.
     """
-    # TODO does a non-linear transform in the cost trip the optimizer?
     state_rs_ps = reparameterize_nbinom(
-        state_read_depths,
-        rdr_overdispersion,
+        means,
+        overdispersion,
     )
 
     if rust_backend:
@@ -90,6 +89,7 @@ def cna_mixture_nbinom_eval(
         rs = np.ascontiguousarray(state_rs_ps[:, 0].copy())
         ps = np.ascontiguousarray(state_rs_ps[:, 1].copy())
 
+        # TODO rs.shape len(states) -> len(ks) * len(states).
         result = nbinom_logpmf(ks, rs, ps)
         result = np.array(result)
     else:
@@ -143,14 +143,14 @@ class CNA_emission:
     RUST_BACKEND = True
 
     def __init__(self, num_states, genome_coverage, ks, xs, ns):
-        # NB ks are NB derived, xs and ns are BB derived.
+        # NB ks are NB derived.
         self.ks = ks
+
+        # NB xs and ns are BB derived.
         self.xs = xs
         self.ns = ns
 
-        # TODO?
         self.num_states = num_states
-        self.genome_coverage = genome_coverage
 
     def unpack_params(self, params):
         """
@@ -164,20 +164,20 @@ class CNA_emission:
             len(params) == num_states + 1 + num_states + 1
         ), f"{params} does not satisy {num_states} states."
 
-        state_read_depths = params[:num_states]
+        rdr_means = params[:num_states]
         rdr_overdispersion = params[num_states]
 
         bafs = params[num_states + 1 : 2 * num_states + 1]
         baf_overdispersion = params[2 * num_states + 1]
 
-        return state_read_depths, rdr_overdispersion, bafs, baf_overdispersion
+        return rdr_means, rdr_overdispersion, bafs, baf_overdispersion
 
     def get_states_bag(self, params):
-        state_read_depths, rdr_overdispersion, bafs, baf_overdispersion = (
+        rdr_means, rdr_overdispersion, bafs, baf_overdispersion = (
             self.unpack_params(params)
         )
 
-        return np.c_[state_read_depths / self.genome_coverage, bafs]
+        return np.c_[rdr_means, bafs]
 
     def cna_mixture_betabinom_update(self, params):
         """
@@ -197,7 +197,7 @@ class CNA_emission:
         Return (# sample, # state) array.
         """
         ks = self.ks
-        state_read_depths, rdr_overdispersion, _, _ = self.unpack_params(params)
+        rdr_means, rdr_overdispersion, _, _ = self.unpack_params(params)
 
         return cna_mixture_nbinom_eval(
             ks, state_read_depths, rdr_overdispersion, rust_backend=self.RUST_BACKEND
