@@ -25,14 +25,18 @@ static THREAD_POOL: Lazy<rayon::ThreadPool> = Lazy::new(|| {
 
 #[pyclass]
 struct  CNA_Emission_rs{
-    data: Vec<f64>,
+    //  NB defining a struct associated locally in memory.
+    ks: Vec<f64>,
+    xs: Vec<f64>,
+    bs: Vec<f64>,
+    ns: Vec<f64>,
 }
 
 #[pymethods]
 impl CNA_Emission_rs {
     #[new]
-    fn new(data: Vec<f64>) -> Self {
-        CNA_Emission_rs { data }
+    fn new(ks: Vec<f64>, xs: Vec<f64>, bs: Vec<f64>, ns: Vec<f64>) -> Self {
+        CNA_Emission_rs {ks, xs, bs, ns}
     }
 
     fn sum(&self) -> f64 {
