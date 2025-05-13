@@ -248,6 +248,7 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
                 - phi * mu * rr / phi / (1.0 + phi * mu)
         })
         .collect();
+        
     let result: (Vec<Vec<f64>>, Vec<Vec<f64>>) = THREAD_POOL.install(|| {
         ks.par_iter()
             .map(|&k_val| {
