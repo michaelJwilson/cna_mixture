@@ -7,11 +7,26 @@ from cna_mixture.cna_emission import (
     reparameterize_beta_binom,
     reparameterize_nbinom,
 )
+from cna_mixture_rs.core import CnaEmissionRs
 from scipy.stats import betabinom, nbinom
 
 np.random.seed(314)
 
+def test_cna_emission_rs(benchmark):
+    ks = np.arange(10, 20, dtype=float)
+    xs = 2. * ks
 
+    # TODO duds
+    bs = np.arange(1_000, dtype=float)
+    ns = np.arange(1_000, dtype=float)
+
+    emrs = CnaEmissionRs(ks, xs, bs, ns)
+    means = np.arange(10, 20, dtype=float)
+    
+    result = benchmark(lambda: emrs.nbinom_logpmf_reduce(means, 1.e-2))
+    
+    print(result)
+    
 def test_cna_emission():
     num_states, normal_coverage, snp_coverage = 1, 10, 100
 
@@ -27,6 +42,7 @@ def test_cna_emission():
     xs = betabinom.rvs(
         snp_coverage, pseudo_counts[:, 1], pseudo_counts[:, 0], size=10_000
     ).astype(np.float64)
+    
     ns = snp_coverage * np.ones_like(xs).astype(np.float64)
 
     # NB RDR-like params are read depths, not RDR.
