@@ -24,7 +24,7 @@ static THREAD_POOL: Lazy<rayon::ThreadPool> = Lazy::new(|| {
 });
 
 #[pyclass]
-struct  CNA_Emission_rs{
+struct CNA_Emission_rs {
     //  NB defining a struct associated locally in memory.
     ks: Vec<f64>,
     xs: Vec<f64>,
@@ -35,8 +35,13 @@ struct  CNA_Emission_rs{
 #[pymethods]
 impl CNA_Emission_rs {
     #[new]
-    fn new(ks: Vec<f64>, xs: Vec<f64>, bs: Vec<f64>, ns: Vec<f64>) -> Self {
-        CNA_Emission_rs {ks, xs, bs, ns}
+    fn new(
+        ks: PyReadonlyArray1<'_, f64>,
+        xs: PyReadonlyArray1<'_, f64>,
+        bs: PyReadonlyArray1<'_, f64>,
+        ns: PyReadonlyArray1<'_, f64>,
+    ) -> Self {
+        CNA_Emission_rs { ks, xs, bs, ns }
     }
 
     fn sum(&self) -> f64 {
@@ -51,7 +56,6 @@ impl CNA_Emission_rs {
         self.data.clone()
     }
 }
-
 
 // NB  71.838 µs
 pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> f64 {
@@ -117,7 +121,8 @@ fn nbinom_logpmf_rs<'py>(
     x: PyReadonlyArray1<'_, f64>,
     means: PyReadonlyArray1<'_, f64>,
     overdisp: f64,
-) -> PyResult<f64> { // PyResult<Vec<Vec<f64>>>
+) -> PyResult<f64> {
+    // PyResult<Vec<Vec<f64>>>
     //
     //  Efficient negative binomial evaluation for many samples x many states.
     //
