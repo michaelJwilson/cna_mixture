@@ -72,35 +72,29 @@ def cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion, rust_backend=Tr
 
 
 def cna_mixture_nbinom_eval(
-    ks, exposure, means, overdispersion, rust_backend=True
+    ks, xs, means, overdispersion, rust_backend=True
 ):
     """
     Evaluate log prob. under NegativeBinom model, given parameter vector.
     Return (# sample, # state) array.
     """
-    rs, ps = reparameterize_nbinom(
-        exposure * means,
-        overdispersion,
-    )
-
     if rust_backend:
-        # TODO drop as contiguous.
-        ks = np.ascontiguousarray(ks)
-        
-        rs = np.ascontiguousarray(rs.copy())
-        ps = np.ascontiguousarray(ps.copy())
-
-        # TODO rs.shape len(states) -> len(ks) * len(states).
-        result = nbinom_logpmf(ks, rs, ps)
-        result = np.array(result)
+        result = nbinom_logpmf_rs(ks, xs, means, overdispersion)
     else:
-        result = np.zeros((len(ks), len(state_rs_ps)))
+        rs, ps = reparameterize_nbinom(
+            xs * means,
+            overdispersion,
+        )
+        
+        result = np.zeros((len(ks), len(rs)))
 
-        for col, (rr, pp) in enumerate(state_rs_ps):
+        for col, (rr, pp) in enumerate(zip(rs, ps)):
             for row, kk in enumerate(ks):
                 result[row, col] = nbinom.logpmf(kk, rr, pp)
 
-    return result, rs, ps
+        result = result.sum()
+                
+    return result
 
 
 # TODO rename cna_mixture_ln_emission_eval?

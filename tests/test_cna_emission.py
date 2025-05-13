@@ -4,6 +4,7 @@ import numpy as np
 import numpy.testing as npt
 from cna_mixture.cna_emission import (
     CNA_emission,
+    cna_mixture_nbinom_eval,
     reparameterize_beta_binom,
     reparameterize_nbinom,
 )
@@ -23,7 +24,7 @@ def test_cna_emission_rs(benchmark):
     emrs = CnaEmissionRs(ks, xs, bs, ns)
     means = np.arange(10, 20, dtype=float)
     
-    result = benchmark(lambda: emrs.nbinom_logpmf_reduce(means, 1.e-2))
+    result = benchmark(lambda: cna_mixture_nbinom_eval(ks, xs, means, 1.e-2, rust_backend=True))
     
     print(result)
     
