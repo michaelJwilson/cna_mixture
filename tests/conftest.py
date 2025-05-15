@@ -24,7 +24,9 @@ def mixture_params():
 
 @pytest.fixture
 def rdr_baf(rng):
-    return 5 * (1.0 + rng.uniform(size=(50, 2)))
+    rdrs = 5 * (1.0 + rng.uniform(size=(50, 1)))
+    
+    return np.c_[rdrs, 1./rdrs]
 
 
 def pytest_addoption(parser):

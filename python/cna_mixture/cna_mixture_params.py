@@ -19,9 +19,9 @@ class CNA_mixture_params:
 
     def __post_init__(self):
         self.num_states = 1 + self.num_cna_states
-        self.__verify()
+        self.verify()
 
-    def __verify(self):
+    def verify(self):
         msg = f"Inconsistent number of (CNA) states for:\n{self}"
         assert self.num_states == (self.num_cna_states + 1), msg
         
@@ -78,4 +78,4 @@ class CNA_mixture_params:
         self.num_cna_states = len(self.cna_states)
         self.num_states = 1 + self.num_cna_states
         
-        self.__verify()
+        self.verify()

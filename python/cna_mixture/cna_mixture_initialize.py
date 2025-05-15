@@ -22,25 +22,8 @@ class CNA_mixture_initialize:
         self.mode = mode
         self.params = mixture_params
 
-    # NB get/set shadows mixture_params such that properties and methods are non-
-    #    overlapping.
-    def __getitem__(self, key):
-        if hasattr(self.params, key):
-            return getattr(self.params, key)
-        elif hasattr(self, key):
-            return getattr(self, key)
-        else:
-            raise KeyError(f"Key '{key}' not found in either self.params or self.")
-
-    def __setitem__(self, key, value):
-        if hasattr(self.params, key):
-            setattr(self.params, key, value)
-        elif hasattr(self, key):
-            setattr(self, key, value)
-        else:
-            raise KeyError(f"Key '{key}' not found in either self.params or self.")
-
-    def run(self, rdr_baf=None):
+    # TODO
+    def run(self, rdr_baf=None, data=None):
         match self.mode:        
             case "random":
                 initial_cost = self.random()
@@ -61,18 +44,19 @@ class CNA_mixture_initialize:
     def random(self):
         # NB list of (baf, rdr) for k=4 states, without replacement.
         integers = self.rng.choice(
-            np.arange(3, 10), size=self.num_cna_states, replace=False
+            np.arange(3, 10), size=self.params.num_cna_states, replace=False
         )
 
         # NB assumes single unit of quantized baf for given read depth.
-        self.cna_states = [
+        cna_states = [
             [1.0 * int_sample, 1.0 / int_sample] for int_sample in np.sort(integers)
         ]
 
-        self.cna_states = np.array(
-            [self.normal_state.tolist(), *self.cna_states]
+        self.params.cna_states = np.array(
+            [self.params.normal_state.tolist(), *cna_states]
         )
-        self.__verify()
+        
+        self.params.verify()
 
     def nonnormal(self, rdr_baf, threshold=0.05, non_normal=True):
         """
@@ -90,11 +74,12 @@ class CNA_mixture_initialize:
         )
 
         xx = np.arange(len(samples))
-        idx = self.rng.choice(xx, size=self.num_states - 1, replace=False)
+        idx = self.rng.choice(xx, size=self.params.num_states - 1, replace=False)
 
-        self.cna_states = np.vstack([self.normal_state, samples[idx]])
-        self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
+        cna_states = np.vstack([self.params.normal_state, samples[idx]])
 
+        self.params.cna_states = cna_states[cna_states[:, 0].argsort()]
+        
         # TODO return cost.
         return np.inf
 
