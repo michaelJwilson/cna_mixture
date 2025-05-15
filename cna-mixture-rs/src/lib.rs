@@ -57,6 +57,16 @@ impl CnaEmissionRs {
 
         nbinom_logpmf(k, x, &means, overdisp)
     }
+
+    fn betabinom_logpmf_reduce(&self, _alphas: PyReadonlyArray1<'_, f64>, _betas: PyReadonlyArray1<'_, f64>) -> f64 {
+       let b = &self.bs;
+       let n = &self.ns;
+
+       let alphas = _alphas.as_array().to_vec();
+       let betas = _betas.as_array().to_vec();
+
+       betabinom_logpmf_reduce(b, n, &alphas, &betas)
+    }
 }
 
 // NB  71.838 µs
