@@ -11,7 +11,7 @@ use pyo3::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use statrs::function::gamma::{digamma, ln_gamma};
 use std::env;
-
+use std::collections::HashMap;
 
 pub struct CnaEmission {
     //  NB defining a struct associated locally in memory.
@@ -19,13 +19,11 @@ pub struct CnaEmission {
     xs: Vec<f64>,
     bs: Vec<f64>,
     ns: Vec<f64>,
-    ws: Vec<f64>,
-    mapping: Option(Vec<f64>),
+    mapping: Vec<usize>,
     thread_pool: ThreadPool,
 }
 
-impl CnaEmissionRs {
-    #[new]
+impl CnaEmission {
     fn new(
         ks: Vec<f64>,
         xs: Vec<f64>,
@@ -40,16 +38,16 @@ impl CnaEmissionRs {
         let thread_pool = ThreadPoolBuilder::new()
             .num_threads(num_threads)
             .build()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+            .expect("Failed to build ThreadPool");
 
         let mut unique_map: HashMap<(f64, f64), usize> = HashMap::new();
 
-        let mut unique_ks = Vec::new();
-        let mut unique_xs = Vec::new();
+        let mut unique_ks: Vec<f64> = Vec::new();
+        let mut unique_xs: Vec<f64> = Vec::new();
 
-        let mut mapping = Vec::new();
+        let mut mapping: Vec<usize> = Vec::new();
 
-        for (&k, &x) in izip!(ks.as_array().iter(), xs.as_array().iter()) {
+        for (&k, &x) in izip!(ks.iter(), xs.iter()) {
             let key = (k, x);
 
             if let Some(&index) = unique_map.get(&key) {
@@ -66,18 +64,17 @@ impl CnaEmissionRs {
             }
         }
 
-        //  TODO to_vec() directly?
-        Ok(CnaEmission {
+        CnaEmission {
             ks: unique_ks,
             xs: unique_xs,
-            bs: bs.as_array().to_vec(),
-            ns: ns.as_array().to_vec(),
+            bs,
+            ns,
             mapping: mapping,
             thread_pool: thread_pool,
-        })
+        }
     }
 
-    fn nbinom_logpmf_reduce(&self, _means: &[f64], overdisp: f64) -> f64 {
+    fn nbinom_logpmf_reduce(&self, means: &[f64], overdisp: f64) -> f64 {
         self.thread_pool
             .install(|| nbinom_logpmf_reduce(&self.ks, &self.xs, means, overdisp))
     }
@@ -92,7 +89,7 @@ impl CnaEmissionRs {
     }
 }
 
-
+/*
 #[pyclass]
 struct CnaEmissionRs {
     inner: CnaEmission,
@@ -107,10 +104,10 @@ impl CnaEmissionRs {
         bs: PyReadonlyArray1<'_, f64>,
         ns: PyReadonlyArray1<'_, f64>,
     ) -> PyResult<Self> {
-        let ks = ks.as_slice().map_err(|e| PyRuntimeError::new_err(e.to_string()))?.to_vec();
-        let xs = xs.as_slice().map_err(|e| PyRuntimeError::new_err(e.to_string()))?.to_vec();
-        let bs = bs.as_slice().map_err(|e| PyRuntimeError::new_err(e.to_string()))?.to_vec();
-        let ns = ns.as_slice().map_err(|e| PyRuntimeError::new_err(e.to_string()))?.to_vec();
+        let ks = ks.as_array().to_vec();
+        let xs = xs.as_array().to_vec();
+        let bs = bs.as_array().to_vec();
+        let ns = ns.as_array().to_vec();
 
         let inner = CnaEmissionRs::new(ks, xs, bs, ns);
 
@@ -121,7 +118,7 @@ impl CnaEmissionRs {
     fn nbinom_logpmf_reduce(&self, _means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> f64 {
         let means = _means.as_array().to_vec();
         
-        self.inner.nbinom_logpmf_reduce(&self.inner.ks, &self.inner.xs, &means, overdisp))
+        self.inner.nbinom_logpmf_reduce(&self.inner.ks, &self.inner.xs, &means, overdisp)
     }
 
     fn betabinom_logpmf_reduce(
@@ -132,9 +129,10 @@ impl CnaEmissionRs {
         let alphas = _alphas.as_array().to_vec();
         let betas = _betas.as_array().to_vec();
         
-        self.inner.betabinom_logpmf_reduce(&self.inner.bs, &self.inner.ns, &alphas, &betas))
+        self.inner.betabinom_logpmf_reduce(&self.inner.bs, &self.inner.ns, &alphas, &betas)
     }
 }
+*/
 
 //  NB  104.98 µs -> 70 µs (for all cores)
 pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> f64 {
@@ -489,7 +487,7 @@ fn ln_transition_probs_rs<'py>(
 #[pymodule]
 #[pyo3(name = "core")]
 fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_class::<CnaEmissionRs>()?;
+    //  m.add_class::<CnaEmissionRs>()?;
     m.add_function(wrap_pyfunction!(nbinom_logpmf_rs, m)?)?;
     m.add_function(wrap_pyfunction!(betabinom_logpmf_rs, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_nb_rs, m)?)?;
