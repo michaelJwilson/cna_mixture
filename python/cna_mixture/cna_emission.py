@@ -97,8 +97,8 @@ def cna_mixture_nbinom_eval(ks, xs, means, overdispersion, rust_backend=True):
 
     return result
 
-"""
-# TODO rename cna_mixture_ln_emission_eval?
+
+# TODO DEPRECATE
 def get_ln_state_emission(
     ks,
     xs,
@@ -120,7 +120,6 @@ def get_ln_state_emission(
 
     # NB assumes independent(!)
     return ln_state_emission_betabinom + ln_state_emission_nbinom
-"""
 
 class CNA_emission:
     RUST_BACKEND = True

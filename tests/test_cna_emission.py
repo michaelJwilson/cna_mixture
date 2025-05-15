@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 import numpy as np
 import numpy.testing as npt
 from cna_mixture.cna_emission import (
@@ -14,34 +15,48 @@ from scipy.stats import betabinom, nbinom
 np.random.seed(314)
 
 @pytest.fixture()
-def emission():
-    num_states, normal_coverage, snp_coverage = 1, 100, 10
+def emission_params():
+    # TODO
+    num_states = 1
 
+    # NB nbinom.rvs(lost_reads, dropout_rate, size=1)[0]                                                                                                           
+    rdrs, phi = 1. + np.arange(num_states), 1.0e-2
+    bafs, tau = 0.2 * (1. + np.arange(num_states)), 10.0
+
+    return rdrs, phi, bafs, tau
+
+@pytest.fixture()
+def emission(emission_params):
+    num_states, normal_coverage, snp_coverage = 1, 100, 10
+    rdrs, phi, bafs, tau = emission_params
+
+    params = np.array([*rdrs, phi, *bafs, tau])
+
+    # NB required for scipy sampling calls.
+    assert num_states == 1
+    
     # NB segment reads covering a snp < all segment reads.
     assert snp_coverage < normal_coverage
-    
-    # NB nbinom.rvs(lost_reads, dropout_rate, size=1)[0]
-    rdrs, phi = 1. + np.arange(num_states), 1.0e-2
-    bafs, tau = 0.2 * np.arange(num_states), 10.0  
-    
-    rr, pp = reparameterize_nbinom(normal_coverage * means, phi)
-    alphas, betas = reparameterize_beta_binom(bafs, tau)
+    assert len(rdrs) == num_states
 
+    # NB rr == 1/phi, i.e. equivalent for all states.
+    rr, pp = reparameterize_nbinom(normal_coverage * rdrs, phi)    
+    alphas, betas = reparameterize_beta_binom(bafs, tau)
+    
     # NB (fairly) assumes each spot and each segment has the same normal coverage.
     ks = nbinom.rvs(rr, pp, size=10_000).astype(np.float64)
     xs = normal_coverage * np.ones_like(ks)
-    
+
     bs = betabinom.rvs(                                                                                                                                            
         snp_coverage, betas, alphas, size=10_000                                                                                        
-    ).astype(np.float64)                                                                                                                                                                                                                                                                                                              
-    ns = snp_coverage * np.ones_like(bs).astype(np.float64)                                                                                                         
-    # NB RDR-like params are read depths, not RDR.                                                                                                                 
-    params = np.array([*means, phi, *bafs, tau])
+    ).astype(np.float64)
     
-    emission = CNA_emission(num_states, ks, xs, bs, ns)
-
-def test_emission_fixture(emission):
+    ns = snp_coverage * np.ones_like(bs).astype(np.float64)                                                                                                            
+    return CNA_emission(num_states, ks, xs, bs, ns)
+    
+def test_emission_fixture(emission, emission_params):
     assert emission is not None
+    assert emission_params is not None
     
 """
 # NB test rust backend.
