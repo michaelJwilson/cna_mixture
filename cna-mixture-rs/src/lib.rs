@@ -89,8 +89,8 @@ impl CnaEmission {
                 xs: unique_xs,
                 bs: unique_bs,
                 ns: unique_ns,
-                nb_mapping: nb_mapping,
-                bb_mapping: bb_mapping,
+                nb_mapping: Some(nb_mapping),
+                bb_mapping: Some(bb_mapping),
                 thread_pool,
             }
         } else {
@@ -130,13 +130,14 @@ impl CnaEmissionRs {
         xs: PyReadonlyArray1<'_, f64>,
         bs: PyReadonlyArray1<'_, f64>,
         ns: PyReadonlyArray1<'_, f64>,
+        compress: bool,
     ) -> PyResult<Self> {
         let ks = ks.as_slice()?.to_vec();
         let xs = xs.as_slice()?.to_vec();
         let bs = bs.as_slice()?.to_vec();
         let ns = ns.as_slice()?.to_vec();
 
-        let inner = CnaEmission::new(ks, xs, bs, ns);
+        let inner = CnaEmission::new(ks, xs, bs, ns, compress);
 
         Ok(CnaEmissionRs { inner })
     }
