@@ -4,7 +4,7 @@ use itertools::izip;
 use ndarray::parallel::prelude::IndexedParallelIterator;
 use ndarray::parallel::prelude::IntoParallelRefIterator;
 use ndarray::parallel::prelude::ParallelIterator;
-use numpy::{PyReadonlyArray1, PyReadonlyArray2};
+use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyArray2};
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
@@ -142,11 +142,7 @@ impl CnaEmissionRs {
         Ok(CnaEmissionRs { inner })
     }
 
-    fn nbinom_reduce(
-        &self,
-        means: PyReadonlyArray1<'_, f64>,
-        overdisp: f64,
-    ) -> PyResult<f64> {
+    fn nbinom_reduce(&self, means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> PyResult<f64> {
         let means = means.as_slice()?;
 
         Ok(self.inner.nbinom_reduce(means, overdisp))
@@ -313,7 +309,7 @@ fn nbinom_rs<'py>(
     x: PyReadonlyArray1<'_, f64>,
     means: PyReadonlyArray1<'_, f64>,
     overdisp: f64,
-) -> PyResult<Vec<Vec<f64>>> {
+) -> PyResult<Py<PyArray2<f64>>> {
     // PyResult<Vec<Vec<f64>>>
     //
     //  Efficient negative binomial evaluation for many samples x many states.
@@ -323,8 +319,12 @@ fn nbinom_rs<'py>(
     let x = x.as_slice()?;
 
     let means = means.as_slice()?;
+    let result = nbinom(&k, &x, &means, overdisp);
 
-    Ok(nbinom(&k, &x, &means, overdisp))
+    let array = PyArray2::from_vec2(py, &result)
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to create NumPy array"))?;
+
+    Ok(array.to_owned())
 }
 
 #[pyfunction]

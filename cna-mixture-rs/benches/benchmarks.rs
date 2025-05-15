@@ -1,6 +1,4 @@
-use cna_mixture_rs::{
-    betabinom, betabinom_reduce, nbinom, nbinom_reduce, CnaEmission,
-};
+use cna_mixture_rs::{betabinom, betabinom_reduce, nbinom, nbinom_reduce, CnaEmission};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn benchmark_cna_mixture_rs(c: &mut Criterion) {
