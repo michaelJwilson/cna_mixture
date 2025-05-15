@@ -69,17 +69,17 @@ def cna_mixture_betabinom_eval(bs, ns, bafs, baf_overdispersion, rust_backend=Tr
     return result
 
 
-def cna_mixture_nbinom_eval(ks, xs, means, overdispersion, rust_backend=True):
+def cna_mixture_nbinom_eval(ks, xs, rdrs, overdispersion, rust_backend=True):
     """
     Evaluate log prob. under NegativeBinom model, given parameter vector.
     Return (# sample, # state) array.
     """
     if rust_backend:
-        result = nbinom_logpmf_rs(ks, xs, means, overdispersion)
+        result = nbinom_rs(ks, xs, rdrs, overdispersion)
     else:
-        result = np.zeros((len(ks), len(rs)))
+        result = np.zeros((len(ks), len(rdrs)))
 
-        for col, mm in enumerate(means):
+        for col, mm in enumerate(rdrs):
             for row, (kk, xx) in enumerate(zip(ks, xs)):
                 rr, pp = reparameterize_nbinom(
                     xx * mm,

@@ -101,6 +101,7 @@ def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
 
 def test_cna_emission(emission, emission_params):
     rdrs, phi, bafs, tau = emission_params
+    params = np.array([*rdrs, phi, *bafs, tau])
     
     """
     num_states, normal_coverage, snp_coverage = 1, 10, 100
@@ -133,40 +134,35 @@ def test_cna_emission(emission, emission_params):
 
     # NB >>>>>>  beta-binomial checks.
     rs_bb_update = emission.cna_mixture_betabinom_update(
-        emission_params
+        params
     )
     
     emission.RUST_BACKEND = False
 
-    bb_update = emission.cna_mixture_betabinom_update(emission_params)
-
-    print(rs_bb_update)
+    bb_update = emission.cna_mixture_betabinom_update(params)
     
     npt.assert_allclose(rs_bb_update, bb_update, rtol=1.0e-5, atol=1.0e-8)
 
-    """
     # NB all log probabilites should be <= 0
     assert np.all(bb_update <= 0.0)
 
     # NB >>>>>>  nbinom checks.
     emission.RUST_BACKEND = True
 
-    rust_nb_update, rust_state_rs_ps = emission.cna_mixture_nbinom_update(params)
-
-    assert np.array_equal(rust_state_rs_ps, rr_pp)
+    rs_nb_update = emission.cna_mixture_nbinom_update(params)
 
     emission.RUST_BACKEND = False
 
-    nb_update, state_rs_ps = emission.cna_mixture_nbinom_update(params)
+    nb_update = emission.cna_mixture_nbinom_update(params)
 
-    npt.assert_allclose(rust_nb_update, nb_update, rtol=1.0e-5, atol=1.0e-8)
+    npt.assert_allclose(rs_nb_update, nb_update, rtol=1.0e-5, atol=1.0e-8)
 
     # NB all log probabilites should be <= 0
     assert np.all(nb_update <= 0.0)
 
     # NB >>>>>>  beta-binomial grad checks.
     state_posteriors = np.ones(shape=(10_000, 1))
-    
+    """
     emission.RUST_BACKEND = True
     rust_grad = emission.grad_em_cost(params, state_posteriors)
 
