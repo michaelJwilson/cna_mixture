@@ -55,7 +55,7 @@ impl CnaEmissionRs {
 
         let means = _means.as_array().to_vec();
 
-        nbinom_logpmf(k, x, &means, overdisp)
+        nbinom_logpmf_reduce(k, x, &means, overdisp)
     }
 
     fn betabinom_logpmf_reduce(&self, _alphas: PyReadonlyArray1<'_, f64>, _betas: PyReadonlyArray1<'_, f64>) -> f64 {
@@ -224,7 +224,7 @@ fn betabinom_logpmf(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f64>>
             .collect::<Vec<Vec<f64>>>()
     });
 
-    Ok(result)
+    result
 }
 
 #[pyfunction]
@@ -233,7 +233,7 @@ fn betabinom_logpmf_rs<'py>(
     n: PyReadonlyArray1<'_, f64>,
     a: PyReadonlyArray1<'_, f64>,
     b: PyReadonlyArray1<'_, f64>,
-) -> PyResult<Vec<Vec<f64>>> {
+) -> PyResult<f64> {
     //
     //  Efficient beta binomial evaluation for many samples x many states.
     //
