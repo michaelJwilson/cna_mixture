@@ -8,7 +8,7 @@ use num_cpus;
 use numpy::{PyReadonlyArray1, PyReadonlyArray2};
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
-use rayon::ThreadPoolBuilder;
+use rayon::{ThreadPoolBuilder, ThreadPool};
 use statrs::function::gamma::{digamma, ln_gamma};
 use std::env;
 
@@ -41,11 +41,13 @@ impl CnaEmissionRs {
             .build()
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
+        //  TODO to_vec() directly?
         Ok(CnaEmissionRs {
             ks: ks.as_array().to_vec(),
             xs: xs.as_array().to_vec(),
             bs: bs.as_array().to_vec(),
             ns: ns.as_array().to_vec(),
+            thread_pool: thread_pool,
         })
     }
 
@@ -283,25 +285,24 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
         })
         .collect();
 
-    let result: (Vec<Vec<f64>>, Vec<Vec<f64>>) = THREAD_POOL.install(|| {
-        ks.par_iter()
-            .map(|&k_val| {
-                let (mus_row, phi_row): (Vec<f64>, Vec<f64>) = mus
-                    .iter()
-                    .enumerate()
-                    .map(|(ss, &mu)| {
-                        let mus_val = (k_val - phi * mu * rs[ss]) / mu / (1.0 + phi * mu);
-                        let phi_val = zero_points[ss] - digamma(k_val + rs[ss]) / (phi * phi)
-                            + k_val / phi / (1.0 + phi * mu);
+    let result: (Vec<Vec<f64>>, Vec<Vec<f64>>) = ks
+        .par_iter()
+        .map(|&k_val| {
+            let (mus_row, phi_row): (Vec<f64>, Vec<f64>) = mus
+                .iter()
+                .enumerate()
+                .map(|(ss, &mu)| {
+                    let mus_val = (k_val - phi * mu * rs[ss]) / mu / (1.0 + phi * mu);
+                    let phi_val = zero_points[ss] - digamma(k_val + rs[ss]) / (phi * phi)
+                        + k_val / phi / (1.0 + phi * mu);
 
-                        (mus_val, phi_val)
-                    })
-                    .unzip();
+                    (mus_val, phi_val)
+                })
+                .unzip();
 
-                (mus_row, phi_row)
-            })
-            .unzip()
-    });
+            (mus_row, phi_row)
+        })
+        .unzip();
 
     Ok(result)
 }
@@ -348,31 +349,30 @@ fn grad_cna_mixture_em_cost_bb_rs<'py>(
         .map(|(&aa, &bb)| grad_ln_bb_ab_zeropoint(bb, aa))
         .collect();
 
-    let result: (Vec<Vec<f64>>, Vec<Vec<f64>>) = THREAD_POOL.install(|| {
-        ks.par_iter()
-            .enumerate()
-            .map(|(ii, &k_val)| {
-                let (ps_row, tau_row): (Vec<f64>, Vec<f64>) = alphas
-                    .iter()
-                    .enumerate()
-                    .map(|(ss, &aa)| {
-                        let tau = aa + betas[ss];
-                        let baf = betas[ss] / tau;
+    let result: (Vec<Vec<f64>>, Vec<Vec<f64>>) = ks
+        .par_iter()
+        .enumerate()
+        .map(|(ii, &k_val)| {
+            let (ps_row, tau_row): (Vec<f64>, Vec<f64>) = alphas
+                .iter()
+                .enumerate()
+                .map(|(ss, &aa)| {
+                    let tau = aa + betas[ss];
+                    let baf = betas[ss] / tau;
 
-                        let data_points = grad_ln_bb_ab_data(k_val, ns[ii], betas[ss], aa);
-                        let interim = vector_sum(zero_points[ss].clone(), data_points);
+                    let data_points = grad_ln_bb_ab_data(k_val, ns[ii], betas[ss], aa);
+                    let interim = vector_sum(zero_points[ss].clone(), data_points);
 
-                        let ps_val = -tau * interim[1] + tau * interim[0];
-                        let tau_val = (1.0 - baf) * interim[1] + baf * interim[0];
+                    let ps_val = -tau * interim[1] + tau * interim[0];
+                    let tau_val = (1.0 - baf) * interim[1] + baf * interim[0];
 
-                        (ps_val, tau_val)
-                    })
-                    .unzip();
+                    (ps_val, tau_val)
+                })
+                .unzip();
 
-                (ps_row, tau_row)
-            })
-            .unzip()
-    });
+            (ps_row, tau_row)
+        })
+        .unzip();
 
     Ok(result)
 }
