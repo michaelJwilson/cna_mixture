@@ -111,25 +111,9 @@ class CNA_inference:
         mixture_params = CNA_mixture_params(num_cna_states=self.num_cna_states)
 
         initalizer = CNA_mixture_initialize(mixture_params, seed=self.seed, mode=self.initialize_mode)
-
-        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
-        match self.initialize_mode:
-            case "random":
-                initial_cost = (
-                    mixture_params.initialize_random(self.rdr_baf)
-                )
-
-            case "mixture_plusplus":
-                initial_cost = mixture_params.initialize_mixture_plusplus(
-                    self.data["read_coverage"],
-                    self.data["b_reads"],
-                    self.data["snp_coverage"],
-                )
-            case _:
-                msg = f"{self.initialize_mode} style initialization is not supported."
-                raise ValueError(msg)
-
-        return mixture_params, initial_cost
+        params, cost = initializer.run()
+        
+        return params, cost
 
     def initialize(self, **kwargs):
         """
