@@ -58,72 +58,81 @@ impl CnaEmissionRs {
         nbinom_logpmf_reduce(k, x, &means, overdisp)
     }
 
-    fn betabinom_logpmf_reduce(&self, _alphas: PyReadonlyArray1<'_, f64>, _betas: PyReadonlyArray1<'_, f64>) -> f64 {
-       let b = &self.bs;
-       let n = &self.ns;
+    fn betabinom_logpmf_reduce(
+        &self,
+        _alphas: PyReadonlyArray1<'_, f64>,
+        _betas: PyReadonlyArray1<'_, f64>,
+    ) -> f64 {
+        let b = &self.bs;
+        let n = &self.ns;
 
-       let alphas = _alphas.as_array().to_vec();
-       let betas = _betas.as_array().to_vec();
+        let alphas = _alphas.as_array().to_vec();
+        let betas = _betas.as_array().to_vec();
 
-       betabinom_logpmf_reduce(b, n, &alphas, &betas)
+        betabinom_logpmf_reduce(b, n, &alphas, &betas)
     }
 }
 
-// NB  71.838 µs
+// NB  104.98 µs -> 77.440 µs (for all cores)
 pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> f64 {
-    let mut result = 0.0;
-    let rr = 1. / overdisp;
+    let rr = 1.0 / overdisp;
 
-    for (&k_val, &x_val) in k.iter().zip(x.iter()) {
-        let zero_point = -ln_gamma(1. + k_val);
+    let result: f64 = THREAD_POOL.install(|| {
+        k.par_iter()
+            .zip(x.par_iter())
+            .map(|(&k_val, &x_val)| {
+                let zero_point = -ln_gamma(1.0 + k_val);
 
-        for &mean_val in means {
-            let mut interim = zero_point;
+                means
+                    .iter()
+                    .map(|&mean_val| {
+                        let factor = 1.0 + overdisp * x_val * mean_val;
+                        let ln_pp = -factor.ln();
+                        let ln_qq = (1.0 - 1.0 / factor).ln();
 
-            let factor = 1.0 + overdisp * x_val * mean_val;
+                        let mut interim = zero_point;
+                        interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
+                        interim += ln_gamma(k_val + rr);
 
-            let ln_pp = -factor.ln();
-            let ln_qq = (1.0 - 1.0 / factor).ln();
-
-            interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
-            interim += ln_gamma(k_val + rr);
-
-            result += interim;
-        }
-    }
+                        interim
+                    })
+                    .sum::<f64>()
+            })
+            .sum()
+    });
 
     result
 }
 
-// NB  85.429 µs
+//  NB  264.86 µs -> 91.962 µs
 pub fn nbinom_logpmf(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
-    let result: Vec<Vec<f64>> = k
-        .iter()
-        .zip(x.iter())
-        .map(|(&k_val, &x_val)| {
-            let zero_point = -ln_gamma(1. + k_val);
+    let rr = 1.0 / overdisp;
 
-            let row: Vec<f64> = means
-                .iter()
-                .map(|&mean_val| {
-                    let mut interim = zero_point;
+    let result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
+        k.par_iter()
+            .zip(x.par_iter())
+            .map(|(&k_val, &x_val)| {
+                let zero_point = -ln_gamma(1.0 + k_val);
 
-                    let factor = 1.0 + overdisp * x_val * mean_val;
-                    let ln_pp = -factor.ln();
-                    let ln_qq = (1.0 - 1.0 / factor).ln();
+                let row: Vec<f64> = means
+                    .iter()
+                    .map(|&mean_val| {
+                        let factor = 1.0 + overdisp * x_val * mean_val;
+                        let ln_pp = -factor.ln();
+                        let ln_qq = (1.0 - 1.0 / factor).ln();
 
-                    let rr = 1. / overdisp;
+                        let mut interim = zero_point;
+                        interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
+                        interim += ln_gamma(k_val + rr);
 
-                    interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
-                    interim += ln_gamma(k_val + rr);
+                        interim
+                    })
+                    .collect();
 
-                    interim
-                })
-                .collect();
-
-            row
-        })
-        .collect::<Vec<Vec<f64>>>();
+                row
+            })
+            .collect()
+    });
 
     result
 }
@@ -150,8 +159,8 @@ fn nbinom_logpmf_rs<'py>(
     Ok(result)
 }
 
-// NB 288.46 µs
-pub fn betabinom_logpmf_reduce<'py>(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> f64 {
+//  NB  108.68 µs
+pub fn betabinom_logpmf_reduce(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> f64 {
     //
     //  Efficient beta binomial evaluation for many samples x many states.
     //
@@ -164,32 +173,38 @@ pub fn betabinom_logpmf_reduce<'py>(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) 
         .map(|(&x, &y)| ln_gamma(x + y))
         .collect();
 
-    let mut result = 0.0;
+    let result: f64 = THREAD_POOL.install(|| {
+        k.par_iter()
+            .zip(n.par_iter())
+            .map(|(&k_val, &n_val)| {
+                let zero_point =
+                    ln_gamma(n_val + 1.0) - ln_gamma(k_val + 1.0) - ln_gamma(n_val - k_val + 1.0);
 
-    for (k_val, n_val) in k.iter().zip(n.iter()) {
-        let zero_point =
-            ln_gamma(n_val + 1.0) - ln_gamma(k_val + 1.0) - ln_gamma(n_val - k_val + 1.0);
+                let sum: f64 = izip!(a, b, &ga, &gb, &gab)
+                    .map(|(&a_val, &b_val, &ga_val, &gb_val, &gab_val)| {
+                        let mut interim = zero_point + gab_val - ga_val - gb_val;
 
-        for (&a_val, &b_val, &ga_val, &gb_val, &gab_val) in izip!(a, b, &ga, &gb, &gab) {
-            let mut interim = zero_point + gab_val - ga_val - gb_val;
+                        interim += ln_gamma(k_val + a_val) + ln_gamma(n_val - k_val + b_val)
+                            - ln_gamma(n_val + a_val + b_val);
 
-            interim += ln_gamma(k_val + a_val) + ln_gamma(n_val - k_val + b_val)
-                - ln_gamma(n_val + a_val + b_val);
+                        interim
+                    })
+                    .sum();
 
-            result += interim;
-        }
-    }
+                sum
+            })
+            .sum()
+    });
 
     result
 }
 
-// NB 119.10 µs
+//  NB  125.29 µs
 pub fn betabinom_logpmf(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f64>> {
     //
     //  Efficient beta binomial evaluation for many samples x many states.
     //
     //  see: https://en.wikipedia.org/wiki/Beta-binomial_distribution
-
     let ga: Vec<f64> = a.iter().map(|&x| ln_gamma(x)).collect();
     let gb: Vec<f64> = b.iter().map(|&x| ln_gamma(x)).collect();
     let gab: Vec<f64> = a
@@ -204,7 +219,7 @@ pub fn betabinom_logpmf(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f
             .map(|(ii, &k_val)| {
                 let zero_point =
                     ln_gamma(n[ii] + 1.0) - ln_gamma(k_val + 1.0) - ln_gamma(n[ii] - k_val + 1.0);
-                    
+
                 let row: Vec<f64> = a
                     .iter()
                     .enumerate()

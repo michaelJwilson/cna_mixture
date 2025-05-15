@@ -1,4 +1,6 @@
-use cna_mixture_rs::{nbinom_logpmf, nbinom_logpmf_reduce, betabinom_logpmf, betabinom_logpmf_reduce};
+use cna_mixture_rs::{
+    betabinom_logpmf, betabinom_logpmf_reduce, nbinom_logpmf, nbinom_logpmf_reduce,
+};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn benchmark_cna_mixture_rs(c: &mut Criterion) {
@@ -9,7 +11,7 @@ fn benchmark_cna_mixture_rs(c: &mut Criterion) {
 
     c.bench_function("nbinom_logpmf", |b| {
         b.iter(|| {
-            let _result = nbinom_logpmf_reduce(
+            let _result = nbinom_logpmf(
                 black_box(&k),
                 black_box(&x),
                 black_box(&means),
