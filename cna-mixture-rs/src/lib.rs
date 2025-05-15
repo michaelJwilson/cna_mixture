@@ -198,14 +198,13 @@ pub fn betabinom_logpmf(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f
         .map(|(&x, &y)| ln_gamma(x + y))
         .collect();
 
-    // let pool = ThreadPoolBuilder::new().num_threads(num_threads).build().unwrap();
-
     let result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
         k.par_iter()
             .enumerate()
             .map(|(ii, &k_val)| {
                 let zero_point =
                     ln_gamma(n[ii] + 1.0) - ln_gamma(k_val + 1.0) - ln_gamma(n[ii] - k_val + 1.0);
+                    
                 let row: Vec<f64> = a
                     .iter()
                     .enumerate()
