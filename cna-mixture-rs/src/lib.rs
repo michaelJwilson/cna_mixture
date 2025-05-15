@@ -17,8 +17,8 @@ pub struct CnaEmission {
     xs: Vec<f64>,
     bs: Vec<f64>,
     ns: Vec<f64>,
-    nb_mapping: Vec<usize>,
-    bb_mapping: Vec<usize>,
+    nb_mapping: Option<Vec<usize>>,
+    bb_mapping: Option<Vec<usize>>,
     thread_pool: ThreadPool,
 }
 
@@ -33,7 +33,7 @@ impl CnaEmission {
             .num_threads(num_threads)
             .build()
             .expect("Failed to build ThreadPool");
-
+        /*
         let mut unique_nb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
             HashMap::new();
 
@@ -82,14 +82,15 @@ impl CnaEmission {
                 bb_mapping.push(new_index);
             }
         }
+        */
 
         CnaEmission {
-            ks: unique_ks,
-            xs: unique_xs,
-            bs: unique_bs,
-            ns: unique_ns,
-            nb_mapping,
-            bb_mapping,
+            ks,
+            xs,
+            bs,
+            ns,
+            nb_mapping: None,
+            bb_mapping: None,
             thread_pool,
         }
     }
