@@ -132,7 +132,7 @@ impl CnaEmissionRs {
 
     fn nbinom_logpmf_reduce(&self, _means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> f64 {
         let means = _means.as_array().to_vec();
-
+        
         self.inner.nbinom_logpmf_reduce(&means, overdisp)
     }
 
