@@ -4,7 +4,7 @@ use itertools::izip;
 use ndarray::parallel::prelude::IndexedParallelIterator;
 use ndarray::parallel::prelude::IntoParallelRefIterator;
 use ndarray::parallel::prelude::ParallelIterator;
-use numpy::{PyReadonlyArray1, PyReadonlyArray2, PyArray2};
+use numpy::{PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
@@ -106,9 +106,19 @@ impl CnaEmission {
         }
     }
 
+    pub fn nbinom(&self, means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
+        self.thread_pool
+            .install(|| nbinom(&self.ks, &self.xs, means, overdisp))
+    }
+
     pub fn nbinom_reduce(&self, means: &[f64], overdisp: f64) -> f64 {
         self.thread_pool
             .install(|| nbinom_reduce(&self.ks, &self.xs, means, overdisp))
+    }
+
+    pub fn betabinom(&self, alphas: &[f64], betas: &[f64]) -> Vec<Vec<f64>> {
+        self.thread_pool
+            .install(|| betabinom(&self.bs, &self.ns, alphas, betas))
     }
 
     pub fn betabinom_reduce(&self, alphas: &[f64], betas: &[f64]) -> f64 {
@@ -142,10 +152,41 @@ impl CnaEmissionRs {
         Ok(CnaEmissionRs { inner })
     }
 
+    fn nbinom(
+        &self,
+        means: PyReadonlyArray1<'_, f64>,
+        overdisp: f64,
+    ) -> PyResult<Py<PyArray2<f64>>> {
+        let means = means.as_slice()?;
+
+        let result = self.inner.nbinom_reduce(means, overdisp);
+
+        let array = PyArray2::from_vec2(py, &result)
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to create NumPy array"))?;
+
+        Ok(array.to_owned())
+    }
+
     fn nbinom_reduce(&self, means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> PyResult<f64> {
         let means = means.as_slice()?;
 
         Ok(self.inner.nbinom_reduce(means, overdisp))
+    }
+
+    fn betabinom(
+        &self,
+        alphas: PyReadonlyArray1<'_, f64>,
+        betas: PyReadonlyArray1<'_, f64>,
+    ) -> PyResult<Py<PyArray2<f64>>> {
+        let alphas = alphas.as_slice()?;
+        let betas = betas.as_slice()?;
+
+        let result = self.inner.betabinom_reduce(alphas, betas);
+
+        let array = PyArray2::from_vec2(py, &result)
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to create NumPy array"))?;
+
+        Ok(array.to_owned())
     }
 
     fn betabinom_reduce(

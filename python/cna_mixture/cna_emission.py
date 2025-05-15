@@ -2,8 +2,7 @@ import numpy as np
 from cna_mixture_rs.core import (
     nbinom_rs,
     betabinom_rs,
-    grad_cna_mixture_em_cost_bb_rs,
-    grad_cna_mixture_em_cost_nb_rs,
+    CnaEmissionRs,
 )
 from scipy.special import digamma
 from scipy.stats import betabinom, nbinom, poisson
@@ -46,7 +45,7 @@ def reparameterize_nbinom(means, overdisp):
     return np.ravel(rs), np.ravel(ps)
 
 
-def cna_mixture_betabinom_eval(bs, ns, bafs, baf_overdispersion, rust_backend=True):
+def cna_mixture_betabinom_eval(bs, ns, bafs, baf_overdispersion, backend=None):
     """
     Evaluate log prob. under BetaBinom model.
     Returns (# sample, # state) array.
@@ -56,39 +55,48 @@ def cna_mixture_betabinom_eval(bs, ns, bafs, baf_overdispersion, rust_backend=Tr
         baf_overdispersion,
     )
 
-    if rust_backend:
-        # TODO no caching.
-        result = betabinom_rs(bs, ns, betas, alphas)
-    else:
-        result = np.zeros((len(bs), len(alphas)))
+    match backend:
+        case None:
+            result = np.zeros((len(bs), len(alphas)))
 
-        for col, (alpha, beta) in enumerate(zip(alphas, betas)):
-            for row, (x, n) in enumerate(zip(bs, ns, strict=False)):
-                result[row, col] = betabinom.logpmf(x, n, beta, alpha)
+            for col, (alpha, beta) in enumerate(zip(alphas, betas)):
+                for row, (x, n) in enumerate(zip(bs, ns, strict=False)):
+                    result[row, col] = betabinom.logpmf(x, n, beta, alpha)
+        case "rs_fn":
+            result = betabinom_rs(bs, ns, betas, alphas)
+
+        case _:
+            result = backend.betabinom_reduce(alphas, betas)
 
     return result
 
 
-def cna_mixture_nbinom_eval(ks, xs, rdrs, overdispersion, rust_backend=True):
+def cna_mixture_nbinom_eval(ks, xs, rdrs, overdispersion, backend="rs_fn"):
     """
     Evaluate log prob. under NegativeBinom model, given parameter vector.
     Return (# sample, # state) array.
     """
     if rust_backend:
         result = nbinom_rs(ks, xs, rdrs, overdispersion)
-    else:
-        result = np.zeros((len(ks), len(rdrs)))
 
-        for col, mm in enumerate(rdrs):
-            for row, (kk, xx) in enumerate(zip(ks, xs)):
-                rr, pp = reparameterize_nbinom(
-                    xx * mm,
-                    overdispersion,
-                )
+    match backend:
+        case None:
+            result = np.zeros((len(ks), len(rdrs)))
 
-                result[row, col] = nbinom.logpmf(kk, rr, pp)
+            for col, mm in enumerate(rdrs):
+                for row, (kk, xx) in enumerate(zip(ks, xs)):
+                    rr, pp = reparameterize_nbinom(
+                        xx * mm,
+                        overdispersion,
+                    )
 
-        result = result
+                    result[row, col] = nbinom.logpmf(kk, rr, pp)
+
+        case "rs_fn":
+            result = nbinom_rs(ks, xs, rdrs, overdispersion)
+
+        case _:
+            result = backend.nbinom_reduce(alphas, betas)
 
     return result
 
@@ -118,9 +126,7 @@ def get_ln_state_emission(
 
 
 class CNA_emission:
-    RUST_BACKEND = True
-
-    def __init__(self, num_states, ks, xs, bs, ns):
+    def __init__(self, num_states, ks, xs, bs, ns, backend="rs"):
         # NB ks are NB derived.  xs (exposure) == T_n x lambda_g.
         self.ks = ks.copy()
         self.xs = xs.copy()
@@ -130,6 +136,11 @@ class CNA_emission:
         self.ns = ns.copy()
 
         self.num_states = num_states
+        self.backend = (
+            CnaEmissionRs(self.ks, self.xs, self.bs, self.ns)
+            if backend is "rs"
+            else backend
+        )
 
     def unpack_params(self, params):
         """
@@ -162,9 +173,13 @@ class CNA_emission:
         Returns (# sample, # state) array.
         """
         *_, bafs, baf_overdispersion = self.unpack_params(params)
-        
+
         return cna_mixture_betabinom_eval(
-            self.bs, self.ns, bafs, baf_overdispersion, rust_backend=self.RUST_BACKEND
+            self.bs,
+            self.ns,
+            bafs,
+            baf_overdispersion,
+            backend=self.backend,
         )
 
     def cna_mixture_nbinom_update(self, params):
@@ -179,7 +194,7 @@ class CNA_emission:
             self.xs,
             rdrs,
             rdr_overdispersion,
-            rust_backend=self.RUST_BACKEND,
+            backend=self.backend,
         )
 
     def get_ln_state_emission_update(self, params):
