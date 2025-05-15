@@ -106,7 +106,6 @@ impl CnaEmission {
     }
 }
 
-
 #[pyclass]
 struct CnaEmissionRs {
     inner: CnaEmission,
@@ -129,7 +128,6 @@ impl CnaEmissionRs {
         let inner = CnaEmission::new(ks, xs, bs, ns);
 
         Ok(CnaEmissionRs { inner })
-
     }
 
     fn nbinom_logpmf_reduce(&self, _means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> f64 {
