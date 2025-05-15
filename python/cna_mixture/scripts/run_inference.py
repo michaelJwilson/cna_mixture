@@ -41,7 +41,6 @@ def run_inference(
     # NB total number of states (inc. normal).
     cna_inf = CNA_inference(
         num_cna_states,
-        cna_sim.genome_coverage,
         cna_sim.data,
         state_prior=state_prior,
         initialize_mode=initialize_mode,

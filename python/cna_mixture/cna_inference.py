@@ -32,7 +32,6 @@ class CNA_inference:
     def __init__(
         self,
         num_cna_states,
-        genome_coverage,
         data,
         optimizer="L-BFGS-B",
         state_prior="categorical",
