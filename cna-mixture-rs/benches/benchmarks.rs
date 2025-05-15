@@ -22,7 +22,7 @@ fn benchmark_cna_mixture_rs(c: &mut Criterion) {
             );
         })
     });
-    /*
+    
     let alphas: Vec<f64> = (1..=10).map(|x| x as f64).collect();
     let betas: Vec<f64> = (1..=10).map(|x| x as f64).collect();
 
@@ -36,7 +36,6 @@ fn benchmark_cna_mixture_rs(c: &mut Criterion) {
             );
         })
     });
-    */
 }
 
 criterion_group!(benches, benchmark_cna_mixture_rs);

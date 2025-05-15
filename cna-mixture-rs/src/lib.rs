@@ -20,7 +20,8 @@ pub struct CnaEmission {
     xs: Vec<f64>,
     bs: Vec<f64>,
     ns: Vec<f64>,
-    mapping: Vec<usize>,
+    nb_mapping: Vec<usize>,
+    bb_mapping: Vec<usize>,
     thread_pool: ThreadPool,
 }
 
@@ -41,12 +42,17 @@ impl CnaEmission {
             .build()
             .expect("Failed to build ThreadPool");
 
-        let mut unique_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> = HashMap::new();
+        let mut unique_nb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> = HashMap::new();
+        let mut unique_bb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> = HashMap::new();
 
         let mut unique_ks: Vec<f64> = Vec::new();
         let mut unique_xs: Vec<f64> = Vec::new();
 
-        let mut mapping: Vec<usize> = Vec::new();
+        let mut unique_bs: Vec<f64> = Vec::new();
+        let mut unique_ns: Vec<f64> = Vec::new();
+
+        let mut nb_mapping: Vec<usize> = Vec::new();
+        let mut bb_mapping: Vec<usize> = Vec::new();
 
         for (&k, &x) in izip!(ks.iter(), xs.iter()) {
             let key = (OrderedFloat(k), OrderedFloat(x));
@@ -68,9 +74,10 @@ impl CnaEmission {
         CnaEmission {
             ks: unique_ks,
             xs: unique_xs,
-            bs,
-            ns,
-            mapping: mapping,
+            bs: unique_bs,
+            ns: unique_ns,
+            nb_mapping: nb_mapping,
+            bb_mapping: bb_mapping,
             thread_pool: thread_pool,
         }
     }
