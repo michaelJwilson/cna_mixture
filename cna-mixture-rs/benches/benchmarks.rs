@@ -14,6 +14,12 @@ fn benchmark_cna_mixture_rs(c: &mut Criterion) {
 
     c.bench_function("nbinom", |b| {
         b.iter(|| {
+            let _result = cna_em.nbinom(black_box(&means), black_box(0.01));
+        })
+    });
+
+    c.bench_function("nbinom_reduce", |b| {
+        b.iter(|| {
             let _result = cna_em.nbinom_reduce(black_box(&means), black_box(0.01));
         })
     });
@@ -22,6 +28,12 @@ fn benchmark_cna_mixture_rs(c: &mut Criterion) {
     let betas: Vec<f64> = (1..=10).map(|x| x as f64).collect();
 
     c.bench_function("betabinom", |b| {
+        b.iter(|| {
+            let _result = cna_em.betabinom(black_box(&alphas), black_box(&betas));
+        })
+    });
+
+    c.bench_function("betabinom_reduce", |b| {
         b.iter(|| {
             let _result = cna_em.betabinom_reduce(black_box(&alphas), black_box(&betas));
         })

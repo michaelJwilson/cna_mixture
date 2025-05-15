@@ -154,12 +154,13 @@ impl CnaEmissionRs {
 
     fn nbinom(
         &self,
+        py: Python,
         means: PyReadonlyArray1<'_, f64>,
         overdisp: f64,
     ) -> PyResult<Py<PyArray2<f64>>> {
         let means = means.as_slice()?;
 
-        let result = self.inner.nbinom_reduce(means, overdisp);
+        let result = self.inner.nbinom(means, overdisp);
 
         let array = PyArray2::from_vec2(py, &result)
             .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to create NumPy array"))?;
@@ -175,13 +176,14 @@ impl CnaEmissionRs {
 
     fn betabinom(
         &self,
+        py: Python,
         alphas: PyReadonlyArray1<'_, f64>,
         betas: PyReadonlyArray1<'_, f64>,
     ) -> PyResult<Py<PyArray2<f64>>> {
         let alphas = alphas.as_slice()?;
         let betas = betas.as_slice()?;
 
-        let result = self.inner.betabinom_reduce(alphas, betas);
+        let result = self.inner.betabinom(alphas, betas);
 
         let array = PyArray2::from_vec2(py, &result)
             .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to create NumPy array"))?;
