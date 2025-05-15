@@ -18,14 +18,13 @@ def validate_keyword_not_null(arg):
 
 
 class CNA_categorical_prior:
-    def __init__(self, num_segments, num_states, production_mode=True):
+    def __init__(self, num_segments, num_states):
         logger.info(
             f"Initializing CNA_categorical_prior for num. segments, num. states = {num_segments}, {num_states} respectively."
         )
 
         self.num_states = num_states
         self.num_segments = num_segments
-        self.production_mode = production_mode
 
     def __str__(self):
         return f"lambdas={np.exp(self.ln_lambdas)}"
@@ -87,11 +86,10 @@ class CNA_categorical_prior:
         """
         validate_keyword_not_null(ln_state_emission)
 
-        if not self.production_mode:
-            assert ln_state_emission.ndim == 2
+        assert ln_state_emission.ndim == 2
 
-            # NB *slow* guard against being passed probabilities, instead of log probs.
-            assert np.all(ln_state_posteriors <= 0.0)
+        # NB *slow* guard against being passed probabilities, instead of log probs.
+        assert np.all(ln_state_posteriors <= 0.0)
 
         ln_state_posteriors = self.get_ln_state_posteriors(
             ln_state_emission=ln_state_emission

@@ -60,7 +60,7 @@ class CNA_mixture_initialize:
         
         self.params.verify()
 
-        return self.params.cna_states, np.inf
+        return self.params, np.inf
         
     def nonnormal(self, rdr_baf, threshold=0.05, non_normal=True):
         """
@@ -85,7 +85,7 @@ class CNA_mixture_initialize:
         self.params.cna_states = cna_states[cna_states[:, 0].argsort()]
         
         # TODO return cost.
-        return self.params.cna_states, np.inf
+        return self.params, np.inf
 
     # TODO provided with an emission model directly.
     @staticmethod

@@ -122,12 +122,12 @@ class CNA_emission:
 
     def __init__(self, num_states, ks, xs, bs, ns):
         # NB ks are NB derived.  xs (exposure) == T_n x lambda_g.
-        self.ks = ks
-        self.xs = xs
+        self.ks = ks.copy()
+        self.xs = xs.copy()
 
         # NB bs and ns are BB derived.
-        self.bs = bs
-        self.ns = ns
+        self.bs = bs.copy()
+        self.ns = ns.copy()
 
         self.num_states = num_states
 
@@ -163,7 +163,7 @@ class CNA_emission:
         """
         bs, ns = self.bs, self.ns
         _, _, bafs, baf_overdispersion = self.unpack_params(params)
-
+        
         return cna_mixture_betabinom_eval(
             bs, ns, bafs, baf_overdispersion, rust_backend=self.RUST_BACKEND
         )
@@ -185,8 +185,8 @@ class CNA_emission:
 
     def get_ln_state_emission_update(self, params):
         """ """
-        ln_state_emission_betabinom, _ = self.cna_mixture_betabinom_update(params)
-        ln_state_emission_nbinom, _ = self.cna_mixture_nbinom_update(params)
+        ln_state_emission_betabinom = self.cna_mixture_betabinom_update(params)
+        ln_state_emission_nbinom = self.cna_mixture_nbinom_update(params)
 
         # NB assumes independent
         return ln_state_emission_betabinom + ln_state_emission_nbinom
