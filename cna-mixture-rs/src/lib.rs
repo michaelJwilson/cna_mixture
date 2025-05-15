@@ -304,7 +304,8 @@ pub fn betabinom(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f64>> {
 }
 
 #[pyfunction]
-fn nbinom_rs<'py>(
+fn nbinom_rs(
+    py: Python,
     k: PyReadonlyArray1<'_, f64>,
     x: PyReadonlyArray1<'_, f64>,
     means: PyReadonlyArray1<'_, f64>,
@@ -328,12 +329,13 @@ fn nbinom_rs<'py>(
 }
 
 #[pyfunction]
-fn betabinom_rs<'py>(
+fn betabinom_rs(
+    py: Python,
     k: PyReadonlyArray1<'_, f64>,
     n: PyReadonlyArray1<'_, f64>,
     a: PyReadonlyArray1<'_, f64>,
     b: PyReadonlyArray1<'_, f64>,
-) -> PyResult<Vec<Vec<f64>>> {
+) -> PyResult<Py<PyArray2<f64>>> {
     //
     //  Efficient beta binomial evaluation for many samples x many states.
     //
@@ -345,7 +347,10 @@ fn betabinom_rs<'py>(
 
     let result = betabinom(&k, &n, &a, &b);
 
-    Ok(result)
+    let array = PyArray2::from_vec2(py, &result)
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to create NumPy array"))?;
+
+    Ok(array.to_owned())
 }
 
 #[pyfunction]

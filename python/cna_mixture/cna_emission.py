@@ -58,7 +58,7 @@ def cna_mixture_betabinom_eval(bs, ns, bafs, baf_overdispersion, rust_backend=Tr
     
     if rust_backend:
         # TODO no caching.
-        result = np.array(betabinom_rs(bs, ns, betas, alphas))
+        result = betabinom_rs(bs, ns, betas, alphas)
     else:
         result = np.zeros((len(bs), len(alphas)))
 
