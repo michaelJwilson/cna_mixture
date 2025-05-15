@@ -6,13 +6,12 @@ use ndarray::parallel::prelude::IntoParallelRefIterator;
 use ndarray::parallel::prelude::ParallelIterator;
 use num_cpus;
 use numpy::{PyReadonlyArray1, PyReadonlyArray2};
-use once_cell::sync::Lazy;
+use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use statrs::function::gamma::{digamma, ln_gamma};
-use std::env;
 use std::collections::HashMap;
-use ordered_float::OrderedFloat;
+use std::env;
 
 pub struct CnaEmission {
     //  NB defining a struct associated locally in memory.
@@ -25,13 +24,8 @@ pub struct CnaEmission {
     thread_pool: ThreadPool,
 }
 
-impl CnaEmission {
-    pub fn new(
-        ks: Vec<f64>,
-        xs: Vec<f64>,
-        bs: Vec<f64>,
-        ns: Vec<f64>,
-    ) -> Self {
+impl CnaEmission  {
+    pub fn new(ks: Vec<f64>, xs: Vec<f64>, bs: Vec<f64>, ns: Vec<f64>) -> Self {
         let num_threads = env::var("RAYON_NUM_THREADS")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -42,8 +36,11 @@ impl CnaEmission {
             .build()
             .expect("Failed to build ThreadPool");
 
-        let mut unique_nb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> = HashMap::new();
-        let mut unique_bb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> = HashMap::new();
+        let mut unique_nb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
+            HashMap::new();
+            
+        let mut unique_bb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
+            HashMap::new();
 
         let mut unique_ks: Vec<f64> = Vec::new();
         let mut unique_xs: Vec<f64> = Vec::new();
@@ -104,11 +101,7 @@ impl CnaEmission {
             .install(|| nbinom_logpmf_reduce(&self.ks, &self.xs, means, overdisp))
     }
 
-    pub fn betabinom_logpmf_reduce(
-        &self,
-        alphas: &[f64],
-        betas: &[f64],
-    ) -> f64 {
+    pub fn betabinom_logpmf_reduce(&self, alphas: &[f64], betas: &[f64]) -> f64 {
         self.thread_pool
             .install(|| betabinom_logpmf_reduce(&self.bs, &self.ns, alphas, betas))
     }
@@ -142,7 +135,7 @@ impl CnaEmissionRs {
 
     fn nbinom_logpmf_reduce(&self, _means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> f64 {
         let means = _means.as_array().to_vec();
-        
+
         self.inner.nbinom_logpmf_reduce(&self.inner.ks, &self.inner.xs, &means, overdisp)
     }
 
@@ -153,7 +146,7 @@ impl CnaEmissionRs {
     ) -> f64 {
         let alphas = _alphas.as_array().to_vec();
         let betas = _betas.as_array().to_vec();
-        
+
         self.inner.betabinom_logpmf_reduce(&self.inner.bs, &self.inner.ns, &alphas, &betas)
     }
 }

@@ -1,5 +1,5 @@
 use cna_mixture_rs::{
-    CnaEmission, betabinom_logpmf, betabinom_logpmf_reduce, nbinom_logpmf, nbinom_logpmf_reduce,
+    betabinom_logpmf, betabinom_logpmf_reduce, nbinom_logpmf, nbinom_logpmf_reduce, CnaEmission,
 };
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
@@ -11,28 +11,23 @@ fn benchmark_cna_mixture_rs(c: &mut Criterion) {
     let ns: Vec<f64> = bs.clone().into_iter().map(|x| 10. * x).collect();
 
     let cna_em = CnaEmission::new(ks, xs, bs, ns);
-
+    
     let means: Vec<f64> = (10..=20).map(|x| (x as f64)).collect();
 
-    c.bench_function("nbinom_logpmf", |b| {
+    c.bench_function("nbinom", |b| {
         b.iter(|| {
-            let _result = cna_em.nbinom_logpmf_reduce(
-                black_box(&means),
-                black_box(0.01),
-            );
+            let _result = cna_em.nbinom_logpmf_reduce(black_box(&means), black_box(0.01));
         })
     });
-    
+
     let alphas: Vec<f64> = (1..=10).map(|x| x as f64).collect();
     let betas: Vec<f64> = (1..=10).map(|x| x as f64).collect();
 
-    c.bench_function("betabinomial_logpmf_reduce", |b| {
+    c.bench_function("betabinom", |b| {
         b.iter(|| {
-            let _result = betabinom_logpmf_reduce(
-                black_box(&bs),
-                black_box(&ns),
+            let _result = cna_em.betabinom_logpmf_reduce(
                 black_box(&alphas),
-                black_box(&betas),
+                black_box(&betas)
             );
         })
     });
