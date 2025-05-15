@@ -120,31 +120,31 @@ impl CnaEmissionRs {
         bs: PyReadonlyArray1<'_, f64>,
         ns: PyReadonlyArray1<'_, f64>,
     ) -> PyResult<Self> {
-        let ks = ks.as_array().to_vec();
-        let xs = xs.as_array().to_vec();
-        let bs = bs.as_array().to_vec();
-        let ns = ns.as_array().to_vec();
+        let ks = ks.as_slice()?.to_vec();
+        let xs = xs.as_slice()?.to_vec();
+        let bs = bs.as_slice()?.to_vec();
+        let ns = ns.as_slice()?.to_vec();
 
         let inner = CnaEmission::new(ks, xs, bs, ns);
 
         Ok(CnaEmissionRs { inner })
     }
 
-    fn nbinom_logpmf_reduce(&self, _means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> f64 {
-        let means = _means.as_array().to_vec();
-        
-        self.inner.nbinom_logpmf_reduce(&means, overdisp)
+    fn nbinom_logpmf_reduce(&self, means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> PyResult<f64> {
+        let means = means.as_slice()?;
+
+        Ok(self.inner.nbinom_logpmf_reduce(means, overdisp))
     }
 
     fn betabinom_logpmf_reduce(
         &self,
-        _alphas: PyReadonlyArray1<'_, f64>,
-        _betas: PyReadonlyArray1<'_, f64>,
-    ) -> f64 {
-        let alphas = _alphas.as_array().to_vec();
-        let betas = _betas.as_array().to_vec();
+        alphas: PyReadonlyArray1<'_, f64>,
+        betas: PyReadonlyArray1<'_, f64>,
+    ) -> PyResult<f64> {
+        let alphas = alphas.as_slice()?;
+        let betas = betas.as_slice()?;
 
-        self.inner.betabinom_logpmf_reduce(&alphas, &betas)
+        Ok(self.inner.betabinom_logpmf_reduce(alphas, betas))
     }
 }
 
@@ -502,7 +502,7 @@ fn ln_transition_probs_rs<'py>(
 #[pymodule]
 #[pyo3(name = "core")]
 fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    //  m.add_class::<CnaEmissionRs>()?;
+    m.add_class::<CnaEmissionRs>()?;
     m.add_function(wrap_pyfunction!(nbinom_logpmf_rs, m)?)?;
     m.add_function(wrap_pyfunction!(betabinom_logpmf_rs, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_nb_rs, m)?)?;
