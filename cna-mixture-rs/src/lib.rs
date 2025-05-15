@@ -57,17 +57,34 @@ impl CnaEmission {
         for (&k, &x) in izip!(ks.iter(), xs.iter()) {
             let key = (OrderedFloat(k), OrderedFloat(x));
 
-            if let Some(&index) = unique_map.get(&key) {
-                mapping.push(index);
+            if let Some(&index) = unique_nb_map.get(&key) {
+                nb_mapping.push(index);
             } else {
                 let new_index = unique_ks.len();
 
-                unique_map.insert(key, new_index);
+                unique_nb_map.insert(key, new_index);
 
                 unique_ks.push(k);
                 unique_xs.push(x);
 
-                mapping.push(new_index);
+                nb_mapping.push(new_index);
+            }
+        }
+
+        for (&b, &n) in izip!(bs.iter(), ns.iter()) {
+            let key = (OrderedFloat(b), OrderedFloat(n));
+
+            if let Some(&index) = unique_bb_map.get(&key) {
+                bb_mapping.push(index);
+            } else {
+                let new_index = unique_bs.len();
+
+                unique_bb_map.insert(key, new_index);
+
+                unique_bs.push(b);
+                unique_ns.push(n);
+
+                bb_mapping.push(new_index);
             }
         }
 
