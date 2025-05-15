@@ -21,13 +21,10 @@ def test_cna_emission_rs(benchmark):
     bs = np.arange(1_000, dtype=float)
     ns = np.arange(1_000, dtype=float)
 
-    emrs = CnaEmissionRs(ks, xs, bs, ns)
-    means = np.arange(10, 20, dtype=float)
+    cna_em = CnaEmissionRs(ks, xs, bs, ns)
+    means = np.arange(10, dtype=float)
     
-    # result = benchmark(lambda: cna_mixture_nbinom_eval(ks, xs, means, 1.e-2, rust_backend=True))
-    result = benchmark(
-        CnaEmissionRs.nbinom_logpmf_reduce(means, 1.e-2)
-    )
+    result = benchmark(lambda: cna_em.nbinom_logpmf_reduce(means, 1.e-2))
     
     print(result)
     
