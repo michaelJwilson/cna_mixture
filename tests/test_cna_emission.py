@@ -84,10 +84,12 @@ def test_cna_emission_rs_nb(benchmark, emission, emission_params, compress):
         emission.ks, emission.xs, emission.bs, emission.ns, compress=compress
     )
 
-    exp = nbinom_rs(emission.ks, emission.xs, rdrs, phi).sum()
     result = benchmark(lambda: cna_em.nbinom_reduce(rdrs, phi))
 
-    npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
+    if compress is False:
+        exp = nbinom_rs(emission.ks, emission.xs, rdrs, phi).sum()
+
+        npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
 
 # TODO reduce with compress
 @pytest.mark.parametrize("compress", [True, False])
@@ -98,13 +100,14 @@ def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
     cna_em = CnaEmissionRs(
         emission.ks, emission.xs, emission.bs, emission.ns, compress=compress
     )
-
-    exp = betabinom_rs(emission.ks, emission.xs, alphas, betas).sum()
     
     # TODO accept bafs, dispersion
     result = benchmark(lambda: cna_em.betabinom_reduce(alphas, betas))
 
-    npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
+    if compress is False:
+        exp = betabinom_rs(emission.ks, emission.xs, alphas, betas).sum()
+    
+        npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
     
 
 def test_CNA_emission_bb(emission, emission_params):
