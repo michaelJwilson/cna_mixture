@@ -14,20 +14,19 @@ from scipy.stats import betabinom, nbinom
 np.random.seed(314)
 
 def test_cna_emission_rs_class(benchmark):
-    ks = np.arange(1_000, 2_000, dtype=float)
+    ks = 10. * np.ones(1_000)
     xs = 2. * ks
 
-    # TODO duds
     bs = np.arange(1_000, dtype=float)
     ns = np.arange(1_000, dtype=float)
 
-    cna_em = CnaEmissionRs(ks, xs, bs, ns)
+    cna_em = CnaEmissionRs(ks, xs, bs, ns, compress=False)
     means = np.arange(10, dtype=float)
     
     result = benchmark(lambda: cna_em.nbinom_logpmf_reduce(means, 1.e-2))
 
 def test_cna_emission_rs(benchmark):
-    ks = np.arange(10, 20, dtype=float)
+    ks = 10. * np.ones(1_000)
     xs = 2. * ks
 
     means = np.arange(10, dtype=float)
