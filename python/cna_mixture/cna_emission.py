@@ -57,18 +57,12 @@ def cna_mixture_betabinom_eval(bs, ns, bafs, baf_overdispersion, rust_backend=Tr
     )
     
     if rust_backend:
-        # bs, ns = np.ascontiguousarray(bs), np.ascontiguousarray(ns)
-
-        # alphas = np.ascontiguousarray(state_alpha_betas[:, 0].copy())
-        # betas = np.ascontiguousarray(state_alpha_betas[:, 1].copy())
-
         # TODO no caching.
-        result = betabinom_rs(bs, ns, betas, alphas)
-        # result = np.array(result)
+        result = np.array(betabinom_rs(bs, ns, betas, alphas))
     else:
-        result = np.zeros((len(bs), len(state_alpha_betas)))
+        result = np.zeros((len(bs), len(alphas)))
 
-        for col, (alpha, beta) in enumerate(state_alpha_betas):
+        for col, (alpha, beta) in enumerate(zip(alphas, betas)):
             for row, (x, n) in enumerate(zip(bs, ns, strict=False)):
                 result[row, col] = betabinom.logpmf(x, n, beta, alpha)
 

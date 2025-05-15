@@ -132,19 +132,19 @@ def test_cna_emission(emission, emission_params):
     assert unpacked == (rdrs, phi, bafs, tau)
 
     # NB >>>>>>  beta-binomial checks.
-    rust_bb_update = emission.cna_mixture_betabinom_update(
+    rs_bb_update = emission.cna_mixture_betabinom_update(
         emission_params
     )
-
-    """
-    assert np.array_equal(rust_state_alpha_betas, pseudo_counts)
     
     emission.RUST_BACKEND = False
 
-    bb_update, state_alpha_betas = emission.cna_mixture_betabinom_update(params)
+    bb_update = emission.cna_mixture_betabinom_update(emission_params)
 
-    npt.assert_allclose(rust_bb_update, bb_update, rtol=1.0e-5, atol=1.0e-8)
+    print(rs_bb_update)
+    
+    npt.assert_allclose(rs_bb_update, bb_update, rtol=1.0e-5, atol=1.0e-8)
 
+    """
     # NB all log probabilites should be <= 0
     assert np.all(bb_update <= 0.0)
 
