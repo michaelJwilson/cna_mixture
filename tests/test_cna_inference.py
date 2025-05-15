@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.testing as npt
@@ -12,7 +13,6 @@ from scipy.optimize import approx_fprime
 
 @pytest.mark.regression
 def test_cna_inference(cna_sim):
-    # run_inference --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 3 --initialize-mode random --state-prior categorical
     cna_inf = CNA_inference(
         cna_sim.num_states - 1,
         cna_sim.data,
@@ -23,20 +23,47 @@ def test_cna_inference(cna_sim):
 
     cna_inf.initialize()
 
-    res = cna_inf.fit()
+    res = benchmark(cna_inf.fit)
     params = cna_inf.emission_model.unpack_params(res.x)
 
-    # DEPRECATE
-    # exp = np.array([0.50015511, 0.28714097, 0.09091853, 0.10101394])
-
-    # NB ensure best-fit BAFs are conserved.
-    # exp = np.array([0.792745, 0.392105, 0.496691, 0.242998])
-    # bafs = params[2]
-
-    exp = [1.00002014e+00, 3.60385422e+00, 4.95173795e+00, 9.97756571e+00, 1.80162482e-02, 5.02089621e-01, 2.82880246e-01, 1.66554174e-01, 1.00492437e-01, 4.98151885e+01]
+    exp = [
+        1.00002014e00,
+        3.60385422e00,
+        4.95173795e00,
+        9.97756571e00,
+        1.80162482e-02,
+        5.02089621e-01,
+        2.82880246e-01,
+        1.66554174e-01,
+        1.00492437e-01,
+        4.98151885e01,
+    ]
     
     npt.assert_allclose(res.x, exp, rtol=1.0e-2, atol=1.0e-2)
 
+
+@pytest.mark.benchmark
+def test_bench_cna_inference(cna_sim):
+    cna_inf = CNA_inference(
+        cna_sim.num_states,
+        cna_sim.data,
+        state_prior="categorical",
+        initialize_mode="random",
+        seed=np.random.default_rng(42),
+    )
+
+    # NB runtime of order XXs.
+    start = time.perf_counter()
+    
+    cna_inf.initialize()
+
+    end = time.perf_counter()
+
+    runtime = end - start
+
+    assert np.abs(runtime - 1.e-2) <= 0.01, f"{runtime - 1.e-2}"
+
+    
 @pytest.mark.skip(reason="TODO")
 @pytest.mark.parametrize("state_prior", ["categorical", "markov"])
 def test_cna_inference_pre_initialize(state_prior, cna_sim):
@@ -66,6 +93,7 @@ def test_cna_inference_pre_initialize(state_prior, cna_sim):
     ):
         _ = cna_inf.jac(np.zeros(2 + 2 * cna_sim.num_states))
 
+
 @pytest.mark.skip(reason="TODO")
 @pytest.mark.parametrize("state_prior", ["categorical", "markov"])
 def test_cna_inference_grad(state_prior, cna_sim):
@@ -93,6 +121,7 @@ def test_cna_inference_grad(state_prior, cna_sim):
         # BUG? TODO?  numerical error or bug?  note: grad tau is correctly evalued;
         #             numerical is zeros => no dependence?  killed by posterior?
         npt.assert_allclose(approx_grad, grad, rtol=1.0, atol=7.7)
+
 
 @pytest.mark.skip(reason="TODO")
 @pytest.mark.slow
