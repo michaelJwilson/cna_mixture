@@ -26,7 +26,7 @@ def reparameterize_beta_binom(bafs, overdispersion):
     )
 
     # NB alphas, betas
-    return interim[:, 0], interim[:, 1]
+    return np.ravel(interim[:, 0]), np.ravel(interim[:, 1])
 
 
 def reparameterize_nbinom(means, overdisp):
@@ -55,14 +55,15 @@ def cna_mixture_betabinom_eval(bs, ns, bafs, baf_overdispersion, rust_backend=Tr
         bafs,
         baf_overdispersion,
     )
-
+    
     if rust_backend:
         # bs, ns = np.ascontiguousarray(bs), np.ascontiguousarray(ns)
 
         # alphas = np.ascontiguousarray(state_alpha_betas[:, 0].copy())
         # betas = np.ascontiguousarray(state_alpha_betas[:, 1].copy())
 
-        result = betabinom_logpmf(bs, ns, betas, alphas)
+        # TODO no caching.
+        result = betabinom_rs(bs, ns, betas, alphas)
         # result = np.array(result)
     else:
         result = np.zeros((len(bs), len(state_alpha_betas)))
@@ -142,8 +143,8 @@ class CNA_emission:
         """
         # NB read_depths + overdispersion + bafs + overdispersion
         assert (
-            len(params) == num_states + 1 + num_states + 1
-        ), f"{params} does not satisy {num_states} states."
+            len(params) == self.num_states + 1 + self.num_states + 1
+        ), f"{params} does not satisy {self.num_states} states."
 
         num_states = self.num_states
         
