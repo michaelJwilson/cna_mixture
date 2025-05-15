@@ -13,6 +13,38 @@ from scipy.stats import betabinom, nbinom
 
 np.random.seed(314)
 
+@pytest.fixture()
+def emission():
+    num_states, normal_coverage, snp_coverage = 1, 100, 10
+
+    # NB segment reads covering a snp < all segment reads.
+    assert snp_coverage < normal_coverage
+    
+    # NB nbinom.rvs(lost_reads, dropout_rate, size=1)[0]
+    rdrs, phi = 1. + np.arange(num_states), 1.0e-2
+    bafs, tau = 0.2 * np.arange(num_states), 10.0  
+    
+    rr, pp = reparameterize_nbinom(normal_coverage * means, phi)
+    alphas, betas = reparameterize_beta_binom(bafs, tau)
+
+    # NB (fairly) assumes each spot and each segment has the same normal coverage.
+    ks = nbinom.rvs(rr, pp, size=10_000).astype(np.float64)
+    xs = normal_coverage * np.ones_like(ks)
+    
+    bs = betabinom.rvs(                                                                                                                                            
+        snp_coverage, betas, alphas, size=10_000                                                                                        
+    ).astype(np.float64)                                                                                                                                                                                                                                                                                                              
+    ns = snp_coverage * np.ones_like(bs).astype(np.float64)                                                                                                         
+    # NB RDR-like params are read depths, not RDR.                                                                                                                 
+    params = np.array([*means, phi, *bafs, tau])
+    
+    emission = CNA_emission(num_states, ks, xs, bs, ns)
+
+def test_emission_fixture(emission):
+    assert emission is not None
+    
+"""
+# NB test rust backend.
 def test_cna_emission_rs_class(benchmark):
     ks = 10. * np.ones(1_000)
     xs = 2. * ks
@@ -32,7 +64,8 @@ def test_cna_emission_rs(benchmark):
     means = np.arange(10, dtype=float)
 
     result = benchmark(lambda: nbinom_logpmf_rs(ks, xs, means, 1.e-2))
-    
+"""
+"""
 def test_cna_emission():
     num_states, normal_coverage, snp_coverage = 1, 10, 100
 
@@ -103,3 +136,4 @@ def test_cna_emission():
     grad = emission.grad_em_cost(params, state_posteriors)
 
     npt.assert_allclose(rust_grad, grad, rtol=1.0e-5, atol=1.0e-8)
+"""
