@@ -20,11 +20,7 @@ def cna_sim():
 
 @pytest.fixture
 def mixture_params():
-    params = CNA_mixture_params(seed=314)
-    params.initialize()
-
-    return params
-
+    return CNA_mixture_params()
 
 @pytest.fixture
 def rdr_baf(rng):
