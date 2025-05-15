@@ -66,11 +66,27 @@ def test_nbinom_rs(benchmark, emission, emission_params):
 
 def test_betabinom_rs(benchmark, emission, emission_params):
     _, _, bafs, tau = emission_params
-
     alphas, betas = reparameterize_beta_binom(bafs, tau)
     
     benchmark(lambda: betabinom_rs(emission.bs, emission.ns, betas, alphas))
 
+@pytest.mark.parametrize("compress", [True, False])
+def test_cna_emission_rs_nb(benchmark, emission, emission_params, compress):
+    rdrs, phi, _, _ = emission_params
+    
+    cna_em = CnaEmissionRs(emission.ks, emission.xs, emission.bs, emission.ns, compress=compress)
+
+    result = benchmark(lambda: cna_em.nbinom_reduce(rdrs, phi))
+
+@pytest.mark.parametrize("compress", [True, False])
+def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
+    _, _, bafs, tau = emission_params
+    alphas, betas = reparameterize_beta_binom(bafs, tau)
+    
+    cna_em = CnaEmissionRs(emission.ks, emission.xs, emission.bs, emission.ns, compress=compress)
+
+    # TODO accept bafs, dispersion
+    benchmark(lambda: cna_em.betabinom_reduce(alphas, betas))
     
 """
 # NB test rust backend.
