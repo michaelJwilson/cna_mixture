@@ -15,7 +15,7 @@ def reparameterize_beta_binom(bafs, overdispersion):
     return the (# states, 2) array of [alpha, beta] for each state,
     where beta is associated to the BAF probability.
     """
-    return np.array(
+    interim = np.array(
         [
             [
                 (1.0 - baf) * overdispersion,
@@ -24,6 +24,9 @@ def reparameterize_beta_binom(bafs, overdispersion):
             for baf in bafs
         ]
     )
+
+    # NB alphas, betas
+    return interim[:, 0], interim[:, 1]
 
 
 def reparameterize_nbinom(means, overdisp):
@@ -43,37 +46,35 @@ def reparameterize_nbinom(means, overdisp):
     return rs, ps
 
 
-def cna_mixture_betabinom_eval(xs, ns, bafs, baf_overdispersion, rust_backend=True):
+def cna_mixture_betabinom_eval(bs, ns, bafs, baf_overdispersion, rust_backend=True):
     """
     Evaluate log prob. under BetaBinom model.
     Returns (# sample, # state) array.
     """
-    state_alpha_betas = reparameterize_beta_binom(
+    alphas, betas = reparameterize_beta_binom(
         bafs,
         baf_overdispersion,
     )
 
     if rust_backend:
-        xs, ns = np.ascontiguousarray(xs), np.ascontiguousarray(ns)
+        # bs, ns = np.ascontiguousarray(bs), np.ascontiguousarray(ns)
 
-        alphas = np.ascontiguousarray(state_alpha_betas[:, 0].copy())
-        betas = np.ascontiguousarray(state_alpha_betas[:, 1].copy())
+        # alphas = np.ascontiguousarray(state_alpha_betas[:, 0].copy())
+        # betas = np.ascontiguousarray(state_alpha_betas[:, 1].copy())
 
-        result = betabinom_logpmf(xs, ns, betas, alphas)
-        result = np.array(result)
+        result = betabinom_logpmf(bs, ns, betas, alphas)
+        # result = np.array(result)
     else:
-        result = np.zeros((len(xs), len(state_alpha_betas)))
+        result = np.zeros((len(bs), len(state_alpha_betas)))
 
         for col, (alpha, beta) in enumerate(state_alpha_betas):
-            for row, (x, n) in enumerate(zip(xs, ns, strict=False)):
+            for row, (x, n) in enumerate(zip(bs, ns, strict=False)):
                 result[row, col] = betabinom.logpmf(x, n, beta, alpha)
 
-    return result, state_alpha_betas
+    return result
 
 
-def cna_mixture_nbinom_eval(
-    ks, xs, means, overdispersion, rust_backend=True
-):
+def cna_mixture_nbinom_eval(ks, xs, means, overdispersion, rust_backend=True):
     """
     Evaluate log prob. under NegativeBinom model, given parameter vector.
     Return (# sample, # state) array.
@@ -81,69 +82,56 @@ def cna_mixture_nbinom_eval(
     if rust_backend:
         result = nbinom_logpmf_rs(ks, xs, means, overdispersion)
     else:
-        rs, ps = reparameterize_nbinom(
-            xs * means,
-            overdispersion,
-        )
-        
         result = np.zeros((len(ks), len(rs)))
 
-        for col, (rr, pp) in enumerate(zip(rs, ps)):
-            for row, kk in enumerate(ks):
+        for col, mm in enumerate(means):
+            for row, (kk, xx) in enumerate(zip(ks, xs)):
+                rr, pp = reparameterize_nbinom(
+                    xx * mm,
+                    overdispersion,
+                )
+
                 result[row, col] = nbinom.logpmf(kk, rr, pp)
 
-        result = result.sum()
-                
+        result = result
+
     return result
 
-
+"""
 # TODO rename cna_mixture_ln_emission_eval?
 def get_ln_state_emission(
     ks,
     xs,
+    bs,
     ns,
-    state_read_depths,
+    rds,
     rdr_overdispersion,
     bafs,
     baf_overdispersion,
     rust_backend=True,
 ):
     ln_state_emission_nbinom, _, _ = cna_mixture_nbinom_eval(
-        ks, state_read_depths, rdr_overdispersion, rust_backend=rust_backend
+        ks, xs, rdrs, rdr_overdispersion, rust_backend=rust_backend
     )
 
     ln_state_emission_betabinom, _ = cna_mixture_betabinom_eval(
-        xs, ns, bafs, baf_overdispersion, rust_backend=rust_backend
+        bs, ns, bafs, baf_overdispersion, rust_backend=rust_backend
     )
 
-    # NB assumes independent
+    # NB assumes independent(!)
     return ln_state_emission_betabinom + ln_state_emission_nbinom
-
-
-def poisson_state_logprobs(state_mus, ks):
-    """
-    log PDF for a Poisson distribution of given
-    means and realized ks.
-    """
-    result = np.zeros((len(ks), len(state_mus)))
-
-    for col, mu in enumerate(state_mus):
-        for row, kk in enumerate(ks):
-            result[row, col] = poisson.logpmf(kk, mu)
-
-    return result
-
+"""
 
 class CNA_emission:
     RUST_BACKEND = True
 
-    def __init__(self, num_states, genome_coverage, ks, xs, ns):
-        # NB ks are NB derived.  exposure == T_n x lambda_g.
+    def __init__(self, num_states, ks, xs, bs, ns):
+        # NB ks are NB derived.  xs (exposure) == T_n x lambda_g.
         self.ks = ks
-        self.exposure = exposure
-
-        # NB xs and ns are BB derived.
         self.xs = xs
+
+        # NB bs and ns are BB derived.
+        self.bs = bs
         self.ns = ns
 
         self.num_states = num_states
@@ -153,13 +141,13 @@ class CNA_emission:
         Given a cost parameter vector, unpack into named cna mixture
         parameters.
         """
-        num_states = self.num_states
-
         # NB read_depths + overdispersion + bafs + overdispersion
         assert (
             len(params) == num_states + 1 + num_states + 1
         ), f"{params} does not satisy {num_states} states."
 
+        num_states = self.num_states
+        
         rdrs = params[:num_states]
         rdr_overdispersion = params[num_states]
 
@@ -169,9 +157,7 @@ class CNA_emission:
         return rdrs, rdr_overdispersion, bafs, baf_overdispersion
 
     def get_states_bag(self, params):
-        rdrs, rdr_overdispersion, bafs, baf_overdispersion = (
-            self.unpack_params(params)
-        )
+        rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
 
         return np.c_[rdrs, bafs]
 
@@ -180,11 +166,11 @@ class CNA_emission:
         Evaluate log prob. under BetaBinom model given model parameter vector.
         Returns (# sample, # state) array.
         """
-        xs, ns = self.xs, self.ns
+        bs, ns = self.bs, self.ns
         _, _, bafs, baf_overdispersion = self.unpack_params(params)
 
         return cna_mixture_betabinom_eval(
-            xs, ns, bafs, baf_overdispersion, rust_backend=self.RUST_BACKEND
+            bs, ns, bafs, baf_overdispersion, rust_backend=self.RUST_BACKEND
         )
 
     def cna_mixture_nbinom_update(self, params):
@@ -195,7 +181,11 @@ class CNA_emission:
         rdrs, rdr_overdispersion, _, _ = self.unpack_params(params)
 
         return cna_mixture_nbinom_eval(
-            self.ks, self.exposure, rdrs, rdr_overdispersion, rust_backend=self.RUST_BACKEND
+            self.ks,
+            self.xs,
+            rdrs,
+            rdr_overdispersion,
+            rust_backend=self.RUST_BACKEND,
         )
 
     def get_ln_state_emission_update(self, params):
@@ -205,7 +195,7 @@ class CNA_emission:
 
         # NB assumes independent
         return ln_state_emission_betabinom + ln_state_emission_nbinom
-
+    """
     def grad_em_cost_nb(self, params, state_posteriors):
         ks = self.ks
         state_read_depths, rdr_overdispersion, _, _ = self.unpack_params(params)
@@ -254,7 +244,8 @@ class CNA_emission:
         grad_phi = -(state_posteriors * sample_grad_phi).sum()
 
         return np.concatenate([grad_mus, np.atleast_1d(grad_phi)])
-
+    """
+    """
     def grad_em_cost_bb(self, params, state_posteriors):
         xs, ns = self.xs, self.ns
 
@@ -278,6 +269,7 @@ class CNA_emission:
             sample_grad_ps = np.array(sample_grad_ps)
             sample_grad_tau = np.array(sample_grad_tau)
         else:
+
             def grad_ln_bb_ab_zeropoint(a, b):
                 gab = digamma(a + b)
                 ga = digamma(a)
@@ -313,7 +305,8 @@ class CNA_emission:
         grad_tau = -(state_posteriors * sample_grad_tau).sum()
 
         return np.concatenate([grad_ps, np.atleast_1d(grad_tau)])
-
+    """
+    """
     def grad_em_cost(self, params, state_posteriors, production_mode=True):
         if not production_mode:
             # HACK *slow* guard against log probs.
@@ -325,3 +318,4 @@ class CNA_emission:
                 self.grad_em_cost_bb(params, state_posteriors),
             ]
         )
+    """
