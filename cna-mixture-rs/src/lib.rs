@@ -135,7 +135,11 @@ impl CnaEmissionRs {
         self.inner.ks.clone()
     }
 
-    fn nbinom_logpmf_reduce(&self, means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> PyResult<f64> {
+    fn nbinom_logpmf_reduce(
+        &self,
+        means: PyReadonlyArray1<'_, f64>,
+        overdisp: f64,
+    ) -> PyResult<f64> {
         let means = means.as_slice()?;
 
         Ok(self.inner.nbinom_logpmf_reduce(means, overdisp))
