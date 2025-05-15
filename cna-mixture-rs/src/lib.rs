@@ -23,7 +23,7 @@ pub struct CnaEmission {
 }
 
 impl CnaEmission {
-    pub fn new(ks: Vec<f64>, xs: Vec<f64>, bs: Vec<f64>, ns: Vec<f64>) -> Self {
+    pub fn new(ks: Vec<f64>, xs: Vec<f64>, bs: Vec<f64>, ns: Vec<f64>, compress: bool) -> Self {
         let num_threads = env::var("RAYON_NUM_THREADS")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -33,65 +33,76 @@ impl CnaEmission {
             .num_threads(num_threads)
             .build()
             .expect("Failed to build ThreadPool");
-        /*
-        let mut unique_nb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
-            HashMap::new();
 
-        let mut unique_bb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
-            HashMap::new();
+        if compress {
+            let mut unique_nb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
+                HashMap::new();
 
-        let mut unique_ks: Vec<f64> = Vec::new();
-        let mut unique_xs: Vec<f64> = Vec::new();
+            let mut unique_bb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
+                HashMap::new();
 
-        let mut unique_bs: Vec<f64> = Vec::new();
-        let mut unique_ns: Vec<f64> = Vec::new();
+            let mut unique_ks: Vec<f64> = Vec::new();
+            let mut unique_xs: Vec<f64> = Vec::new();
 
-        let mut nb_mapping: Vec<usize> = Vec::new();
-        let mut bb_mapping: Vec<usize> = Vec::new();
+            let mut unique_bs: Vec<f64> = Vec::new();
+            let mut unique_ns: Vec<f64> = Vec::new();
 
-        for (&k, &x) in izip!(ks.iter(), xs.iter()) {
-            let key = (OrderedFloat(k), OrderedFloat(x));
+            let mut nb_mapping: Vec<usize> = Vec::new();
+            let mut bb_mapping: Vec<usize> = Vec::new();
 
-            if let Some(&index) = unique_nb_map.get(&key) {
-                nb_mapping.push(index);
-            } else {
-                let new_index = unique_ks.len();
+            for (&k, &x) in izip!(ks.iter(), xs.iter()) {
+                let key = (OrderedFloat(k), OrderedFloat(x));
 
-                unique_nb_map.insert(key, new_index);
+                if let Some(&index) = unique_nb_map.get(&key) {
+                    nb_mapping.push(index);
+                } else {
+                    let new_index = unique_ks.len();
 
-                unique_ks.push(k);
-                unique_xs.push(x);
+                    unique_nb_map.insert(key, new_index);
 
-                nb_mapping.push(new_index);
+                    unique_ks.push(k);
+                    unique_xs.push(x);
+
+                    nb_mapping.push(new_index);
+                }
             }
-        }
 
-        for (&b, &n) in izip!(bs.iter(), ns.iter()) {
-            let key = (OrderedFloat(b), OrderedFloat(n));
+            for (&b, &n) in izip!(bs.iter(), ns.iter()) {
+                let key = (OrderedFloat(b), OrderedFloat(n));
 
-            if let Some(&index) = unique_bb_map.get(&key) {
-                bb_mapping.push(index);
-            } else {
-                let new_index = unique_bs.len();
+                if let Some(&index) = unique_bb_map.get(&key) {
+                    bb_mapping.push(index);
+                } else {
+                    let new_index = unique_bs.len();
 
-                unique_bb_map.insert(key, new_index);
+                    unique_bb_map.insert(key, new_index);
 
-                unique_bs.push(b);
-                unique_ns.push(n);
+                    unique_bs.push(b);
+                    unique_ns.push(n);
 
-                bb_mapping.push(new_index);
+                    bb_mapping.push(new_index);
+                }
             }
-        }
-        */
 
-        CnaEmission {
-            ks,
-            xs,
-            bs,
-            ns,
-            nb_mapping: None,
-            bb_mapping: None,
-            thread_pool,
+            CnaEmission {
+                ks: unique_ks,
+                xs: unique_xs,
+                bs: unique_bs,
+                ns: unique_ns,
+                nb_mapping: nb_mapping,
+                bb_mapping: bb_mapping,
+                thread_pool,
+            }
+        } else {
+            CnaEmission {
+                ks,
+                xs,
+                bs,
+                ns,
+                nb_mapping: None,
+                bb_mapping: None,
+                thread_pool,
+            }
         }
     }
 
