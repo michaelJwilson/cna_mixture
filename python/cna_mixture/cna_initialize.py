@@ -14,10 +14,12 @@ class CNA_mixture_initialize:
         self,
         mixture_params,
         seed=314,
+        mode="random",
     ):
         self.seed = seed
         self.rng = np.random.default_rng(self.seed)
-
+        
+        self.mode = mode
         self.params = mixture_params
 
     # NB get/set shadows mixture_params such that properties and methods are non-
@@ -38,7 +40,25 @@ class CNA_mixture_initialize:
         else:
             raise KeyError(f"Key '{key}' not found in either self.params or self.")
 
-    def initialize_random(self):
+    def run(self, rdr_baf=None):
+        match self.mode:        
+            case "random":
+                initial_cost = self.random()
+                
+            case "nonnormal":
+                initial_cost = self.nonnormal(rdr_baf)
+                
+            case "plusplus":
+                initial_cost = self.plusplus(
+                    self.data["read_coverage"],
+                    self.data["b_reads"],
+                    self.data["snp_coverage"],
+                )
+            case _:
+                msg = f"{self.initialize_mode} style initialization is not supported."
+                raise ValueError(msg)
+            
+    def random(self):
         # NB list of (baf, rdr) for k=4 states, without replacement.
         integers = self.rng.choice(
             np.arange(3, 10), size=self.num_cna_states, replace=False
@@ -54,7 +74,7 @@ class CNA_mixture_initialize:
         )
         self.__verify()
 
-    def initialize_nonnormal(self, rdr_baf, threshold=0.05, non_normal=True):
+    def nonnormal(self, rdr_baf, threshold=0.05, non_normal=True):
         """
         Given an instance of (RDR, BAF) data, update the mixture params
         to be a random sample of the *non-normal* data, i.e. a copy number
@@ -78,11 +98,11 @@ class CNA_mixture_initialize:
         # TODO return cost.
         return np.inf
 
+    # TODO provided with an emission model directly.
     @staticmethod
     def mixture_plusplus_cost(
         samples, centers, overdisp_phi, overdisp_tau, reduction=True
     ):
-        # TODO provided with an emission model directly.
         cost = get_ln_state_emission(
             samples[:, 0],
             samples[:, 1],
@@ -100,7 +120,7 @@ class CNA_mixture_initialize:
         return -cost
 
     @deprecated
-    def initialize_mixture_plusplus(self, ks, xs, ns, N=4, validate=False):
+    def mixture_plusplus(self, ks, xs, ns, N=4, validate=False):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.
