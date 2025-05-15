@@ -10,13 +10,10 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class CNA_mixture_params:
-    """
-    Data class for parameters required by CNA mixture model, with shared
-    overdispersions.
-    """
     num_cna_states: int = 3
-    overdisp_phi: float = 2.0e-2  # RDR overdispersion
-    overdisp_tau: float = 50.0    # BAF overdispersion
+    num_states: int = None
+    rdr_overdispersion: float = 2.0e-2
+    baf_overdispersion: float = 50.0
     normal_state: np.ndarray = field(default_factory=lambda: np.array([1.0, 0.5]))
     cna_states: np.ndarray = field(default=None)
 
@@ -25,6 +22,9 @@ class CNA_mixture_params:
         self.__verify()
 
     def __verify(self):
+        msg = f"Inconsistent number of (CNA) states for:\n{self}"
+        assert self.num_states == (self.num_cna_states + 1), msg
+        
         if self.cna_states is not None:
             assert isinstance(
                 self.cna_states, np.ndarray
@@ -47,9 +47,9 @@ class CNA_mixture_params:
         return np.array(
             [
                 *self.cna_states[:, 0].tolist(),
-                self.overdisp_phi,
+                self.rdr_overdispersion,
                 *self.cna_states[:, 1].tolist(),
-                self.overdisp_tau,
+                self.baf_overdispersion,
             ]
         )
     
@@ -74,5 +74,8 @@ class CNA_mixture_params:
             logger.warning(f"Skipping additional params in provided dict={params_dict}")
 
         self.cna_states = np.array(self.cna_states)
-        self.num_states = len(self.cna_states)
+
+        self.num_cna_states = len(self.cna_states)
+        self.num_states = 1 + self.num_cna_states
+        
         self.__verify()
