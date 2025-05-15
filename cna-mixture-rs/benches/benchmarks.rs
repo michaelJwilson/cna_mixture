@@ -1,4 +1,4 @@
-use cna_mixture_rs::{nbinom_logpmf, nbinom_logpmf_reduce, betabinom_logpmf_reduce};
+use cna_mixture_rs::{nbinom_logpmf, nbinom_logpmf_reduce, betabinom_logpmf, betabinom_logpmf_reduce};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn benchmark_cna_mixture_rs(c: &mut Criterion) {

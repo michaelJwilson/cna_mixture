@@ -183,7 +183,8 @@ pub fn betabinom_logpmf_reduce<'py>(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) 
     result
 }
 
-fn betabinom_logpmf(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f64>> {
+// NB 119.10 µs
+pub fn betabinom_logpmf(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f64>> {
     //
     //  Efficient beta binomial evaluation for many samples x many states.
     //
@@ -233,7 +234,7 @@ fn betabinom_logpmf_rs<'py>(
     n: PyReadonlyArray1<'_, f64>,
     a: PyReadonlyArray1<'_, f64>,
     b: PyReadonlyArray1<'_, f64>,
-) -> PyResult<Vec<Vec<f64>>> {
+) -> PyResult<f64> {
     //
     //  Efficient beta binomial evaluation for many samples x many states.
     //
@@ -244,7 +245,7 @@ fn betabinom_logpmf_rs<'py>(
     let a = a.to_vec()?;
     let b = b.to_vec()?;
 
-    let result = betabinom_logpmf(&k, &n, &a, &b);
+    let result = betabinom_logpmf_reduce(&k, &n, &a, &b);
 
     Ok(result)
 }
