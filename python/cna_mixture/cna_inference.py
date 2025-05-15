@@ -7,7 +7,7 @@ from cna_mixture.cna_emission import CNA_emission
 from cna_mixture.cna_mixture_params import CNA_mixture_params
 from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
 from cna_mixture.state_priors import CNA_categorical_prior, CNA_markov_prior
-from cna_mixture.initialize import CNA_mixture_initialize
+from cna_mixture_initialize import CNA_mixture_initialize
 from cna_mixture.utils import param_diff
 
 logger = logging.getLogger(__name__)
@@ -111,9 +111,9 @@ class CNA_inference:
         mixture_params = CNA_mixture_params(num_cna_states=self.num_cna_states)
 
         initalizer = CNA_mixture_initialize(mixture_params, seed=self.seed, mode=self.initialize_mode)
-        params, cost = initializer.run()
+        mixture_params, cost = initializer.run()
         
-        return params, cost
+        return mixture_params, cost
 
     def initialize(self, **kwargs):
         """
