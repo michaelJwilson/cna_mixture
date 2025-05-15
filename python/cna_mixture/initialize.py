@@ -26,13 +26,13 @@ class CNA_mixture_initialize:
     def run(self, rdr_baf=None, data=None):
         match self.mode:        
             case "random":
-                initial_cost = self.random()
+                mixture_params, cost = self.random()
                 
             case "nonnormal":
-                initial_cost = self.nonnormal(rdr_baf)
+                mixture_params, cost = self.nonnormal(rdr_baf)
                 
             case "plusplus":
-                initial_cost = self.plusplus(
+                mixture_params, cost = self.plusplus(
                     self.data["read_coverage"],
                     self.data["b_reads"],
                     self.data["snp_coverage"],
@@ -40,6 +40,8 @@ class CNA_mixture_initialize:
             case _:
                 msg = f"{self.initialize_mode} style initialization is not supported."
                 raise ValueError(msg)
+
+        return mixture_params, cost
             
     def random(self):
         # NB list of (baf, rdr) for k=4 states, without replacement.
