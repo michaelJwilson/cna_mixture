@@ -9,7 +9,7 @@ from cna_mixture.cna_emission import (
     reparameterize_beta_binom,
     reparameterize_nbinom,
 )
-from cna_mixture_rs.core import CnaEmissionRs, nbinom_logpmf_rs
+from cna_mixture_rs.core import CnaEmissionRs, nbinom_logpmf_rs, betabinom_logpmf_rs
 from scipy.stats import betabinom, nbinom
 
 np.random.seed(314)
@@ -58,11 +58,17 @@ def test_emission_fixture(emission, emission_params):
     assert emission is not None
     assert emission_params is not None
 
-# NB test rust backend.
+# ----  rust backend tests  ----
 def test_nbinom_logpmf_rs(benchmark, emission, emission_params):
     rdrs, phi, _, _ = emission_params
     
     benchmark(lambda: nbinom_logpmf_rs(emission.ks, emission.xs, rdrs, phi))
+
+def test_betabinom_logpmf_rs(benchmark, emission, emission_params):
+    _, _, bafs, tau = emission_params
+
+    benchmark(lambda: betabinom_logpmf_rs(emission.bs, emission.ns, bafs, tau))
+
     
 """
 # NB test rust backend.

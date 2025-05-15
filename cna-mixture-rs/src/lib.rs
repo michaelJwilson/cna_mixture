@@ -106,14 +106,14 @@ impl CnaEmission {
         }
     }
 
-    pub fn nbinom_logpmf_reduce(&self, means: &[f64], overdisp: f64) -> f64 {
+    pub fn nbinom_reduce(&self, means: &[f64], overdisp: f64) -> f64 {
         self.thread_pool
-            .install(|| nbinom_logpmf_reduce(&self.ks, &self.xs, means, overdisp))
+            .install(|| nbinom_reduce(&self.ks, &self.xs, means, overdisp))
     }
 
-    pub fn betabinom_logpmf_reduce(&self, alphas: &[f64], betas: &[f64]) -> f64 {
+    pub fn betabinom_reduce(&self, alphas: &[f64], betas: &[f64]) -> f64 {
         self.thread_pool
-            .install(|| betabinom_logpmf_reduce(&self.bs, &self.ns, alphas, betas))
+            .install(|| betabinom_reduce(&self.bs, &self.ns, alphas, betas))
     }
 }
 
@@ -142,17 +142,17 @@ impl CnaEmissionRs {
         Ok(CnaEmissionRs { inner })
     }
 
-    fn nbinom_logpmf_reduce(
+    fn nbinom_reduce(
         &self,
         means: PyReadonlyArray1<'_, f64>,
         overdisp: f64,
     ) -> PyResult<f64> {
         let means = means.as_slice()?;
 
-        Ok(self.inner.nbinom_logpmf_reduce(means, overdisp))
+        Ok(self.inner.nbinom_reduce(means, overdisp))
     }
 
-    fn betabinom_logpmf_reduce(
+    fn betabinom_reduce(
         &self,
         alphas: PyReadonlyArray1<'_, f64>,
         betas: PyReadonlyArray1<'_, f64>,
@@ -160,12 +160,12 @@ impl CnaEmissionRs {
         let alphas = alphas.as_slice()?;
         let betas = betas.as_slice()?;
 
-        Ok(self.inner.betabinom_logpmf_reduce(alphas, betas))
+        Ok(self.inner.betabinom_reduce(alphas, betas))
     }
 }
 
 //  NB  104.98 µs -> 70 µs (for all cores)
-pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> f64 {
+pub fn nbinom_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> f64 {
     let rr = 1.0 / overdisp;
 
     let result: f64 = k
@@ -195,7 +195,7 @@ pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) 
 }
 
 //  NB  264.86 µs -> 91.962 µs
-pub fn nbinom_logpmf(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
+pub fn nbinom(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
     let rr = 1.0 / overdisp;
 
     let result: Vec<Vec<f64>> = k
@@ -227,7 +227,7 @@ pub fn nbinom_logpmf(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> Vec<
 }
 
 //  NB  300 µs -> 108.68 µs (all cores)
-pub fn betabinom_logpmf_reduce(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> f64 {
+pub fn betabinom_reduce(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> f64 {
     //
     //  Efficient beta binomial evaluation for many samples x many states.
     //
@@ -266,7 +266,7 @@ pub fn betabinom_logpmf_reduce(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> f6
 }
 
 //  NB  125.29 µs
-pub fn betabinom_logpmf(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f64>> {
+pub fn betabinom(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f64>> {
     //
     //  Efficient beta binomial evaluation for many samples x many states.
     //
@@ -308,7 +308,7 @@ pub fn betabinom_logpmf(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f
 }
 
 #[pyfunction]
-fn nbinom_logpmf_rs<'py>(
+fn nbinom_rs<'py>(
     k: PyReadonlyArray1<'_, f64>,
     x: PyReadonlyArray1<'_, f64>,
     means: PyReadonlyArray1<'_, f64>,
@@ -324,11 +324,11 @@ fn nbinom_logpmf_rs<'py>(
 
     let means = means.as_slice()?;
 
-    Ok(nbinom_logpmf(&k, &x, &means, overdisp))
+    Ok(nbinom(&k, &x, &means, overdisp))
 }
 
 #[pyfunction]
-fn betabinom_logpmf_rs<'py>(
+fn betabinom_rs<'py>(
     k: PyReadonlyArray1<'_, f64>,
     n: PyReadonlyArray1<'_, f64>,
     a: PyReadonlyArray1<'_, f64>,
@@ -343,7 +343,7 @@ fn betabinom_logpmf_rs<'py>(
     let a = a.to_vec()?;
     let b = b.to_vec()?;
 
-    let result = betabinom_logpmf(&k, &n, &a, &b);
+    let result = betabinom(&k, &n, &a, &b);
 
     Ok(result)
 }
@@ -519,8 +519,8 @@ fn ln_transition_probs_rs<'py>(
 #[pyo3(name = "core")]
 fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<CnaEmissionRs>()?;
-    m.add_function(wrap_pyfunction!(nbinom_logpmf_rs, m)?)?;
-    m.add_function(wrap_pyfunction!(betabinom_logpmf_rs, m)?)?;
+    m.add_function(wrap_pyfunction!(nbinom_rs, m)?)?;
+    m.add_function(wrap_pyfunction!(betabinom_rs, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_nb_rs, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_bb_rs, m)?)?;
     m.add_function(wrap_pyfunction!(ln_transition_probs_rs, m)?)?;
