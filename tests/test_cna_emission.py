@@ -52,6 +52,7 @@ def emission(emission_params):
     bs = betabinom.rvs(snp_coverage, betas, alphas, size=10_000).astype(np.float64)
 
     ns = snp_coverage * np.ones_like(bs).astype(np.float64)
+    
     return CNA_emission(num_states, ks, xs, bs, ns)
 
 
@@ -70,7 +71,7 @@ def test_nbinom_rs(benchmark, emission, emission_params):
 def test_betabinom_rs(benchmark, emission, emission_params):
     _, _, bafs, tau = emission_params
     alphas, betas = reparameterize_beta_binom(bafs, tau)
-
+    
     benchmark(lambda: betabinom_rs(emission.bs, emission.ns, betas, alphas))
 
 
@@ -83,8 +84,10 @@ def test_cna_emission_rs_nb(benchmark, emission, emission_params, compress):
         emission.ks, emission.xs, emission.bs, emission.ns, compress=compress
     )
 
+    exp = nbinom_rs(emission.ks, emission.xs, rdrs, phi).sum()
     result = benchmark(lambda: cna_em.nbinom_reduce(rdrs, phi))
 
+    npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
 
 # TODO reduce with compress
 @pytest.mark.parametrize("compress", [True, False])
@@ -96,9 +99,13 @@ def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
         emission.ks, emission.xs, emission.bs, emission.ns, compress=compress
     )
 
+    exp = betabinom_rs(emission.ks, emission.xs, alphas, betas).sum()
+    
     # TODO accept bafs, dispersion
-    benchmark(lambda: cna_em.betabinom_reduce(alphas, betas))
+    result = benchmark(lambda: cna_em.betabinom_reduce(alphas, betas))
 
+    npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
+    
 
 def test_CNA_emission_bb(emission, emission_params):
     rdrs, phi, bafs, tau = emission_params
