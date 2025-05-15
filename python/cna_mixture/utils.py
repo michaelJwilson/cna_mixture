@@ -1,4 +1,5 @@
 import logging
+import functools
 
 import numpy as np
 from numba import njit
@@ -6,6 +7,21 @@ from scipy.spatial import KDTree
 from scipy.special import logsumexp
 
 logger = logging.getLogger(__name__)
+
+
+def deprecated(reason: str):
+    """
+    A decorator to mark functions or methods as deprecated.
+    
+    Raises a RuntimeError with the provided reason when the function is called.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            raise RuntimeError(f"The function '{func.__name__}' is deprecated: {reason}")
+        return wrapper
+    
+    return decorator
 
 
 def uniform_ln_probs(num_states):
