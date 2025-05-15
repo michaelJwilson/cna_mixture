@@ -142,11 +142,6 @@ impl CnaEmissionRs {
         Ok(CnaEmissionRs { inner })
     }
 
-    #[getter]
-    fn ks(&self) -> Vec<f64> {
-        self.inner.ks.clone()
-    }
-
     fn nbinom_logpmf_reduce(
         &self,
         means: PyReadonlyArray1<'_, f64>,
