@@ -66,7 +66,7 @@ def cna_mixture_betabinom_eval(bs, ns, bafs, baf_overdispersion, backend=None):
             result = betabinom_rs(bs, ns, betas, alphas)
 
         case _:
-            result = backend.betabinom_reduce(alphas, betas)
+            result = backend.betabinom(alphas, betas)
 
     return result
 
@@ -96,7 +96,7 @@ def cna_mixture_nbinom_eval(ks, xs, rdrs, overdispersion, backend="rs_fn"):
             result = nbinom_rs(ks, xs, rdrs, overdispersion)
 
         case _:
-            result = backend.nbinom_reduce(alphas, betas)
+            result = backend.nbinom(alphas, betas)
 
     return result
 
@@ -137,7 +137,7 @@ class CNA_emission:
 
         self.num_states = num_states
         self.backend = (
-            CnaEmissionRs(self.ks, self.xs, self.bs, self.ns)
+            CnaEmissionRs(self.ks, self.xs, self.bs, self.ns, compress=False)
             if backend is "rs"
             else backend
         )
