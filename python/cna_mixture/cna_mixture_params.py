@@ -13,14 +13,17 @@ class CNA_mixture_params:
     Data class for parameters required by CNA mixture model, with shared
     overdispersions.
     """
-    def __init__(self, num_cna_states=3, tau=50.0, phi=2.0e-2, genome_coverage=1.0, seed=314):
+
+    def __init__(
+        self, num_cna_states=3, tau=50.0, phi=2.0e-2, genome_coverage=1.0, seed=314
+    ):
         """
         Initialize an instance of the class with random values in the assumed bounds.
         """
         # NB normal state is treated independently
         self.num_cna_states = num_cna_states
         self.num_states = 1 + self.num_cna_states
-        
+
         self.genome_coverage = genome_coverage
 
         # NB BAF overdispersion.  Random between 25. and 55.
@@ -32,9 +35,9 @@ class CNA_mixture_params:
         self.normal_state = np.array([1.0, 0.5])
         self.cna_states = None
 
-        self.seed = seed  
+        self.seed = seed
         self.rng = np.random.default_rng(self.seed)
-        
+
     def __verify(self):
         assert isinstance(
             self.cna_states, np.ndarray
@@ -57,7 +60,7 @@ class CNA_mixture_params:
         )
 
     def initialize(self):
-        # NB list of (baf, rdr) for k=4 states, without replacement.                                                                                                                                             
+        # NB list of (baf, rdr) for k=4 states, without replacement.
         integers = self.rng.choice(
             np.arange(3, 10), size=self.num_cna_states, replace=False
         )
@@ -69,7 +72,7 @@ class CNA_mixture_params:
 
         self.cna_states = np.array([self.normal_state.tolist(), *self.cna_states])
         self.__verify()
-        
+
     def dict_update(self, input_params_dict):
         """
         Update an instance of CNA_mixture_params to the input key: value dict.
@@ -109,12 +112,14 @@ class CNA_mixture_params:
         )
 
         if collapse:
-            # NB emission probability for "most likely" state.                                                                                                  
+            # NB emission probability for "most likely" state.
             cost = np.max(cost, axis=1)
 
         return -cost
-        
-    def initialize_random_nonnormal_rdr_baf(self, rdr_baf, threshold=0.05, non_normal=True):
+
+    def initialize_random_nonnormal_rdr_baf(
+        self, rdr_baf, threshold=0.05, non_normal=True
+    ):
         """
         Given an instance of (RDR, BAF) data, update the mixture params
         to be a random sample of the *non-normal* data, i.e. a copy number
@@ -125,24 +130,26 @@ class CNA_mixture_params:
         else:
             samples = rdr_baf.copy()
 
-        logger.info(f"Initializing CNA mixture params with random_rdr_baf with non_normal={non_normal}")
-            
+        logger.info(
+            f"Initializing CNA mixture params with random_rdr_baf with non_normal={non_normal}"
+        )
+
         xx = np.arange(len(samples))
         idx = self.rng.choice(xx, size=self.num_states - 1, replace=False)
-            
+
         self.cna_states = np.vstack([self.normal_state, samples[idx]])
         self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
 
         # TODO return cost.
         return np.inf
-        
+
     def initialize_mixture_plusplus(self, ks, xs, ns, N=4, validate=False):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.
         """
         logger.info(f"Initializing CNA mixture params with {N}-greedy CNA_mixture++")
-        
+
         idx = np.arange(len(ks))
         samples = np.c_[ks, xs, ns]
 
@@ -159,7 +166,9 @@ class CNA_mixture_params:
         # NB one cost for normal state per sample.
         assert len(cost) == len(ks)
 
-        logger.info(f"Initialized mixture++ with mixture++ cost for a normal state: {cost.sum()}")
+        logger.info(
+            f"Initialized mixture++ with mixture++ cost for a normal state: {cost.sum()}"
+        )
 
         while len(centers) < self.num_states:
             ps = cost / cost.sum()
@@ -175,10 +184,10 @@ class CNA_mixture_params:
                 )
 
                 tmp_cost /= tmp_cost.max()
-                
+
                 states_bag = centers.copy()
-                states_bag[:,0] /= self.genome_coverage
-                
+                states_bag[:, 0] /= self.genome_coverage
+
                 plot_rdr_baf_flat(
                     f"plots/mixture++_{len(centers)}_rdr_baf_flat.pdf",
                     ks / self.genome_coverage,
@@ -193,7 +202,9 @@ class CNA_mixture_params:
             # NB state read depth (RDR x genome coverage) and BAF.
             #
             # TODO here, we would also select based on BAF error, i.e. for high coverage.
-            trial_centers = np.c_[new_samples[:, 0], new_samples[:, 1] / new_samples[:, 2]]
+            trial_centers = np.c_[
+                new_samples[:, 0], new_samples[:, 1] / new_samples[:, 2]
+            ]
 
             logger.debug(f"Found trial centers:\n{trial_centers}")
 

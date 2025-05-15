@@ -18,7 +18,7 @@ def get_sim_params():
     return {
         "num_segments": 10_000,
         "num_states": 4,
-        "jump_rate": 1.e-2,
+        "jump_rate": 1.0e-2,
         "normal_state": np.array([1.0, 0.5]),
         "cna_states": np.array(
             [
@@ -50,6 +50,7 @@ class CNA_sim:
     """
     A 1D genome simulation for a CNA markov model with NB/BB emission models.
     """
+
     def __init__(self, sim_id=0, params=None, data=None, seed=314):
         super().__init__()
 
@@ -63,7 +64,7 @@ class CNA_sim:
             setattr(self, key, value)
 
         self.transfer = CNA_transfer(self.jump_rate, self.num_states)
-            
+
         if data is None:
             # NB guard against inconsistent data/params.
             assert (
@@ -87,11 +88,15 @@ class CNA_sim:
         """
         Generate a realization (one seed only) for given configuration settings.
         """
-        logger.info(f"Simulating copy number states:\n{self.cna_states} for seed={self.seed}.")
+        logger.info(
+            f"Simulating copy number states:\n{self.cna_states} for seed={self.seed}."
+        )
 
         # NB All-covering reads per segment.
-        baseline_coverages = self.rng.poisson(self.mean_baseline_expression, size=self.num_segments)
-        
+        baseline_coverages = self.rng.poisson(
+            self.mean_baseline_expression, size=self.num_segments
+        )
+
         # NB SNP-covering reads per segment.
         snp_coverages = self.rng.integers(
             self.min_snp_coverage, self.max_snp_coverage, self.num_segments
@@ -113,11 +118,13 @@ class CNA_sim:
             rdr, baf = self.cna_states[state]
 
             # NB overdisp_tau parameterizes the degree of deviations from the mean baf.
-            alpha, beta = reparameterize_beta_binom([baf], self.overdisp_tau)[0]
+            alpha, beta = reparameterize_beta_binom([baf], self.overdisp_tau)
 
             # NB simulate variation in realized BAF according to betabinom model;
             #    b_reads have an expected BAF, as encoded by beta.
-            b_reads = betabinom.rvs(snp_coverages[ii], beta, alpha, random_state=self.rng)
+            b_reads = betabinom.rvs(
+                snp_coverages[ii], beta, alpha, random_state=self.rng
+            )
 
             # NB we expect for baf ~0.5, some baf estimate to NOT be the minor allele,
             #    i.e. to occur at a rate > 0.5;
@@ -129,9 +136,11 @@ class CNA_sim:
             # NB equivalent to r and prob. for a bernoulli trial of r.
             lost_reads, dropout_rate = reparameterize_nbinom(
                 [true_read_coverage], self.overdisp_phi
-            )[0]
+            )
 
-            read_coverage = nbinom.rvs(lost_reads, dropout_rate, size=1, random_state=self.rng)[0]
+            read_coverage = nbinom.rvs(
+                lost_reads, dropout_rate, size=1, random_state=self.rng
+            )[0]
 
             # NB CNA state, obs. transcripts (NegBin), lost transcripts (NegBin), B-allele support transcripts, vis a vis A.
             result.append(
@@ -159,7 +168,7 @@ class CNA_sim:
             json.dump(sim_params, ff, indent=4)
 
         Path(f"{output_dir}/cna_sim_{self.sim_id}").mkdir(exist_ok=True, parents=True)
-            
+
         np.savetxt(
             f"{output_dir}/cna_sim_{self.sim_id}/cna_sim_data_{self.sim_id}.txt",
             self.data,
@@ -174,20 +183,20 @@ class CNA_sim:
     def load(cls, output_dir, sim_id):
         # TODO guard against missing/corrupted file.
         params_path = f"{output_dir}/cna_sim_parameters.json"
-        
+
         with Path.open(params_path) as ff:
             params = json.load(ff)
 
         logger.info(f"Loading simulation parameters @ {params_path}")
-            
-        data_path = f"{output_dir}/cna_sim_{sim_id}/cna_sim_data_{sim_id}.txt"            
+
+        data_path = f"{output_dir}/cna_sim_{sim_id}/cna_sim_data_{sim_id}.txt"
         data = np.loadtxt(data_path, dtype=np.float64)
 
         logger.info(f"Loading simulation data @ {data_path}")
 
         # TODO ugh comprehension is slow.
         data = np.array([tuple(row) for row in data], dtype=get_sim_output_dtype())
-        
+
         cna_sim = CNA_sim(sim_id=sim_id, params=params, data=data)
         cna_sim.print()
 

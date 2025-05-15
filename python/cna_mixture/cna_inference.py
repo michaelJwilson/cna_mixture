@@ -55,14 +55,16 @@ class CNA_inference:
 
         self.data = data
         self.seed = seed
-        self.rng = np.random.default_rng(int(seed)) if isinstance(seed, int | float) else seed
+        self.rng = (
+            np.random.default_rng(int(seed)) if isinstance(seed, int | float) else seed
+        )
         self.maxiter = maxiter
         self.optimizer = optimizer
         self.num_cna_states = num_cna_states
         self.num_states = self.num_cna_states + 1
         self.num_segments = len(data)
         self.initialize_mode = initialize_mode
-        
+
         self.bounds = get_cna_mixture_bounds(self.num_states)
 
         self.emission_model = CNA_emission(
@@ -72,7 +74,7 @@ class CNA_inference:
             data["b_reads"],
             data["snp_coverage"],
         )
-        
+
         match state_prior:
             case "categorical":
                 self.state_prior_model = CNA_categorical_prior
@@ -104,15 +106,19 @@ class CNA_inference:
         """
         Initialize mixture parameters, i.e. (RDR, BAF) for all cna_states and their dispersions.
         """
-        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.                                                                                                                                            
+        # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         mixture_params = CNA_mixture_params(
-            num_cna_states=self.num_cna_states, genome_coverage=self.genome_coverage, seed=self.seed,
+            num_cna_states=self.num_cna_states,
+            genome_coverage=self.genome_coverage,
+            seed=self.seed,
         )
 
-	# NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
+        # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
         match self.initialize_mode:
             case "random":
-                initial_plusplus_cost = mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
+                initial_plusplus_cost = (
+                    mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
+                )
 
             case "mixture_plusplus":
                 initial_plusplus_cost = mixture_params.initialize_mixture_plusplus(
@@ -125,21 +131,21 @@ class CNA_inference:
                 raise ValueError(msg)
 
         return mixture_params, initial_plusplus_cost
-            
+
     def initialize(self, **kwargs):
         """
         Initialize parameters, state prior model given said parameters & update state priors & emissions.
         """
         mixture_params, initial_cost = self.initialize_params()
-        
+
         self.initial_params = mixture_params.params
         self.initial_cost = initial_cost
-        
+
         self.last_params, self.params = None, self.initial_params
         self.last_cost, self.cost = None, self.initial_cost
-        
+
         self.nit = 0
-        
+
         if "cna_states" not in kwargs:
             kwargs["cna_states"] = mixture_params.cna_states
 
@@ -147,7 +153,7 @@ class CNA_inference:
             kwargs["rdr_baf"] = self.rdr_baf
 
         logger.info(f"Initialized CNA states:\n{kwargs["cna_states"]}\n")
-            
+
         self.state_prior_model.initialize(**kwargs)
 
         self.ln_state_emission = self.emission_model.get_ln_state_emission_update(
@@ -155,8 +161,10 @@ class CNA_inference:
         )
 
         # NB Markov requires emission probabilities for all other states to define state prior.
-        #    Categorical ignores 
-        self.ln_state_prior = self.state_prior_model.get_ln_state_priors(ln_state_emission=self.ln_state_emission)
+        #    Categorical ignores
+        self.ln_state_prior = self.state_prior_model.get_ln_state_priors(
+            ln_state_emission=self.ln_state_emission
+        )
 
         self.estep()
 
@@ -170,12 +178,14 @@ class CNA_inference:
         self.state_posteriors = np.exp(self.ln_state_posteriors)
 
     def pstep(self):
-        """                                                                                                                                                                                                      
-        Update the state prior model based on the current state posteriors,                                                                                                                                      
-        and re-compute the ln_state_priors.                                                                                                                                                                      
+        """
+        Update the state prior model based on the current state posteriors,
+        and re-compute the ln_state_priors.
         """
         self.state_prior_model.update(ln_state_emission=self.ln_state_emission)
-        self.ln_state_prior = self.state_prior_model.get_ln_state_priors(ln_state_emission=self.ln_state_emission)
+        self.ln_state_prior = self.state_prior_model.get_ln_state_priors(
+            ln_state_emission=self.ln_state_emission
+        )
 
     def em_cost(self, params, verbose=False):
         """
@@ -184,17 +194,19 @@ class CNA_inference:
 
         NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
         """
-        self.ln_state_emission = self.emission_model.get_ln_state_emission_update(params)
-            
+        self.ln_state_emission = self.emission_model.get_ln_state_emission_update(
+            params
+        )
+
         # NB responsibilites rik, where i is the sample and k is the state.
         #    this is *not* state-posterior weighted log-likelihood.
         #    sum over samples and states.  Maximization -> minimization.
 
         # DEPRECATE by holding state priors fixed in the M-step, zero point drops out.
         # cost = -self.state_posteriors * self.ln_state_prior
-        
+
         cost = -(self.state_posteriors * self.ln_state_emission).sum()
-        
+
         if verbose:
             self.log_mstep(self.nit, self.last_params, self.params, params, cost)
 
@@ -206,7 +218,7 @@ class CNA_inference:
 
     def post_mstep_simple(self, intermediate_result: OptimizeResult):
         """
-        Callable after each M-step iteration of optimizer.  e.g. this approach                                                                                                                                                                                                  
+        Callable after each M-step iteration of optimizer.  e.g. this approach
         benefits from 'conserving' Hessian.
 
         Simplified form where posteriors are updated after every M.  Primarily
@@ -216,9 +228,7 @@ class CNA_inference:
 
         new_params, new_cost = intermediate_result.x, intermediate_result.fun
 
-        self.log_mstep(
-            self.nit, self.last_params, self.params, new_params, new_cost
-        )
+        self.log_mstep(self.nit, self.last_params, self.params, new_params, new_cost)
 
         if self.nit > self.maxiter:
             logger.error(f"Failed to converge in {self.maxiter}")
@@ -228,28 +238,26 @@ class CNA_inference:
             new_params
         )
 
-        # NB update ln/state posteriors based on new emission.                                                                                                                                                                                                               
+        # NB update ln/state posteriors based on new emission.
         self.estep()
 
-        # NB update state priors based on new state posteriors.                                                                                                                                                                                                              
+        # NB update state priors based on new state posteriors.
         self.pstep()
 
-        # NB update ln/state posteriors based on new state priors.                                                                                                                                                                                                           
+        # NB update ln/state posteriors based on new state priors.
         self.estep()
-    
+
     def post_mstep(self, intermediate_result: OptimizeResult):
         """
         Callable after each M-step iteration of optimizer.  e.g. this approach
         benefits from 'conserving' Hessian.
-        """        
+        """
         # NB callback evaluated after each iteration of optimizer.
         self.nit += 1
 
         new_params, new_cost = intermediate_result.x, intermediate_result.fun
 
-        self.log_mstep(
-            self.nit, self.last_params, self.params, new_params, new_cost
-        )
+        self.log_mstep(self.nit, self.last_params, self.params, new_params, new_cost)
 
         if self.nit > self.maxiter:
             logger.error(f"Failed to converge in {self.maxiter}")
@@ -257,7 +265,7 @@ class CNA_inference:
 
         # NB assumed convergence tolerance.
         PARAM_FRAC_TOL = 1.0e-3
-        
+
         # NB parameter difference across E+M step.  i.e. converged with respect to last posterior?
         #    note: relies on self.last_params == None at start of fitting, which evaluates False.
         if (pdiff := param_diff(self.last_params, new_params)) < PARAM_FRAC_TOL:
@@ -265,10 +273,12 @@ class CNA_inference:
                 f"Converged to {100 * pdiff:.6e}% wrt last state posteriors.  Optimization complete."
             )
 
-            logger.info(f"Parameters @ last posterior (cost={self.last_cost})=\n{self.last_params}")
+            logger.info(
+                f"Parameters @ last posterior (cost={self.last_cost})=\n{self.last_params}"
+            )
             logger.info(f"Parameters @ last M (cost = {self.cost})=\n{self.params}")
             logger.info(f"Parameters @ current M (cost = {new_cost})=\n{new_params}")
-            
+
             raise StopIteration
 
         # NB has parameter differences across M step converged?
@@ -306,11 +316,11 @@ class CNA_inference:
         )
 
         cost = self.em_cost(self.initial_params, verbose=True)
-        
+
         self.nit = 0
         self.last_params, self.params = None, self.initial_params
         self.last_cost, self.cost = None, cost
-        
+
         # NB see https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.OptimizeResult.html
         res = minimize(
             self.em_cost,
@@ -323,8 +333,12 @@ class CNA_inference:
             options={"disp": True, "maxiter": self.maxiter},
         )
 
-        msg = "`Successful custom convergence`" if "StopIteration" in res.message else res.message
-        
+        msg = (
+            "`Successful custom convergence`"
+            if "StopIteration" in res.message
+            else res.message
+        )
+
         logger.info(
             f"minimization finished with message={msg} and best-fit CNA mixture params=\n{res.x}\n"
         )
@@ -345,7 +359,7 @@ class CNA_inference:
         msg += f"\tMax. frac. parameter diff. compared to last and current state posterior: {param_diff(last_params, new_params)}, {param_diff(params, new_params)}"
 
         logger.info(msg)
-    
+
     def plot(self, plots_dir, params, label, title=None):
         plot_rdr_baf_flat(
             f"{plots_dir}/{label}_rdr_baf_flat.pdf",

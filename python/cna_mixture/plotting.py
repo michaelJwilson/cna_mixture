@@ -7,30 +7,38 @@ import pylab as pl
 logger = logging.getLogger(__name__)
 
 
-def ln_probs_to_rgb(ln_probs):    
+def ln_probs_to_rgb(ln_probs):
     if ln_probs.ndim == 1:
         # NB black
         rgb = np.zeros(shape=(len(ln_probs), 3))
         alpha = np.exp(ln_probs)
-        
+
     else:
         # NB assumed to be normal probability.
         rgb = np.zeros(shape=(len(ln_probs), 3))
         alpha = 0.25
-        
+
         for ii in range(ln_probs.shape[1]):
             if ii <= 2:
                 rgb[:, -(1 + ii)] = np.exp(ln_probs[:, -(1 + ii)])
             else:
-                logger.warning(f"Failed to map all of {ln_probs.shape[1]} states to RGB when plotting")
+                logger.warning(
+                    f"Failed to map all of {ln_probs.shape[1]} states to RGB when plotting"
+                )
                 break
-                
+
         cmap = None
-        
+
         return rgb, alpha, cmap
 
+
 def plot_rdr_baf_flat(
-    fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None,
+    fpath,
+    rdr,
+    baf,
+    ln_state_posteriors=None,
+    states_bag=None,
+    title=None,
 ):
     """
     NB state_posteriors may be an integer, corresponding to a decoded state, or
@@ -43,7 +51,7 @@ def plot_rdr_baf_flat(
         assert len(ln_state_posteriors) == len(
             rdr
         ), f"Found inconsistent RDR, BAF and state posteriors (size {len(rdr)} and {len(ln_state_posteriors)} respectively)"
-        
+
         rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
 
     pl.axhline(0.5, c="k", lw=0.5)
@@ -84,7 +92,13 @@ def tophat_smooth(data, window_size):
 
 
 def plot_rdr_baf_genome(
-    fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None, outliers_mask=None
+    fpath,
+    rdr,
+    baf,
+    ln_state_posteriors=None,
+    states_bag=None,
+    title=None,
+    outliers_mask=None,
 ):
     pl.clf()
 
@@ -122,7 +136,7 @@ def plot_rdr_baf_genome(
 
     if title is not None:
         pl.title(title)
-        
+
     # plt.tight_layout()
     pl.savefig(fpath)
 

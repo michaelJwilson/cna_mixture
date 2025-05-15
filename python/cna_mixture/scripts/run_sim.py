@@ -16,15 +16,19 @@ logger = logging.getLogger(__name__)
 
 def run_sim(output_dir, num_sims=1, seed=314):
     start = time.time()
-    
+
     for sim_id in range(num_sims):
         Path(f"{output_dir}/cna_sim_{sim_id}/plots").mkdir(exist_ok=True, parents=True)
-        
+
         cna_sim = CNA_sim(sim_id=sim_id, seed=seed + sim_id)
         cna_sim.save(output_dir)
 
-        cna_sim.plot_realization_true_flat(f"{output_dir}/cna_sim_{sim_id}/plots/truth_rdr_baf_flat_{sim_id}.pdf")
-        cna_sim.plot_realization_true_genome(f"{output_dir}/cna_sim_{sim_id}/plots/truth_rdr_baf_genome_{sim_id}.pdf")
+        cna_sim.plot_realization_true_flat(
+            f"{output_dir}/cna_sim_{sim_id}/plots/truth_rdr_baf_flat_{sim_id}.pdf"
+        )
+        cna_sim.plot_realization_true_genome(
+            f"{output_dir}/cna_sim_{sim_id}/plots/truth_rdr_baf_genome_{sim_id}.pdf"
+        )
 
     logger.info(f"\n\nDone ({time.time() - start:.3f} seconds).\n\n")
 

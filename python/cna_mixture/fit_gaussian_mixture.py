@@ -21,14 +21,14 @@ def fit_gaussian_mixture(
     seed=314,
 ):
     """
-    See:  https://github.com/raphael-group/CalicoST/blob/5e4a8a1230e71505667d51390dc9c035a69d60d9/src/calicost/utils_hmm.py#L163    
+    See:  https://github.com/raphael-group/CalicoST/blob/5e4a8a1230e71505667d51390dc9c035a69d60d9/src/calicost/utils_hmm.py#L163
     """
     logger.info(
         f"Fitting Gaussian mixture model with {num_components} components and {covariance_type} covariance, {max_iter} max. iterations."
     )
-    
+
     # NB covariance_type = {diag, full}; see https://scikit-learn.org/stable/modules/generated/sklearn.mixture.GaussianMixture.html
-    # NB catch ill-convergence warning due to max_iter=1. 
+    # NB catch ill-convergence warning due to max_iter=1.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", ConvergenceWarning)
 

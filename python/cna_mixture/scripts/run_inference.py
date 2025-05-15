@@ -23,7 +23,9 @@ TODOs:
 """
 
 
-def run_inference(sim_dir, sim_id, num_cna_states, state_prior, initialize_mode, seed=42, **kwargs):
+def run_inference(
+    sim_dir, sim_id, num_cna_states, state_prior, initialize_mode, seed=42, **kwargs
+):
     start = time.time()
 
     plots_dir = f"{sim_dir}/cna_sim_{sim_id}/plots/"
@@ -35,7 +37,7 @@ def run_inference(sim_dir, sim_id, num_cna_states, state_prior, initialize_mode,
     # fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat_{sim_id}.pdf", cna_sim.rdr_baf, seed=seed)
 
     rng = np.random.default_rng(seed)
-    
+
     # NB total number of states (inc. normal).
     cna_inf = CNA_inference(
         num_cna_states,
@@ -106,7 +108,14 @@ def main():
 
     args = parser.parse_args()
 
-    run_inference(args.sim_dir, args.sim_id, args.num_cna_states, args.state_prior, args.initialize_mode, args.seed)
+    run_inference(
+        args.sim_dir,
+        args.sim_id,
+        args.num_cna_states,
+        args.state_prior,
+        args.initialize_mode,
+        args.seed,
+    )
 
 
 if __name__ == "__main__":

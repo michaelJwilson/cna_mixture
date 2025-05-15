@@ -63,7 +63,7 @@ def test_cna_sim_reproducibility(cna_sim):
 
     # NB tested test fails if cna_sim.data[0] is updated.
     assert np.all(new_cna_sim.data == cna_sim.data)
-    
+
 
 def test_cna_sim_seeding(cna_sim):
     new_cna_sim = CNA_sim(seed=42)

@@ -43,7 +43,7 @@ def reparameterize_nbinom(means, overdisp):
     # NB for overdisp << 1, r >> 1, Gamma(r) -> Stirling's / overflow.
     rs = np.ones_like(means) / overdisp
 
-    return rs, ps
+    return np.ravel(rs), np.ravel(ps)
 
 
 def cna_mixture_betabinom_eval(bs, ns, bafs, baf_overdispersion, rust_backend=True):
@@ -55,7 +55,7 @@ def cna_mixture_betabinom_eval(bs, ns, bafs, baf_overdispersion, rust_backend=Tr
         bafs,
         baf_overdispersion,
     )
-    
+
     if rust_backend:
         # TODO no caching.
         result = betabinom_rs(bs, ns, betas, alphas)
@@ -116,6 +116,7 @@ def get_ln_state_emission(
     # NB assumes independent(!)
     return ln_state_emission_betabinom + ln_state_emission_nbinom
 
+
 class CNA_emission:
     RUST_BACKEND = True
 
@@ -141,7 +142,7 @@ class CNA_emission:
         ), f"{params} does not satisy {self.num_states} states."
 
         num_states = self.num_states
-        
+
         rdrs = params[:num_states]
         rdr_overdispersion = params[num_states]
 
@@ -189,6 +190,7 @@ class CNA_emission:
 
         # NB assumes independent
         return ln_state_emission_betabinom + ln_state_emission_nbinom
+
     """
     def grad_em_cost_nb(self, params, state_posteriors):
         ks = self.ks

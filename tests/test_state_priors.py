@@ -15,25 +15,25 @@ def test_CNA_categorical_prior(mixture_params, rdr_baf):
 
     equal_priors = CNA_categorical_prior(num_segments, mixture_params.num_states)
     equal_priors.ln_lambdas_equal()
-    
+
     state_priors = CNA_categorical_prior(num_segments, mixture_params.num_states)
     state_priors.ln_lambdas_closest(rdr_baf, mixture_params.cna_states)
 
     assert logsumexp(equal_priors.ln_lambdas) == 0.0
     assert len(state_priors.ln_lambdas) == len(mixture_params.cna_states)
     assert np.abs(logsumexp(state_priors.ln_lambdas)) < 1.5e-16
-    
+
     # NB rdr_baf fixture does not populate the first state when assigned closest.
     assert state_priors.ln_lambdas[0] == -np.inf
 
     ln_state_emission = np.log(np.ones(mixture_params.num_states))
-    
+
     state_priors.update(ln_state_emission=ln_state_emission)
 
     ln_state_posteriors = state_priors.get_ln_state_posteriors(
         ln_state_emission=ln_state_emission
     )
-    
+
     npt.assert_allclose(
         ln_state_posteriors[0], state_priors.ln_lambdas, rtol=1e-5, atol=1e-8
     )

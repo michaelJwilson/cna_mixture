@@ -42,13 +42,13 @@ def test_hidden_markov_forward(transfer_params, transfer, plot=False):
     sims = cosine_similarity_origin(np.exp(ln_fs))
 
     print(f"\n{np.exp(ln_fs)}")
-    
+
     if plot:
-        asymptotic = np.exp(-1.)
- 
+        asymptotic = np.exp(-1.0)
+
         # pl.axhline(asymptotic, c="k", lw=0.5)
         pl.plot(range(num_segments)[:50], sims[:50])
-        
+
         pl.ylabel(r"Cosine similarity, $p \cdot p$")
         pl.xlabel("Jumps")
         plt.tight_layout()

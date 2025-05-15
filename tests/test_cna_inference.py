@@ -85,14 +85,13 @@ def test_cna_inference_grad(state_prior, cna_sim):
         npt.assert_allclose(approx_grad, grad, rtol=1.0, atol=7.7)
 
 
-
 @pytest.mark.slow
 def test_cna_inference_mixture_initialize(num_trials=50):
     modes = ["random", "mixture_plusplus"]
 
     cna_sim = CNA_sim()
     result = []
-    
+
     for initialize_mode in modes:
         cna_inf = CNA_inference(
             cna_sim.num_states,
@@ -100,7 +99,7 @@ def test_cna_inference_mixture_initialize(num_trials=50):
             cna_sim.data,
             initialize_mode=initialize_mode,
         )
-        
+
         interim = []
 
         for initialization in range(num_trials):
@@ -111,11 +110,11 @@ def test_cna_inference_mixture_initialize(num_trials=50):
 
             # NB final objective
             objective = cna_inf.fit().fun
-            
+
             interim.append(objective)
 
         result.append(interim)
-    
+
     result = np.array(result).T
 
     invalid = np.any(np.isnan(result), axis=1)
@@ -124,7 +123,7 @@ def test_cna_inference_mixture_initialize(num_trials=50):
     print(f"\nFound {100. * invalid.mean()}% invalid with good results:\n{result}")
 
     mins = np.minimum.accumulate(result, axis=0)
-    
+
     result = np.cumsum(result, axis=0)
 
     trials = 1 + np.arange(len(result))
@@ -135,14 +134,14 @@ def test_cna_inference_mixture_initialize(num_trials=50):
     # color_cycle = plt.gca().prop_cycler
     # colors = [item['color'] for item in color_cycle]
 
-    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+
     for ii in range(result.shape[1]):
         pl.plot(trials, result[:, ii], alpha=0.25, c=colors[ii])
         pl.plot(trials, mins[:, ii], label=modes[ii], c=colors[ii])
-        
+
     pl.ylim(100_000, 200_000)
-        
+
     pl.xlabel("Initializations")
     pl.ylabel("EM cost")
     pl.legend(frameon=False)
