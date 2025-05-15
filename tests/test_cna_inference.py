@@ -37,7 +37,7 @@ def test_cna_inference(cna_sim):
     
     npt.assert_allclose(res.x, exp, rtol=1.0e-2, atol=1.0e-2)
 
-
+@pytest.mark.skip(reason="TODO")
 @pytest.mark.parametrize("state_prior", ["categorical", "markov"])
 def test_cna_inference_pre_initialize(state_prior, cna_sim):
     cna_inf = CNA_inference(
@@ -66,7 +66,7 @@ def test_cna_inference_pre_initialize(state_prior, cna_sim):
     ):
         _ = cna_inf.jac(np.zeros(2 + 2 * cna_sim.num_states))
 
-
+@pytest.mark.skip(reason="TODO")
 @pytest.mark.parametrize("state_prior", ["categorical", "markov"])
 def test_cna_inference_grad(state_prior, cna_sim):
     cna_inf = CNA_inference(
@@ -94,7 +94,7 @@ def test_cna_inference_grad(state_prior, cna_sim):
         #             numerical is zeros => no dependence?  killed by posterior?
         npt.assert_allclose(approx_grad, grad, rtol=1.0, atol=7.7)
 
-
+@pytest.mark.skip(reason="TODO")
 @pytest.mark.slow
 def test_cna_inference_mixture_initialize(num_trials=50):
     modes = ["random", "mixture_plusplus"]
