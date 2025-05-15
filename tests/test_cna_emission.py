@@ -85,6 +85,7 @@ def test_cna_emission_rs_nb(benchmark, emission, emission_params, compress):
 
     result = benchmark(lambda: cna_em.nbinom_reduce(rdrs, phi))
 
+
 # TODO reduce with compress
 @pytest.mark.parametrize("compress", [True, False])
 def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
@@ -102,33 +103,31 @@ def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
 def test_CNA_emission_bb(emission, emission_params):
     rdrs, phi, bafs, tau = emission_params
     params = np.array([*rdrs, phi, *bafs, tau])
-    
+
     unpacked = emission.unpack_params(emission_params)
     states_bag = emission.get_states_bag(emission_params)
 
     # NB (rdr, baf) for each state.
-    assert np.array_equal(states_bag, np.array([[1., 0.2]]))
+    assert np.array_equal(states_bag, np.array([[1.0, 0.2]]))
     assert unpacked == (rdrs, phi, bafs, tau)
 
     # NB >>>>>>  beta-binomial checks.
-    rs_bb_update = emission.cna_mixture_betabinom_update(
-        params
-    )
-    
+    rs_bb_update = emission.cna_mixture_betabinom_update(params)
+
     emission.RUST_BACKEND = False
 
     bb_update = emission.cna_mixture_betabinom_update(params)
-    
+
     npt.assert_allclose(rs_bb_update, bb_update, rtol=1.0e-5, atol=1.0e-8)
 
     # NB all log probabilites should be <= 0
     assert np.all(bb_update <= 0.0)
 
-    
+
 def test_CNA_emission_nb(emission, emission_params):
     rdrs, phi, bafs, tau = emission_params
     params = np.array([*rdrs, phi, *bafs, tau])
-    
+
     # NB >>>>>>  nbinom checks.
     emission.RUST_BACKEND = True
 
@@ -143,14 +142,15 @@ def test_CNA_emission_nb(emission, emission_params):
     # NB all log probabilites should be <= 0
     assert np.all(nb_update <= 0.0)
 
+
 @pytest.mark.skip(reason="TODO rework gradient calc.")
 def test_CNA_emission_grad(emission, emission_params):
     rdrs, phi, bafs, tau = emission_params
     params = np.array([*rdrs, phi, *bafs, tau])
-    
+
     # NB >>>>>>  beta-binomial grad checks.
     state_posteriors = np.ones(shape=(10_000, 1))
-    
+
     emission.RUST_BACKEND = True
     rs_grad = emission.grad_em_cost(params, state_posteriors)
 
