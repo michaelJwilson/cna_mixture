@@ -50,12 +50,12 @@ impl CnaEmissionRs {
     }
 
     fn nbinom_logpmf_reduce(&self, _means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> f64 {
-       let k = &self.ks;
-       let x = &self.xs;
-       
-       let means = _means.as_array().to_vec();
+        let k = &self.ks;
+        let x = &self.xs;
 
-       nbinom_logpmf_reduce(k, x, &means, overdisp)
+        let means = _means.as_array().to_vec();
+
+        nbinom_logpmf(k, x, &means, overdisp)
     }
 }
 
@@ -71,6 +71,7 @@ pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) 
             let mut interim = zero_point;
 
             let factor = 1.0 + overdisp * x_val * mean_val;
+
             let ln_pp = -factor.ln();
             let ln_qq = (1.0 - 1.0 / factor).ln();
 
@@ -140,7 +141,7 @@ fn nbinom_logpmf_rs<'py>(
 }
 
 // NB 4.4646 ms -> 22.998 µs
-pub fn betabinom_logpmf_core<'py>(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> f64 {
+pub fn betabinom_logpmf_reduce<'py>(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> f64 {
     //
     //  Efficient beta binomial evaluation for many samples x many states.
     //
@@ -172,21 +173,11 @@ pub fn betabinom_logpmf_core<'py>(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) ->
     result
 }
 
-#[pyfunction]
-fn betabinom_logpmf_rs<'py>(
-    k: PyReadonlyArray1<'_, f64>,
-    n: PyReadonlyArray1<'_, f64>,
-    a: PyReadonlyArray1<'_, f64>,
-    b: PyReadonlyArray1<'_, f64>,
-) -> PyResult<Vec<Vec<f64>>> {
+fn betabinom_logpmf(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f64>> {
     //
     //  Efficient beta binomial evaluation for many samples x many states.
     //
     //  see: https://en.wikipedia.org/wiki/Beta-binomial_distribution
-    let k = k.to_vec()?;
-    let n = n.to_vec()?;
-    let a = a.to_vec()?;
-    let b = b.to_vec()?;
 
     let ga: Vec<f64> = a.iter().map(|&x| ln_gamma(x)).collect();
     let gb: Vec<f64> = b.iter().map(|&x| ln_gamma(x)).collect();
@@ -197,6 +188,7 @@ fn betabinom_logpmf_rs<'py>(
         .collect();
 
     // let pool = ThreadPoolBuilder::new().num_threads(num_threads).build().unwrap();
+
     let result: Vec<Vec<f64>> = THREAD_POOL.install(|| {
         k.par_iter()
             .enumerate()
@@ -226,6 +218,28 @@ fn betabinom_logpmf_rs<'py>(
 }
 
 #[pyfunction]
+fn betabinom_logpmf_rs<'py>(
+    k: PyReadonlyArray1<'_, f64>,
+    n: PyReadonlyArray1<'_, f64>,
+    a: PyReadonlyArray1<'_, f64>,
+    b: PyReadonlyArray1<'_, f64>,
+) -> PyResult<Vec<Vec<f64>>> {
+    //
+    //  Efficient beta binomial evaluation for many samples x many states.
+    //
+    //  see: https://en.wikipedia.org/wiki/Beta-binomial_distribution
+
+    let k = k.to_vec()?;
+    let n = n.to_vec()?;
+    let a = a.to_vec()?;
+    let b = b.to_vec()?;
+
+    let result = betabinom_logpmf_reduce(&k, &n, &a, &b);
+
+    Ok(result)
+}
+
+#[pyfunction]
 fn grad_cna_mixture_em_cost_nb_rs<'py>(
     ks: PyReadonlyArray1<'_, f64>,
     mus: PyReadonlyArray1<'_, f64>,
@@ -248,7 +262,7 @@ fn grad_cna_mixture_em_cost_nb_rs<'py>(
                 - phi * mu * rr / phi / (1.0 + phi * mu)
         })
         .collect();
-        
+
     let result: (Vec<Vec<f64>>, Vec<Vec<f64>>) = THREAD_POOL.install(|| {
         ks.par_iter()
             .map(|&k_val| {
