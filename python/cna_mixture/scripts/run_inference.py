@@ -36,15 +36,13 @@ def run_inference(
 
     # fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat_{sim_id}.pdf", cna_sim.rdr_baf, seed=seed)
 
-    rng = np.random.default_rng(seed)
-
     # NB total number of states (inc. normal).
     cna_inf = CNA_inference(
         num_cna_states,
         cna_sim.data,
         state_prior=state_prior,
         initialize_mode=initialize_mode,
-        seed=rng,
+        seed=np.random.default_rng(seed),
     )
     
     cna_inf.initialize(**kwargs)

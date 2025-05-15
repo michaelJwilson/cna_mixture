@@ -12,7 +12,15 @@ from scipy.optimize import approx_fprime
 
 @pytest.mark.regression
 def test_cna_inference(cna_sim):
-    cna_inf = CNA_inference(cna_sim.num_states, cna_sim.genome_coverage, cna_sim.data)
+    # run_inference --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 3 --initialize-mode random --state-prior categorical
+    cna_inf = CNA_inference(
+        cna_sim.num_states - 1,
+        cna_sim.data,
+        state_prior="categorical",
+        initialize_mode="random",
+        seed=np.random.default_rng(42),
+    )
+
     cna_inf.initialize()
 
     res = cna_inf.fit()
@@ -22,10 +30,12 @@ def test_cna_inference(cna_sim):
     # exp = np.array([0.50015511, 0.28714097, 0.09091853, 0.10101394])
 
     # NB ensure best-fit BAFs are conserved.
-    exp = np.array([0.792745, 0.392105, 0.496691, 0.242998])
-    bafs = params[2]
+    # exp = np.array([0.792745, 0.392105, 0.496691, 0.242998])
+    # bafs = params[2]
 
-    npt.assert_allclose(bafs, exp, rtol=1.0e-2, atol=1.0e-2)
+    exp = [1.00002014e+00, 3.60385422e+00, 4.95173795e+00, 9.97756571e+00, 1.80162482e-02, 5.02089621e-01, 2.82880246e-01, 1.66554174e-01, 1.00492437e-01, 4.98151885e+01]
+    
+    npt.assert_allclose(res.x, exp, rtol=1.0e-2, atol=1.0e-2)
 
 
 @pytest.mark.parametrize("state_prior", ["categorical", "markov"])
