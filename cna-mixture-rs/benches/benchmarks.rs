@@ -18,21 +18,22 @@ fn benchmark_cna_mixture_rs(c: &mut Criterion) {
         })
     });
 
-    /*
-    let alpha: Vec<f64> = (1..=1000).map(|x| x as f64).collect();
-    let beta: Vec<f64> = (1..=1000).map(|x| x as f64).collect();
+    let b: Vec<f64> = (10..=1_000).map(|x| x as f64).collect();
+    let n: Vec<f64> = k.clone().into_iter().map(|x| 10. * x).collect();
 
-    c.bench_function("betabinomial_logpmf_core", |b| {
+    let alphas: Vec<f64> = (1..=10).map(|x| x as f64).collect();
+    let betas: Vec<f64> = (1..=10).map(|x| x as f64).collect();
+
+    c.bench_function("betabinomial_logpmf_reduce", |b| {
         b.iter(|| {
-            let _result = betabinom_logpmf_core(
+            let _result = betabinom_logpmf_reduce(
                 black_box(&k),
                 black_box(&r),
-                black_box(&alpha),
-                black_box(&beta),
+                black_box(&alphas),
+                black_box(&betas),
             );
         })
     });
-    */
 }
 
 criterion_group!(benches, benchmark_cna_mixture_rs);
