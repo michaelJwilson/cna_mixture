@@ -28,7 +28,7 @@ impl CnaEmission {
         let num_threads = env::var("RAYON_NUM_THREADS")
             .ok()
             .and_then(|v| v.parse().ok())
-            .unwrap_or_else(num_cpus::get());
+            .unwrap_or_else(|| num_cpus::get());
 
         let thread_pool = ThreadPoolBuilder::new()
             .num_threads(num_threads)
@@ -106,7 +106,7 @@ impl CnaEmission {
     }
 }
 
-/*
+
 #[pyclass]
 struct CnaEmissionRs {
     inner: CnaEmission,
@@ -126,7 +126,7 @@ impl CnaEmissionRs {
         let bs = bs.as_array().to_vec();
         let ns = ns.as_array().to_vec();
 
-        let inner = CnaEmissionRs::new(ks, xs, bs, ns);
+        let inner = CnaEmission::new(ks, xs, bs, ns);
 
         Ok(CnaEmissionRs { inner })
 
@@ -135,7 +135,7 @@ impl CnaEmissionRs {
     fn nbinom_logpmf_reduce(&self, _means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> f64 {
         let means = _means.as_array().to_vec();
 
-        self.inner.nbinom_logpmf_reduce(&self.inner.ks, &self.inner.xs, &means, overdisp)
+        self.inner.nbinom_logpmf_reduce(&means, overdisp)
     }
 
     fn betabinom_logpmf_reduce(
@@ -146,10 +146,9 @@ impl CnaEmissionRs {
         let alphas = _alphas.as_array().to_vec();
         let betas = _betas.as_array().to_vec();
 
-        self.inner.betabinom_logpmf_reduce(&self.inner.bs, &self.inner.ns, &alphas, &betas)
+        self.inner.betabinom_logpmf_reduce(&alphas, &betas)
     }
 }
-*/
 
 //  NB  104.98 µs -> 70 µs (for all cores)
 pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> f64 {
