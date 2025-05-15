@@ -1,16 +1,16 @@
 use cna_mixture_rs::{
-    betabinom_logpmf, betabinom_logpmf_reduce, nbinom_logpmf, nbinom_logpmf_reduce,
+    CnaEmission, betabinom_logpmf, betabinom_logpmf_reduce, nbinom_logpmf, nbinom_logpmf_reduce,
 };
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn benchmark_cna_mixture_rs(c: &mut Criterion) {
     let ks: Vec<f64> = (1_000..=2_000).map(|x| x as f64).collect();
-    let xs: Vec<f64> = k.clone().into_iter().map(|x| 2. * x).collect();
+    let xs: Vec<f64> = ks.clone().into_iter().map(|x| 2. * x).collect();
 
     let bs: Vec<f64> = (10..=1_000).map(|x| x as f64).collect();
-    let ns: Vec<f64> = k.clone().into_iter().map(|x| 10. * x).collect();
+    let ns: Vec<f64> = bs.clone().into_iter().map(|x| 10. * x).collect();
 
-    let cna_em = CnaEmissionRs(ks, xs, bs, ns);
+    let cna_em = CnaEmission::new(ks, xs, bs, ns);
 
     let means: Vec<f64> = (10..=20).map(|x| (x as f64)).collect();
 

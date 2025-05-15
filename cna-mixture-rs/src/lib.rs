@@ -12,6 +12,7 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use statrs::function::gamma::{digamma, ln_gamma};
 use std::env;
 use std::collections::HashMap;
+use ordered_float::OrderedFloat;
 
 pub struct CnaEmission {
     //  NB defining a struct associated locally in memory.
@@ -24,7 +25,7 @@ pub struct CnaEmission {
 }
 
 impl CnaEmission {
-    fn new(
+    pub fn new(
         ks: Vec<f64>,
         xs: Vec<f64>,
         bs: Vec<f64>,
@@ -40,7 +41,7 @@ impl CnaEmission {
             .build()
             .expect("Failed to build ThreadPool");
 
-        let mut unique_map: HashMap<(f64, f64), usize> = HashMap::new();
+        let mut unique_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> = HashMap::new();
 
         let mut unique_ks: Vec<f64> = Vec::new();
         let mut unique_xs: Vec<f64> = Vec::new();
@@ -48,7 +49,7 @@ impl CnaEmission {
         let mut mapping: Vec<usize> = Vec::new();
 
         for (&k, &x) in izip!(ks.iter(), xs.iter()) {
-            let key = (k, x);
+            let key = (OrderedFloat(k), OrderedFloat(x));
 
             if let Some(&index) = unique_map.get(&key) {
                 mapping.push(index);
@@ -74,12 +75,12 @@ impl CnaEmission {
         }
     }
 
-    fn nbinom_logpmf_reduce(&self, means: &[f64], overdisp: f64) -> f64 {
+    pub fn nbinom_logpmf_reduce(&self, means: &[f64], overdisp: f64) -> f64 {
         self.thread_pool
             .install(|| nbinom_logpmf_reduce(&self.ks, &self.xs, means, overdisp))
     }
 
-    fn betabinom_logpmf_reduce(
+    pub fn betabinom_logpmf_reduce(
         &self,
         alphas: &[f64],
         betas: &[f64],
