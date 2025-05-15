@@ -123,7 +123,7 @@ def get_ln_state_emission(
 
 
 class CNA_emission:
-    def __init__(self, num_states, ks, xs, bs, ns, backend="rs"):
+    def __init__(self, num_states, ks, xs, bs, ns, backend="rs_fn"):
         # NB ks are NB derived.  xs (exposure) == T_n x lambda_g.
         self.ks = ks.copy()
         self.xs = xs.copy()
