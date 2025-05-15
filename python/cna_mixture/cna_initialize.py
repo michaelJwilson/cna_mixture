@@ -4,6 +4,7 @@ import numpy as np
 
 from cna_mixture.cna_emission import get_ln_state_emission
 from cna_mixture.plotting import plot_rdr_baf_flat
+from cna_mixture.utils import deprecated
 
 logger = logging.getLogger(__name__)
 
@@ -79,8 +80,9 @@ class CNA_mixture_initialize:
 
     @staticmethod
     def mixture_plusplus_cost(
-        samples, centers, overdisp_phi, overdisp_tau, collapse=True
+        samples, centers, overdisp_phi, overdisp_tau, reduction=True
     ):
+        # TODO provided with an emission model directly.
         cost = get_ln_state_emission(
             samples[:, 0],
             samples[:, 1],
@@ -91,12 +93,13 @@ class CNA_mixture_initialize:
             overdisp_tau,
         )
 
-        if collapse:
+        if reduction:
             # NB emission probability for "most likely" state.
             cost = np.max(cost, axis=1)
 
         return -cost
 
+    @deprecated
     def initialize_mixture_plusplus(self, ks, xs, ns, N=4, validate=False):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
