@@ -57,6 +57,12 @@ def emission(emission_params):
 def test_emission_fixture(emission, emission_params):
     assert emission is not None
     assert emission_params is not None
+
+# NB test rust backend.
+def test_nbinom_logpmf_rs(benchmark, emission, emission_params):
+    rdrs, phi, _, _ = emission_params
+    
+    benchmark(lambda: nbinom_logpmf_rs(emission.ks, emission.xs, rdrs, phi))
     
 """
 # NB test rust backend.
