@@ -11,7 +11,7 @@ fn benchmark_cna_mixture_rs(c: &mut Criterion) {
     let ns: Vec<f64> = bs.clone().into_iter().map(|x| 10. * x).collect();
 
     let cna_em = CnaEmission::new(ks, xs, bs, ns);
-    
+
     let means: Vec<f64> = (10..=20).map(|x| (x as f64)).collect();
 
     c.bench_function("nbinom", |b| {
@@ -25,10 +25,7 @@ fn benchmark_cna_mixture_rs(c: &mut Criterion) {
 
     c.bench_function("betabinom", |b| {
         b.iter(|| {
-            let _result = cna_em.betabinom_logpmf_reduce(
-                black_box(&alphas),
-                black_box(&betas)
-            );
+            let _result = cna_em.betabinom_logpmf_reduce(black_box(&alphas), black_box(&betas));
         })
     });
 }

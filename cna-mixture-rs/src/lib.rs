@@ -24,7 +24,7 @@ pub struct CnaEmission {
     thread_pool: ThreadPool,
 }
 
-impl CnaEmission  {
+impl CnaEmission {
     pub fn new(ks: Vec<f64>, xs: Vec<f64>, bs: Vec<f64>, ns: Vec<f64>) -> Self {
         let num_threads = env::var("RAYON_NUM_THREADS")
             .ok()
@@ -38,7 +38,7 @@ impl CnaEmission  {
 
         let mut unique_nb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
             HashMap::new();
-            
+
         let mut unique_bb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
             HashMap::new();
 
