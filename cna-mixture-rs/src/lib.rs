@@ -8,7 +8,7 @@ use num_cpus;
 use numpy::{PyReadonlyArray1, PyReadonlyArray2};
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
-use rayon::{ThreadPoolBuilder, ThreadPool};
+use rayon::{ThreadPool, ThreadPoolBuilder};
 use statrs::function::gamma::{digamma, ln_gamma};
 use std::env;
 
@@ -19,6 +19,8 @@ struct CnaEmissionRs {
     xs: Vec<f64>,
     bs: Vec<f64>,
     ns: Vec<f64>,
+    ws: Vec<f64>,
+    mapping: Option(Vec<f64>),
     thread_pool: ThreadPool,
 }
 
@@ -41,24 +43,46 @@ impl CnaEmissionRs {
             .build()
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
+        let mut unique_map: HashMap<(f64, f64), usize> = HashMap::new();
+
+        let mut unique_ks = Vec::new();
+        let mut unique_xs = Vec::new();
+
+        let mut mapping = Vec::new();
+
+        for (&k, &x) in izip!(ks.as_array().iter(), xs.as_array().iter()) {
+            let key = (k, x);
+
+            if let Some(&index) = unique_map.get(&key) {
+                mapping.push(index);
+            } else {
+                let new_index = unique_ks.len();
+
+                unique_map.insert(key, new_index);
+
+                unique_ks.push(k);
+                unique_xs.push(x);
+
+                mapping.push(new_index);
+            }
+        }
+
         //  TODO to_vec() directly?
         Ok(CnaEmissionRs {
-            ks: ks.as_array().to_vec(),
-            xs: xs.as_array().to_vec(),
+            ks: unique_ks,
+            xs: unique_xs,
             bs: bs.as_array().to_vec(),
             ns: ns.as_array().to_vec(),
+            mapping: mapping,
             thread_pool: thread_pool,
         })
     }
 
     fn nbinom_logpmf_reduce(&self, _means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> f64 {
-        let k = &self.ks;
-        let x = &self.xs;
-
         let means = _means.as_array().to_vec();
 
         self.thread_pool
-            .install(|| nbinom_logpmf_reduce(k, x, &means, overdisp))
+            .install(|| nbinom_logpmf_reduce(&self.ks, &self.xs, &means, overdisp))
     }
 
     fn betabinom_logpmf_reduce(
@@ -66,14 +90,11 @@ impl CnaEmissionRs {
         _alphas: PyReadonlyArray1<'_, f64>,
         _betas: PyReadonlyArray1<'_, f64>,
     ) -> f64 {
-        let b = &self.bs;
-        let n = &self.ns;
-
         let alphas = _alphas.as_array().to_vec();
         let betas = _betas.as_array().to_vec();
 
         self.thread_pool
-            .install(|| betabinom_logpmf_reduce(b, n, &alphas, &betas))
+            .install(|| betabinom_logpmf_reduce(&self.bs, &self.ns, &alphas, &betas))
     }
 }
 
@@ -84,7 +105,7 @@ pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) 
     let result: f64 = k
         .par_iter()
         .zip(x.par_iter())
-        .map(|(&k_val, &x_val)| {
+        .map(|(k_val, &x_val)| {
             let zero_point = -ln_gamma(1.0 + k_val);
 
             means
