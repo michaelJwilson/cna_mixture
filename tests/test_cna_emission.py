@@ -9,7 +9,7 @@ from cna_mixture.cna_emission import (
     reparameterize_beta_binom,
     reparameterize_nbinom,
 )
-from cna_mixture_rs.core import CnaEmissionRs, nbinom_logpmf_rs, betabinom_logpmf_rs
+from cna_mixture_rs.core import CnaEmissionRs, nbinom_rs, betabinom_rs
 from scipy.stats import betabinom, nbinom
 
 np.random.seed(314)
@@ -59,15 +59,17 @@ def test_emission_fixture(emission, emission_params):
     assert emission_params is not None
 
 # ----  rust backend tests  ----
-def test_nbinom_logpmf_rs(benchmark, emission, emission_params):
+def test_nbinom_rs(benchmark, emission, emission_params):
     rdrs, phi, _, _ = emission_params
     
-    benchmark(lambda: nbinom_logpmf_rs(emission.ks, emission.xs, rdrs, phi))
+    benchmark(lambda: nbinom_rs(emission.ks, emission.xs, rdrs, phi))
 
-def test_betabinom_logpmf_rs(benchmark, emission, emission_params):
+def test_betabinom_rs(benchmark, emission, emission_params):
     _, _, bafs, tau = emission_params
 
-    benchmark(lambda: betabinom_logpmf_rs(emission.bs, emission.ns, bafs, tau))
+    alphas, betas = reparameterize_beta_binom(bafs, tau)
+    
+    benchmark(lambda: betabinom_rs(emission.bs, emission.ns, betas, alphas))
 
     
 """
@@ -82,7 +84,7 @@ def test_cna_emission_rs_class(benchmark):
     cna_em = CnaEmissionRs(ks, xs, bs, ns, compress=False)
     means = np.arange(10, dtype=float)
     
-    result = benchmark(lambda: cna_em.nbinom_logpmf_reduce(means, 1.e-2))
+    result = benchmark(lambda: cna_em.nbinom_reduce(means, 1.e-2))
 
 def test_cna_emission_rs(benchmark):
     ks = 10. * np.ones(1_000)
@@ -90,7 +92,7 @@ def test_cna_emission_rs(benchmark):
 
     means = np.arange(10, dtype=float)
 
-    result = benchmark(lambda: nbinom_logpmf_rs(ks, xs, means, 1.e-2))
+    result = benchmark(lambda: nbinom_rs(ks, xs, means, 1.e-2))
 """
 """
 def test_cna_emission():

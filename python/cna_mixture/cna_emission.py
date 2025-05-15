@@ -1,7 +1,7 @@
 import numpy as np
 from cna_mixture_rs.core import (
-    nbinom_logpmf_rs,
-    betabinom_logpmf_rs,
+    nbinom_rs,
+    betabinom_rs,
     grad_cna_mixture_em_cost_bb_rs,
     grad_cna_mixture_em_cost_nb_rs,
 )
