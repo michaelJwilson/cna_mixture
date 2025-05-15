@@ -11,7 +11,7 @@ fn benchmark_cna_mixture_rs(c: &mut Criterion) {
 
     c.bench_function("nbinom_logpmf", |b| {
         b.iter(|| {
-            let _result = nbinom_logpmf(
+            let _result = nbinom_logpmf_reduce(
                 black_box(&k),
                 black_box(&x),
                 black_box(&means),
@@ -28,7 +28,7 @@ fn benchmark_cna_mixture_rs(c: &mut Criterion) {
 
     c.bench_function("betabinomial_logpmf_reduce", |b| {
         b.iter(|| {
-            let _result = betabinom_logpmf(
+            let _result = betabinom_logpmf_reduce(
                 black_box(&bs),
                 black_box(&ns),
                 black_box(&alphas),

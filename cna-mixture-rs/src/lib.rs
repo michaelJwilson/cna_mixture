@@ -77,7 +77,7 @@ impl CnaEmissionRs {
     }
 }
 
-// NB  104.98 µs -> 77.440 µs (for all cores)
+//  NB  104.98 µs -> 70 µs (for all cores)
 pub fn nbinom_logpmf_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> f64 {
     let rr = 1.0 / overdisp;
 
@@ -139,27 +139,7 @@ pub fn nbinom_logpmf(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> Vec<
     result
 }
 
-#[pyfunction]
-fn nbinom_logpmf_rs<'py>(
-    k: PyReadonlyArray1<'_, f64>,
-    x: PyReadonlyArray1<'_, f64>,
-    means: PyReadonlyArray1<'_, f64>,
-    overdisp: f64,
-) -> PyResult<f64> {
-    // PyResult<Vec<Vec<f64>>>
-    //
-    //  Efficient negative binomial evaluation for many samples x many states.
-    //
-    //  see: https://en.wikipedia.org/wiki/Negative_binomial_distribution
-    let k = k.as_slice()?;
-    let x = x.as_slice()?;
-
-    let means = means.as_slice()?;
-
-    Ok(nbinom_logpmf_reduce(&k, &x, &means, overdisp))
-}
-
-//  NB  108.68 µs
+//  NB  300 µs -> 108.68 µs (all cores)
 pub fn betabinom_logpmf_reduce(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> f64 {
     //
     //  Efficient beta binomial evaluation for many samples x many states.
@@ -238,6 +218,26 @@ pub fn betabinom_logpmf(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f
         .collect::<Vec<Vec<f64>>>();
 
     result
+}
+
+#[pyfunction]
+fn nbinom_logpmf_rs<'py>(
+    k: PyReadonlyArray1<'_, f64>,
+    x: PyReadonlyArray1<'_, f64>,
+    means: PyReadonlyArray1<'_, f64>,
+    overdisp: f64,
+) -> PyResult<f64> {
+    // PyResult<Vec<Vec<f64>>>
+    //
+    //  Efficient negative binomial evaluation for many samples x many states.
+    //
+    //  see: https://en.wikipedia.org/wiki/Negative_binomial_distribution
+    let k = k.as_slice()?;
+    let x = x.as_slice()?;
+
+    let means = means.as_slice()?;
+
+    Ok(nbinom_logpmf_reduce(&k, &x, &means, overdisp))
 }
 
 #[pyfunction]
