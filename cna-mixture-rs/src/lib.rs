@@ -4,7 +4,6 @@ use itertools::izip;
 use ndarray::parallel::prelude::IndexedParallelIterator;
 use ndarray::parallel::prelude::IntoParallelRefIterator;
 use ndarray::parallel::prelude::ParallelIterator;
-use num_cpus;
 use numpy::{PyReadonlyArray1, PyReadonlyArray2};
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
@@ -29,7 +28,7 @@ impl CnaEmission {
         let num_threads = env::var("RAYON_NUM_THREADS")
             .ok()
             .and_then(|v| v.parse().ok())
-            .unwrap_or_else(|| num_cpus::get());
+            .unwrap_or_else(num_cpus::get());
 
         let thread_pool = ThreadPoolBuilder::new()
             .num_threads(num_threads)
@@ -90,9 +89,9 @@ impl CnaEmission {
             xs: unique_xs,
             bs: unique_bs,
             ns: unique_ns,
-            nb_mapping: nb_mapping,
-            bb_mapping: bb_mapping,
-            thread_pool: thread_pool,
+            nb_mapping,
+            bb_mapping,
+            thread_pool,
         }
     }
 
@@ -452,7 +451,7 @@ fn grad_cna_mixture_em_cost_bb_rs<'py>(
     Ok(result)
 }
 
-fn logsumexp(array: &Vec<f64>) -> f64 {
+fn logsumexp(array: &[f64]) -> f64 {
     let max_val = array.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
     let sum_exp: f64 = array.iter().map(|&x| (x - max_val).exp()).sum();
 
@@ -491,6 +490,7 @@ fn ln_transition_probs_rs<'py>(
         }
     }
 
+    //  TODO iter.
     for ii in 0..num_states {
         let norm = logsumexp(&result[ii]);
 
