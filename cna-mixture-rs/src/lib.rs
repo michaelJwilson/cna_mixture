@@ -13,7 +13,6 @@ use std::collections::HashMap;
 use std::env;
 
 pub struct CnaEmission {
-    //  NB defining a struct associated locally in memory.
     ks: Vec<f64>,
     xs: Vec<f64>,
     bs: Vec<f64>,
