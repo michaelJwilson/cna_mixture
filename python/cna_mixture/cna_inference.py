@@ -309,7 +309,7 @@ class CNA_inference:
             self.em_cost,
             self.params.copy(),
             method=self.optimizer,
-            jac=self.jac,
+            jac=None,
             bounds=self.bounds,
             callback=self.post_mstep,
             constraints=None,

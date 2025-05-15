@@ -89,7 +89,7 @@ class CNA_categorical_prior:
         assert ln_state_emission.ndim == 2
 
         # NB *slow* guard against being passed probabilities, instead of log probs.
-        assert np.all(ln_state_posteriors <= 0.0)
+        # assert np.all(ln_state_emission <= 0.0)
 
         ln_state_posteriors = self.get_ln_state_posteriors(
             ln_state_emission=ln_state_emission
