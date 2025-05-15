@@ -108,7 +108,6 @@ class CNA_inference:
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         mixture_params = CNA_mixture_params(
             num_cna_states=self.num_cna_states,
-            genome_coverage=self.genome_coverage,
             seed=self.seed,
         )
 

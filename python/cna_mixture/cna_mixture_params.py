@@ -15,7 +15,7 @@ class CNA_mixture_params:
     """
 
     def __init__(
-        self, num_cna_states=3, tau=50.0, phi=2.0e-2, genome_coverage=1.0, seed=314
+        self, num_cna_states=3, tau=50.0, phi=2.0e-2, seed=314
     ):
         """
         Initialize an instance of the class with random values in the assumed bounds.
@@ -23,8 +23,6 @@ class CNA_mixture_params:
         # NB normal state is treated independently
         self.num_cna_states = num_cna_states
         self.num_states = 1 + self.num_cna_states
-
-        self.genome_coverage = genome_coverage
 
         # NB BAF overdispersion.  Random between 25. and 55.
         self.overdisp_tau = tau
@@ -48,11 +46,9 @@ class CNA_mixture_params:
 
     @property
     def params(self):
-        read_depths = self.genome_coverage * self.cna_states[:, 0]
-
         return np.array(
             [
-                *read_depths.tolist(),
+                *self.cna_states[:, 0].tolist(),
                 self.overdisp_phi,
                 *self.cna_states[:, 1].tolist(),
                 self.overdisp_tau,
