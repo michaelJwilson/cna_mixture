@@ -320,10 +320,10 @@ pub fn betabinom(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f64>> {
 
     let result: Vec<Vec<f64>> = k
         .par_iter()
-        .enumerate()
-        .map(|(ii, &k_val)| {
+        .zip(n.par_iter())
+        .map(|(&k_val, &n_val)| {
             let zero_point =
-                ln_gamma(n[ii] + 1.0) - ln_gamma(k_val + 1.0) - ln_gamma(n[ii] - k_val + 1.0);
+                ln_gamma(n_val + 1.0) - ln_gamma(k_val + 1.0) - ln_gamma(n_val - k_val + 1.0);
 
             let row: Vec<f64> = a
                 .iter()
@@ -331,8 +331,8 @@ pub fn betabinom(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f64>> {
                 .map(|(ss, &a_val)| {
                     let mut interim = zero_point;
 
-                    interim += ln_gamma(k_val + a_val) + ln_gamma(n[ii] - k_val + b[ss])
-                        - ln_gamma(n[ii] + a_val + b[ss]);
+                    interim += ln_gamma(k_val + a_val) + ln_gamma(n_val - k_val + b[ss])
+                        - ln_gamma(n_val + a_val + b[ss]);
                     interim += gab[ss] - ga[ss] - gb[ss];
 
                     interim
