@@ -91,7 +91,8 @@ class CNA_inference:
 
     @property
     def rdr(self):
-        return self.data["read_coverage"] / self.genome_coverage
+        # NB baseline coverage == Tn * lambdas, where lambdas.sum() == 1.
+        return self.data["read_coverage"] / self.data["baseline_coverage"]
 
     @property
     def baf(self):
@@ -114,12 +115,12 @@ class CNA_inference:
         # NB one "normal" state and remaining states chosen as a datapoint for copy # > 1.
         match self.initialize_mode:
             case "random":
-                initial_plusplus_cost = (
-                    mixture_params.initialize_random_nonnormal_rdr_baf(self.rdr_baf)
+                initial_cost = (
+                    mixture_params.initialize_random(self.rdr_baf)
                 )
 
             case "mixture_plusplus":
-                initial_plusplus_cost = mixture_params.initialize_mixture_plusplus(
+                initial_cost = mixture_params.initialize_mixture_plusplus(
                     self.data["read_coverage"],
                     self.data["b_reads"],
                     self.data["snp_coverage"],
@@ -128,7 +129,7 @@ class CNA_inference:
                 msg = f"{self.initialize_mode} style initialization is not supported."
                 raise ValueError(msg)
 
-        return mixture_params, initial_plusplus_cost
+        return mixture_params, initial_cost
 
     def initialize(self, **kwargs):
         """
