@@ -76,9 +76,6 @@ def cna_mixture_nbinom_eval(ks, xs, rdrs, overdispersion, backend="rs_fn"):
     Evaluate log prob. under NegativeBinom model, given parameter vector.
     Return (# sample, # state) array.
     """
-    if rust_backend:
-        result = nbinom_rs(ks, xs, rdrs, overdispersion)
-
     match backend:
         case None:
             result = np.zeros((len(ks), len(rdrs)))
@@ -96,7 +93,7 @@ def cna_mixture_nbinom_eval(ks, xs, rdrs, overdispersion, backend="rs_fn"):
             result = nbinom_rs(ks, xs, rdrs, overdispersion)
 
         case _:
-            result = backend.nbinom(alphas, betas)
+            result = backend.nbinom(rdrs, overdispersion)
 
     return result
 
