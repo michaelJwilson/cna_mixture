@@ -107,56 +107,21 @@ impl CnaEmissionRs {
         bs: PyReadonlyArray1<'_, f64>,
         ns: PyReadonlyArray1<'_, f64>,
     ) -> PyResult<Self> {
-        let num_threads = env::var("RAYON_NUM_THREADS")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or_else(|| num_cpus::get());
+        let ks = ks.as_slice().map_err(|e| PyRuntimeError::new_err(e.to_string()))?.to_vec();
+        let xs = xs.as_slice().map_err(|e| PyRuntimeError::new_err(e.to_string()))?.to_vec();
+        let bs = bs.as_slice().map_err(|e| PyRuntimeError::new_err(e.to_string()))?.to_vec();
+        let ns = ns.as_slice().map_err(|e| PyRuntimeError::new_err(e.to_string()))?.to_vec();
 
-        let thread_pool = ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let inner = CnaEmissionRs::new(ks, xs, bs, ns);
 
-        let mut unique_map: HashMap<(f64, f64), usize> = HashMap::new();
+        Ok(CnaEmissionRs { inner })
 
-        let mut unique_ks = Vec::new();
-        let mut unique_xs = Vec::new();
-
-        let mut mapping = Vec::new();
-
-        for (&k, &x) in izip!(ks.as_array().iter(), xs.as_array().iter()) {
-            let key = (k, x);
-
-            if let Some(&index) = unique_map.get(&key) {
-                mapping.push(index);
-            } else {
-                let new_index = unique_ks.len();
-
-                unique_map.insert(key, new_index);
-
-                unique_ks.push(k);
-                unique_xs.push(x);
-
-                mapping.push(new_index);
-            }
-        }
-
-        //  TODO to_vec() directly?
-        Ok(CnaEmissionRs {
-            ks: unique_ks,
-            xs: unique_xs,
-            bs: bs.as_array().to_vec(),
-            ns: ns.as_array().to_vec(),
-            mapping: mapping,
-            thread_pool: thread_pool,
-        })
     }
 
     fn nbinom_logpmf_reduce(&self, _means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> f64 {
         let means = _means.as_array().to_vec();
-
-        self.thread_pool
-            .install(|| nbinom_logpmf_reduce(&self.ks, &self.xs, &means, overdisp))
+        
+        self.inner.nbinom_logpmf_reduce(&self.inner.ks, &self.inner.xs, &means, overdisp))
     }
 
     fn betabinom_logpmf_reduce(
@@ -166,9 +131,8 @@ impl CnaEmissionRs {
     ) -> f64 {
         let alphas = _alphas.as_array().to_vec();
         let betas = _betas.as_array().to_vec();
-
-        self.thread_pool
-            .install(|| betabinom_logpmf_reduce(&self.bs, &self.ns, &alphas, &betas))
+        
+        self.inner.betabinom_logpmf_reduce(&self.inner.bs, &self.inner.ns, &alphas, &betas))
     }
 }
 
