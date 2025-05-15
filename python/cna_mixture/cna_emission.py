@@ -161,11 +161,10 @@ class CNA_emission:
         Evaluate log prob. under BetaBinom model given model parameter vector.
         Returns (# sample, # state) array.
         """
-        bs, ns = self.bs, self.ns
-        _, _, bafs, baf_overdispersion = self.unpack_params(params)
+        *_, bafs, baf_overdispersion = self.unpack_params(params)
         
         return cna_mixture_betabinom_eval(
-            bs, ns, bafs, baf_overdispersion, rust_backend=self.RUST_BACKEND
+            self.bs, self.ns, bafs, baf_overdispersion, rust_backend=self.RUST_BACKEND
         )
 
     def cna_mixture_nbinom_update(self, params):
@@ -173,7 +172,7 @@ class CNA_emission:
         Evaluate log prob. under NegativeBinom model.
         Return (# sample, # state) array.
         """
-        rdrs, rdr_overdispersion, _, _ = self.unpack_params(params)
+        rdrs, rdr_overdispersion, *_ = self.unpack_params(params)
 
         return cna_mixture_nbinom_eval(
             self.ks,
