@@ -51,7 +51,7 @@ def reparameterize_nbinom(means, overdisp):
 
 class CNA_emission_backed_rs:
     # NB patch class that handles bafs -> alphas, betas + delegates.
-    def __init__(self, num_states, ks, xs, bs, ns, ws=None, compress=True):
+    def __init__(self, num_states, ks, xs, bs, ns, ws=None):
         # NB ks are NB derived.  xs (exposure) == T_n x lambda_g.
         self.ks = ks.copy()
         self.xs = xs.copy()
@@ -60,10 +60,17 @@ class CNA_emission_backed_rs:
         self.bs = bs.copy()
         self.ns = ns.copy()
 
-        self.compress = compress
         self.num_states = num_states
 
-        self.engine = CnaEmissionCompressedRs(
+        self.engine = CnaEmissionRs(
+            num_states,
+            self.ks,
+            self.xs,
+            self.bs,
+            self.ns,
+        )
+        
+        self.engine_compressed = CnaEmissionCompressedRs(
             num_states,
             self.ks,
             self.xs,
@@ -72,44 +79,38 @@ class CNA_emission_backed_rs:
         )
 
         if ws is not None:
-            self.engine.update_weights(ws)
+            self.engine_compressed.update_weights(ws)
 
         logger.info("Initialized rust emission class.")
 
     def update_weights(self, weights):
-        self.engine.update_weights(weights)
+        self.engine_compressed.update_weights(weights)
         
-    def nbinom(self, rdrs, rdr_overdispersion):
-        logger.warning("CnaEmissionCompressedRs.nbinom is compressed.")
-        
+    def nbinom(self, rdrs, rdr_overdispersion):        
         return self.engine.nbinom(rdrs, rdr_overdispersion)
 
     def nbinom_reduce(self, rdrs, rdr_overdispersion):
-        return self.engine.nbinom(rdrs, rdr_overdispersion)
+        return self.engine_compressed.nbinom(rdrs, rdr_overdispersion)
 
-    def betabinom(self, bafs, baf_overdispersion):
-        logger.warning("CnaEmissionCompressedRs.nbinom is compressed.")
-        
+    def betabinom(self, bafs, baf_overdispersion):        
         alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
         return self.engine.betabinom(betas, alphas)
 
     def betabinom_reduce(self, bafs, baf_overdispersion):
         alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
-        return self.engine.betabinom_reduce(betas, alphas)
+        return self.engine_compressed.betabinom_reduce(betas, alphas)
 
-    def emission(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):
-        logger.warning("CnaEmissionCompressedRs.nbinom is compressed.")
-        
+    def emission(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):        
         alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
         
         # NB assumes independent
-        return self.engine.emission(rdrs, rdr_overdispersion, betas, alphas)
+        return self.engine.nbinom(rdrs, rdr_overdispersion) + self.engine.betabinom(betas, alphas)
 
     def emission_reduce(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):
         alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
         
         # NB assumes independent
-        return self.engine.nbinom_reduce(rdrs, rdr_overdispersion) + self.engine.betabinom_reduce(betas, alphas)
+        return self.engine_compressed.nbinom_reduce(rdrs, rdr_overdispersion) + self.engine_compressed.betabinom_reduce(betas, alphas)
 
 
 class CNA_emission_backend:
@@ -197,11 +198,8 @@ class CNA_emission:
         self.num_states = num_states
         
         if backend == "rust":
-            self.backend = CNA_emission_backed_rs(
-                num_states, ks, xs, bs, ns, ws, compress=compress
-            )
-        else:
-            
+            self.backend = CNA_emission_backed_rs(num_states, ks, xs, bs, ns, ws)
+        else:            
             self.backend = CNA_emission_backend(num_states, ks, xs, bs, ns, ws)
 
     @property
@@ -272,7 +270,7 @@ class CNA_emission:
 
     def emission_reduce(self, params):
         rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
-        return self.backend.emission(rdrs, rdr_overdispersion, bafs, baf_overdispersion)
+        return self.backend.emission_reduce(rdrs, rdr_overdispersion, bafs, baf_overdispersion)
 
     """
     def grad_em_cost_nb(self, params, state_posteriors):
