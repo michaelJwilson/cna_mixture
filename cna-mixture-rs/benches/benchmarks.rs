@@ -1,7 +1,24 @@
 use cna_mixture_rs::{betabinom, betabinom_reduce, nbinom, nbinom_reduce, CnaEmission};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-fn benchmark_cna_mixture_rs(c: &mut Criterion) {
+fn benchmark_cna_emission(c: &mut Criterion) {
+    let ks: Vec<f64> = (1_000..=2_000).map(|x| x as f64).collect();
+    let xs: Vec<f64> = ks.clone().into_iter().map(|x| 2. * x).collect();
+
+    let bs: Vec<f64> = (10..=1_000).map(|x| x as f64).collect();
+    let ns: Vec<f64> = bs.clone().into_iter().map(|x| 10. * x).collect();
+
+    let means: Vec<f64> = (10..=20).map(|x| (x as f64)).collect();
+
+    c.bench_function("nbinom", |b| {
+        b.iter(|| {
+            nbinom(&ks, &xs, black_box(&means), black_box(0.01));
+        })
+    });
+}
+
+/*
+fn benchmark_CnaEmission(c: &mut Criterion) {
     let ks: Vec<f64> = (1_000..=2_000).map(|x| x as f64).collect();
     let xs: Vec<f64> = ks.clone().into_iter().map(|x| 2. * x).collect();
 
@@ -39,6 +56,9 @@ fn benchmark_cna_mixture_rs(c: &mut Criterion) {
         })
     });
 }
+*/
 
-criterion_group!(benches, benchmark_cna_mixture_rs);
+// criterion_group!(benches, benchmark_CnaEmission);
+
+criterion_group!(benches, benchmark_cna_emission);
 criterion_main!(benches);
