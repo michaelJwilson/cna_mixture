@@ -34,7 +34,6 @@ impl CnaEmission {
         xs: Vec<f64>,
         bs: Vec<f64>,
         ns: Vec<f64>,
-        weights: Array2<f64>,
         compress: bool,
     ) -> Self {
         let num_threads = env::var("RAYON_NUM_THREADS")
@@ -151,6 +150,33 @@ impl CnaEmission {
                 compress,
             }
         }
+    }
+
+    pub fn compress(&self, weights: Array2<f64>) -> Array2<f64> {
+        let mut nb_weights = Array2::<f64>::zeros((self.ks.len(), weights.shape()[1]));
+        let mut bb_weights = Array2::<f64>::zeros((self.ks.len(), weights.shape()[1]));
+
+        for (obs_idx, &map_idx) in self.nb_mapping.iter().enumerate() {
+            nb_weights
+                .row_mut(map_idx)
+                .iter_mut()
+                .zip(weights.row(obs_idx).iter())
+                .for_each(|(compressed_weight, &original_weight)| {
+                    *compressed_weight += original_weight;
+                });
+        }
+
+        for (obs_idx, &map_idx) in self.bb_mapping.iter().enumerate() {
+            bb_weights
+                .row_mut(map_idx)
+                .iter_mut()
+                .zip(weights.row(obs_idx).iter())
+                .for_each(|(compressed_weight, &original_weight)| {
+                    *compressed_weight += original_weight;
+                });
+        }
+
+        (nb_weights, bb_weights)
     }
 
     pub fn nbinom(&self, means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
