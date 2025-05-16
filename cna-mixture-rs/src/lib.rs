@@ -20,7 +20,9 @@ pub struct CnaEmission {
     xs: Vec<f64>,
     bs: Vec<f64>,
     ns: Vec<f64>,
+    nb_mapping: Vec<usize>,
     nb_weights: Array2<f64>,
+    bb_mapping: Vec<usize>,
     bb_weights: Array2<f64>,
     thread_pool: ThreadPool,
 }
@@ -57,6 +59,9 @@ impl CnaEmission {
             let mut unique_bs: Vec<f64> = Vec::new();
             let mut unique_ns: Vec<f64> = Vec::new();
 
+            let mut nb_mapping: Vec<usize> = Vec::new();
+            let mut bb_mapping: Vec<usize> = Vec::new();
+
             let mut nb_weights = Array2::<f64>::zeros((0, weights.shape()[1]));
             let mut bb_weights = Array2::<f64>::zeros((0, weights.shape()[1]));
 
@@ -64,6 +69,8 @@ impl CnaEmission {
                 let key = (OrderedFloat(k), OrderedFloat(x));
 
                 if let Some(&index) = unique_nb_map.get(&key) {
+                    nb_mapping.push(index);
+
                     nb_weights
                         .row_mut(index)
                         .iter_mut()
@@ -77,6 +84,8 @@ impl CnaEmission {
                     unique_ks.push(k);
                     unique_xs.push(x);
 
+                    nb_mapping.push(new_index);
+
                     let new_row = weights_row.to_owned();
 
                     nb_weights.push_row(new_row.view()).unwrap();
@@ -87,6 +96,8 @@ impl CnaEmission {
                 let key = (OrderedFloat(b), OrderedFloat(n));
 
                 if let Some(&index) = unique_bb_map.get(&key) {
+                    bb_mapping.push(index);
+
                     bb_weights
                         .row_mut(index)
                         .iter_mut()
@@ -100,6 +111,8 @@ impl CnaEmission {
                     unique_bs.push(b);
                     unique_ns.push(n);
 
+                    bb_mapping.push(new_index);
+
                     let new_row = weights_row.to_owned();
                     bb_weights.push_row(new_row.view()).unwrap();
                 }
@@ -110,7 +123,9 @@ impl CnaEmission {
                 xs: unique_xs,
                 bs: unique_bs,
                 ns: unique_ns,
+                nb_mapping,
                 nb_weights,
+                bb_mapping,
                 bb_weights,
                 thread_pool,
             }
@@ -121,7 +136,9 @@ impl CnaEmission {
                 xs,
                 bs,
                 ns,
+                nb_mapping,
                 nb_weights: weights.clone(),
+                bb_mapping,
                 bb_weights: weights,
                 thread_pool,
             }
