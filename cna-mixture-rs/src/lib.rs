@@ -4,10 +4,13 @@ use itertools::izip;
 use ndarray::parallel::prelude::IndexedParallelIterator;
 use ndarray::parallel::prelude::IntoParallelRefIterator;
 use ndarray::parallel::prelude::ParallelIterator;
+use ndarray::{Array2, ArrayView2, Axis};
 use numpy::{PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
+use rayon::iter::IntoParallelIterator;
+
 use statrs::function::gamma::{digamma, ln_gamma};
 use std::collections::HashMap;
 use std::env;
@@ -17,13 +20,22 @@ pub struct CnaEmission {
     xs: Vec<f64>,
     bs: Vec<f64>,
     ns: Vec<f64>,
+    weights: Array2<f64>,
     nb_mapping: Option<Vec<usize>>,
     bb_mapping: Option<Vec<usize>>,
     thread_pool: ThreadPool,
 }
 
 impl CnaEmission {
-    pub fn new(ks: Vec<f64>, xs: Vec<f64>, bs: Vec<f64>, ns: Vec<f64>, compress: bool) -> Self {
+    pub fn new(
+        num_states: usize,
+        ks: Vec<f64>,
+        xs: Vec<f64>,
+        bs: Vec<f64>,
+        ns: Vec<f64>,
+        weights: Option<Array2<f64>>,
+        compress: bool,
+    ) -> Self {
         let num_threads = env::var("RAYON_NUM_THREADS")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -33,6 +45,10 @@ impl CnaEmission {
             .num_threads(num_threads)
             .build()
             .expect("Failed to build ThreadPool");
+
+        let weights = weights.unwrap_or_else(|| {
+            Array2::<f64>::from_elem((ks.len(), num_states), 1.0)
+        });
 
         if compress {
             let mut unique_nb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
@@ -89,6 +105,7 @@ impl CnaEmission {
                 xs: unique_xs,
                 bs: unique_bs,
                 ns: unique_ns,
+                weights,
                 nb_mapping: Some(nb_mapping),
                 bb_mapping: Some(bb_mapping),
                 thread_pool,
@@ -99,6 +116,7 @@ impl CnaEmission {
                 xs,
                 bs,
                 ns,
+                weights,
                 nb_mapping: None,
                 bb_mapping: None,
                 thread_pool,
@@ -111,7 +129,7 @@ impl CnaEmission {
             .install(|| nbinom(&self.ks, &self.xs, means, overdisp))
     }
 
-    pub fn nbinom_reduce(&self, means: &[f64], overdisp: f64, weights: Option<&[&[f64]]>) -> f64 {
+    pub fn nbinom_reduce(&self, means: &[f64], overdisp: f64, weights: ArrayView2<'_, f64>) -> f64 {
         self.thread_pool
             .install(|| nbinom_reduce(&self.ks, &self.xs, means, overdisp, weights))
     }
@@ -121,17 +139,12 @@ impl CnaEmission {
             .install(|| betabinom(&self.bs, &self.ns, alphas, betas))
     }
 
-    pub fn betabinom_reduce(
-        &self,
-        alphas: &[f64],
-        betas: &[f64],
-        weights: Option<&[&[f64]]>,
-    ) -> f64 {
+    pub fn betabinom_reduce(&self, alphas: &[f64], betas: &[f64]) -> f64 {
         self.thread_pool
-            .install(|| betabinom_reduce(&self.bs, &self.ns, alphas, betas, weights))
+            .install(|| betabinom_reduce(&self.bs, &self.ns, alphas, betas))
     }
 }
-
+/*
 #[pyclass]
 struct CnaEmissionRs {
     inner: CnaEmission,
@@ -176,6 +189,7 @@ impl CnaEmissionRs {
     fn nbinom_reduce(&self, means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> PyResult<f64> {
         let means = means.as_slice()?;
 
+
         Ok(self.inner.nbinom_reduce(means, overdisp))
     }
 
@@ -207,49 +221,43 @@ impl CnaEmissionRs {
         Ok(self.inner.betabinom_reduce(alphas, betas))
     }
 }
-
+*/
 //  NB  104.98 µs -> 70 µs (for all cores)
 pub fn nbinom_reduce(
     k: &[f64],
     x: &[f64],
     means: &[f64],
     overdisp: f64,
-    weights: Option<&[&[f64]]>,
+    weights: ArrayView2<'_, f64>,
 ) -> f64 {
     let rr = 1.0 / overdisp;
 
-    if let Some(weights) = weights {
-        let result: f64 = k
-            .par_iter()
-            .zip(x.par_iter())
-            .zip(weights.par_iter())
-            .map(|(k_val, &x_val, &weights_row)| {
-                let zero_point = -ln_gamma(1.0 + k_val);
+    let result: f64 = k
+        .par_iter()
+        .zip(x.par_iter())
+        .zip(weights.axis_iter(Axis(0)).into_par_iter())
+        .map(|((k_val, &x_val), weights_row)| {
+            let zero_point = -ln_gamma(1.0 + k_val);
 
-                means
-                    .iter()
-                    .zip(weights_row.iter())
-                    .map(|&mean_val, &weight| {
-                        let factor = 1.0 + overdisp * x_val * mean_val;
-                        let ln_pp = -factor.ln();
-                        let ln_qq = (1.0 - 1.0 / factor).ln();
+            means
+                .iter()
+                .zip(weights_row.iter())
+                .map(|(&mean_val, &weight)| {
+                    let factor = 1.0 + overdisp * x_val * mean_val;
+                    let ln_pp: f64 = -factor.ln();
+                    let ln_qq: f64 = (1.0 - 1.0 / factor).ln();
 
-                        let mut interim = zero_point;
-                        interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
-                        interim += ln_gamma(k_val + rr);
+                    let mut interim = zero_point;
+                    interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
+                    interim += ln_gamma(k_val + rr);
 
-                        weight * interim
-                    })
-                    .sum::<f64>()
-            })
-            .sum();
+                    weight * interim
+                })
+                .sum::<f64>()
+        })
+        .sum();
 
-        return result;
-    } else {
-        weights = vec![vec![1.0; means.len()]; k.len()];
-
-        return nbinom_reduce(k, x, means, overdisp, weights);
-    }
+    return result;
 }
 
 //  NB  264.86 µs -> 91.962 µs
@@ -585,7 +593,7 @@ fn ln_transition_probs_rs<'py>(
 #[pymodule]
 #[pyo3(name = "core")]
 fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_class::<CnaEmissionRs>()?;
+    //  m.add_class::<CnaEmissionRs>()?;
     m.add_function(wrap_pyfunction!(nbinom_rs, m)?)?;
     m.add_function(wrap_pyfunction!(betabinom_rs, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_nb_rs, m)?)?;
@@ -604,6 +612,33 @@ mod tests {
 
         let result = logsumexp(&array);
         let expected = 3.4076059644443806;
+
+        assert!(
+            (result - expected).abs() < 1e-6,
+            "result: {}, expected: {}",
+            result,
+            expected
+        );
+    }
+
+    #[test]
+    fn test_nbinom_reduce() {
+        let k = vec![1.0, 2.0, 3.0];
+        let x = vec![0.5, 1.5, 2.5];
+        let means = vec![1.0, 2.0, 3.0];
+        let overdisp = 0.1;
+
+        let weights = vec![
+            vec![1.0, 0.8, 0.6],
+            vec![0.9, 0.7, 0.5],
+            vec![0.8, 0.6, 0.4],
+        ];
+
+        let weights: Vec<f64> = weights.into_iter().flatten().collect();
+        let weights = Array2::from_shape_vec((3, 3), weights).unwrap();
+
+        let result = nbinom_reduce(&k, &x, &means, overdisp, weights.view());
+        let expected = -7.158349;
 
         assert!(
             (result - expected).abs() < 1e-6,
