@@ -49,7 +49,6 @@ class CNA_emission_backend:
     """
     python equivalent validation class for CnaEmissionRs.
     """
-
     def __init__(self, num_states, ks, xs, bs, ns, ws):
         # NB ks are NB derived.  xs (exposure) == T_n x lambda_g.
         self.ks = ks.copy()
@@ -165,19 +164,11 @@ class CNA_emission:
         return self.backend.nbinom_reduce(rdrs, rdr_overdispersion)
 
     def betabinom(self, params):
-        """
-        Returns (# sample, # state) array.
-        """
         *_, bafs, baf_overdispersion = self.unpack_params(params)
-
         return self.backend.betabinom(bafs, baf_overdispersion)
 
     def betabinom_reduce(self, params):
-        """
-        Returns (# sample, # state) array.
-        """
         *_, bafs, baf_overdispersion = self.unpack_params(params)
-
         return self.backend.betabinom_reduce(bafs, baf_overdispersion)
 
     def emission(self, params):
