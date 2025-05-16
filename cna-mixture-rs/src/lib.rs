@@ -20,20 +20,19 @@ pub struct CnaEmission {
     xs: Vec<f64>,
     bs: Vec<f64>,
     ns: Vec<f64>,
-    weights: Array2<f64>,
-    nb_mapping: Option<Vec<usize>>,
-    bb_mapping: Option<Vec<usize>>,
+    nb_weights: Array2<f64>,
+    bb_weights: Array2<f64>,
     thread_pool: ThreadPool,
 }
 
 impl CnaEmission {
+    /*
     pub fn new(
-        num_states: usize,
         ks: Vec<f64>,
         xs: Vec<f64>,
         bs: Vec<f64>,
         ns: Vec<f64>,
-        weights: Option<Array2<f64>>,
+        weights: Array2<f64>,
         compress: bool,
     ) -> Self {
         let num_threads = env::var("RAYON_NUM_THREADS")
@@ -45,9 +44,6 @@ impl CnaEmission {
             .num_threads(num_threads)
             .build()
             .expect("Failed to build ThreadPool");
-
-        let weights =
-            weights.unwrap_or_else(|| Array2::<f64>::from_elem((ks.len(), num_states), 1.0));
 
         if compress {
             let mut unique_nb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
@@ -62,8 +58,8 @@ impl CnaEmission {
             let mut unique_bs: Vec<f64> = Vec::new();
             let mut unique_ns: Vec<f64> = Vec::new();
 
-            let mut nb_mapping: Vec<usize> = Vec::new();
-            let mut bb_mapping: Vec<usize> = Vec::new();
+            let mut nb_mapping: Vec<f64> = Vec::new();
+            let mut bb_mapping: Vec<f64> = Vec::new();
 
             for (&k, &x) in izip!(ks.iter(), xs.iter()) {
                 let key = (OrderedFloat(k), OrderedFloat(x));
@@ -122,15 +118,118 @@ impl CnaEmission {
             }
         }
     }
+    */
+
+    pub fn new(
+        ks: Vec<f64>,
+        xs: Vec<f64>,
+        bs: Vec<f64>,
+        ns: Vec<f64>,
+        weights: Array2<f64>,
+        compress: bool,
+    ) -> Self {
+        let num_threads = env::var("RAYON_NUM_THREADS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or_else(|| num_cpus::get());
+
+        let thread_pool = ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            .build()
+            .expect("Failed to build ThreadPool");
+
+        if compress {
+            let mut unique_nb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
+                HashMap::new();
+
+            let mut unique_bb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
+                HashMap::new();
+
+            let mut unique_ks: Vec<f64> = Vec::new();
+            let mut unique_xs: Vec<f64> = Vec::new();
+
+            let mut unique_bs: Vec<f64> = Vec::new();
+            let mut unique_ns: Vec<f64> = Vec::new();
+
+            let mut nb_weights = Array2::<f64>::zeros((0, weights.shape()[1]));
+            let mut bb_weights = Array2::<f64>::zeros((0, weights.shape()[1]));
+
+            for (&k, &x, weights_row) in izip!(ks.iter(), xs.iter(), weights.axis_iter(Axis(0)).into_iter()) {
+                let key = (OrderedFloat(k), OrderedFloat(x));
+
+                if let Some(&index) = unique_nb_map.get(&key) {
+                    nb_weights
+                        .row_mut(index)
+                        .iter_mut()
+                        .zip(weights_row.iter())
+                        .for_each(|(w, &v)| *w += v);
+                } else {
+                    let new_index = unique_ks.len();
+
+                    unique_nb_map.insert(key, new_index);
+
+                    unique_ks.push(k);
+                    unique_xs.push(x);
+
+                    let new_row = weights_row.to_owned();
+
+                    nb_weights.push_row(new_row.view()).unwrap();
+                }
+            }
+
+            for (&b, &n, weights_row) in izip!(bs.iter(), ns.iter(), weights.axis_iter(Axis(0)).into_iter()) {
+                let key = (OrderedFloat(b), OrderedFloat(n));
+
+                if let Some(&index) = unique_bb_map.get(&key) {
+                    bb_weights
+                        .row_mut(index)
+                        .iter_mut()
+                        .zip(weights_row.iter())
+                        .for_each(|(w, &v)| *w += v);
+                } else {
+                    let new_index = unique_bs.len();
+
+                    unique_bb_map.insert(key, new_index);
+
+                    unique_bs.push(b);
+                    unique_ns.push(n);
+
+                    let new_row = weights_row.to_owned();
+                    bb_weights.push_row(new_row.view()).unwrap();
+                }
+            }
+
+            CnaEmission {
+                ks: unique_ks,
+                xs: unique_xs,
+                bs: unique_bs,
+                ns: unique_ns,
+                nb_weights,
+                bb_weights,
+                thread_pool,
+            }
+        } else {
+            // In the uncompressed case, use the original weights
+            CnaEmission {
+                ks,
+                xs,
+                bs,
+                ns,
+                nb_weights: weights.clone(),
+                bb_weights: weights,
+                thread_pool,
+            }
+        }
+    }
 
     pub fn nbinom(&self, means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
         self.thread_pool
             .install(|| nbinom(&self.ks, &self.xs, means, overdisp))
     }
 
-    pub fn nbinom_reduce(&self, means: &[f64], overdisp: f64, weights: ArrayView2<'_, f64>) -> f64 {
+    pub fn nbinom_reduce(&self, means: &[f64], overdisp: f64) -> f64 {
         self.thread_pool
-            .install(|| nbinom_reduce(&self.ks, &self.xs, means, overdisp, weights))
+            .install(|| nbinom_reduce(&self.ks, &self.xs, means, overdisp, self.nb_weights.view()))
     }
 
     pub fn betabinom(&self, alphas: &[f64], betas: &[f64]) -> Vec<Vec<f64>> {
@@ -142,10 +241,9 @@ impl CnaEmission {
         &self,
         alphas: &[f64],
         betas: &[f64],
-        weights: ArrayView2<'_, f64>,
     ) -> f64 {
         self.thread_pool
-            .install(|| betabinom_reduce(&self.bs, &self.ns, alphas, betas, weights))
+            .install(|| betabinom_reduce(&self.bs, &self.ns, alphas, betas, self.bb_weights.view()))
     }
 }
 /*
@@ -728,10 +826,10 @@ mod tests {
         let interim = betabinom(&k, &n, &a, &b);
         let interim =
             Array2::from_shape_vec((3, 3), interim.into_iter().flatten().collect()).unwrap();
-            
+
         let exp = (interim * &weights).sum();
 
-        //  println!("{}  {}", result, exp); 
+        //  println!("{}  {}", result, exp);
 
         assert!(
             (result - exp).abs() < 1e-6,

@@ -47,20 +47,23 @@ fn benchmark_CnaEmission(c: &mut Criterion) {
     let bs: Vec<f64> = (10..=1_000).map(|x| x as f64).collect();
     let ns: Vec<f64> = bs.clone().into_iter().map(|x| 10. * x).collect();
 
-    let cna_em = CnaEmission::new(ks, xs, bs, ns, true);
-
     let means: Vec<f64> = (10..=20).map(|x| (x as f64)).collect();
     let weights = Array2::from_elem((ks.len(), means.len()), 1.0);
 
+    let cna_em = CnaEmission::new(ks, xs, bs, ns, weights, true);
+
     c.bench_function("nbinom", |b| {
         b.iter(|| {
-            let _result = cna_em.nbinom(black_box(&means), black_box(0.01));
+            cna_em.nbinom(black_box(&means), black_box(0.01));
         })
     });
 
     c.bench_function("nbinom_reduce", |b| {
         b.iter(|| {
-            cna_em.nbinom_reduce(black_box(&means), black_box(0.01), black_box(weights.view()));
+            cna_em.nbinom_reduce(
+                black_box(&means),
+                black_box(0.01),
+            );
         })
     });
 
@@ -75,7 +78,7 @@ fn benchmark_CnaEmission(c: &mut Criterion) {
 
     c.bench_function("betabinom_reduce", |b| {
         b.iter(|| {
-            let cna_em.betabinom_reduce(black_box(&alphas), black_box(&betas), black_box(weights.view()));
+            cna_em.betabinom_reduce(black_box(&alphas), black_box(&betas));
         })
     });
 }
