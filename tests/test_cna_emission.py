@@ -50,7 +50,6 @@ def emission(emission_params):
     xs = normal_coverage * np.ones_like(ks)
 
     bs = betabinom.rvs(snp_coverage, betas, alphas, size=10_000).astype(np.float64)
-
     ns = snp_coverage * np.ones_like(bs).astype(np.float64)
 
     return CNA_emission(num_states, ks, xs, bs, ns)
@@ -93,7 +92,6 @@ def test_cna_emission_rs_nb(benchmark, emission, emission_params, compress):
         npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
 
 
-# TODO reduce with compress
 @pytest.mark.parametrize("compress", [True, False])
 def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
     _, _, bafs, tau = emission_params
@@ -109,18 +107,13 @@ def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
     result = benchmark(lambda: cna_em.betabinom_reduce(alphas, betas))
 
     if compress is False:
-        base = betabinom_rs(emission.ks, emission.xs, alphas, betas)
+        base = betabinom_rs(emission.bs, emission.ns, alphas, betas)
 
-        valid = np.isclose(cna_em.betabinom(alphas, betas), base, rtol=1.0e-2, atol=1.0e-2)
-
-        print(valid.mean())
-        
-        # assert all(valid)
+        npt.assert_allclose(cna_em.betabinom(alphas, betas), base, rtol=1.0e-2, atol=1.0e-2)
         
         exp = (weights * base).sum()
 
-        # TODO fails.
-        # npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
+        npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
 
 
 def test_CNA_emission_bb(emission, emission_params):
