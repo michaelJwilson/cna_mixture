@@ -16,26 +16,21 @@ use std::collections::HashMap;
 use std::env;
 
 pub struct CnaEmission {
+    num_states: usize,
     ks: Vec<f64>,
     xs: Vec<f64>,
     bs: Vec<f64>,
     ns: Vec<f64>,
     nb_mapping: Vec<usize>,
-    nb_weights: Array2<f64>,
     bb_mapping: Vec<usize>,
+    nb_weights: Array2<f64>,
     bb_weights: Array2<f64>,
     thread_pool: ThreadPool,
     compress: bool,
 }
 
 impl CnaEmission {
-    pub fn new(
-        ks: Vec<f64>,
-        xs: Vec<f64>,
-        bs: Vec<f64>,
-        ns: Vec<f64>,
-        compress: bool,
-    ) -> Self {
+    pub fn new(num_states: usize, ks: Vec<f64>, xs: Vec<f64>, bs: Vec<f64>, ns: Vec<f64>, compress: bool) -> Self {
         let num_threads = env::var("RAYON_NUM_THREADS")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -62,22 +57,12 @@ impl CnaEmission {
             let mut nb_mapping: Vec<usize> = Vec::new();
             let mut bb_mapping: Vec<usize> = Vec::new();
 
-            let mut nb_weights = Array2::<f64>::zeros((0, weights.shape()[1]));
-            let mut bb_weights = Array2::<f64>::zeros((0, weights.shape()[1]));
-
-            for (&k, &x, weights_row) in
-                izip!(ks.iter(), xs.iter(), weights.axis_iter(Axis(0)).into_iter())
+            for (&k, &x) in izip!(ks.iter(), xs.iter())
             {
                 let key = (OrderedFloat(k), OrderedFloat(x));
 
                 if let Some(&index) = unique_nb_map.get(&key) {
                     nb_mapping.push(index);
-
-                    nb_weights
-                        .row_mut(index)
-                        .iter_mut()
-                        .zip(weights_row.iter())
-                        .for_each(|(w, &v)| *w += v);
                 } else {
                     let new_index = unique_ks.len();
 
@@ -87,26 +72,15 @@ impl CnaEmission {
                     unique_xs.push(x);
 
                     nb_mapping.push(new_index);
-
-                    let new_row = weights_row.to_owned();
-
-                    nb_weights.push_row(new_row.view()).unwrap();
                 }
             }
 
-            for (&b, &n, weights_row) in
-                izip!(bs.iter(), ns.iter(), weights.axis_iter(Axis(0)).into_iter())
+            for (&b, &n) in izip!(bs.iter(), ns.iter())
             {
                 let key = (OrderedFloat(b), OrderedFloat(n));
 
                 if let Some(&index) = unique_bb_map.get(&key) {
                     bb_mapping.push(index);
-
-                    bb_weights
-                        .row_mut(index)
-                        .iter_mut()
-                        .zip(weights_row.iter())
-                        .for_each(|(w, &v)| *w += v);
                 } else {
                     let new_index = unique_bs.len();
 
@@ -116,35 +90,37 @@ impl CnaEmission {
                     unique_ns.push(n);
 
                     bb_mapping.push(new_index);
-
-                    let new_row = weights_row.to_owned();
-                    bb_weights.push_row(new_row.view()).unwrap();
                 }
             }
 
+            let weights = Array2::from_elem((unique_ks.len(), num_states), 1.0);
+
             CnaEmission {
+                num_states,
                 ks: unique_ks,
                 xs: unique_xs,
                 bs: unique_bs,
                 ns: unique_ns,
                 nb_mapping,
-                nb_weights,
                 bb_mapping,
-                bb_weights,
+                nb_weights: weights.clone(),
+                bb_weights: weights,
                 thread_pool,
                 compress,
             }
         } else {
             let num_obs = ks.len();
+            let	weights	= Array2::from_elem((ks.len(), num_states), 1.0);
 
             CnaEmission {
+                num_states,
                 ks,
                 xs,
                 bs,
                 ns,
                 nb_mapping: (0..num_obs).collect(),
-                nb_weights: weights.clone(),
                 bb_mapping: (0..num_obs).collect(),
+                nb_weights: weights.clone(),
                 bb_weights: weights,
                 thread_pool,
                 compress,
@@ -152,7 +128,8 @@ impl CnaEmission {
         }
     }
 
-    pub fn compress(&self, weights: Array2<f64>) -> Array2<f64> {
+    pub fn update_weights(&mut self, weights: ArrayView2<'_, f64>) {
+        //  TODO if no compression, assign directly.
         let mut nb_weights = Array2::<f64>::zeros((self.ks.len(), weights.shape()[1]));
         let mut bb_weights = Array2::<f64>::zeros((self.ks.len(), weights.shape()[1]));
 
@@ -176,7 +153,8 @@ impl CnaEmission {
                 });
         }
 
-        (nb_weights, bb_weights)
+        self.nb_weights = nb_weights;
+        self.bb_weights = bb_weights;
     }
 
     pub fn nbinom(&self, means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
@@ -243,11 +221,11 @@ struct CnaEmissionRs {
 impl CnaEmissionRs {
     #[new]
     fn new(
+        num_states: usize,
         ks: PyReadonlyArray1<'_, f64>,
         xs: PyReadonlyArray1<'_, f64>,
         bs: PyReadonlyArray1<'_, f64>,
         ns: PyReadonlyArray1<'_, f64>,
-        ws: PyReadonlyArray2<'_, f64>,
         compress: bool,
     ) -> PyResult<Self> {
         let ks = ks.as_slice()?.to_vec();
@@ -255,9 +233,7 @@ impl CnaEmissionRs {
         let bs = bs.as_slice()?.to_vec();
         let ns = ns.as_slice()?.to_vec();
 
-        let ws = ws.as_array().to_owned();
-
-        let inner = CnaEmission::new(ks, xs, bs, ns, ws, compress);
+        let inner = CnaEmission::new(num_states, ks, xs, bs, ns, compress);
 
         Ok(CnaEmissionRs { inner })
     }
@@ -268,6 +244,15 @@ impl CnaEmissionRs {
 
     fn bb_mapping(&self) -> Vec<usize> {
         self.inner.bb_mapping.clone()
+    }
+
+    fn update_weights(
+       &mut self,
+       weights: PyReadonlyArray2<'_, f64>,
+    ) {
+       let ws = weights.as_array();
+
+       self.inner.update_weights(ws);
     }
 
     fn nbinom(
@@ -284,7 +269,11 @@ impl CnaEmissionRs {
         Ok(array.to_owned())
     }
 
-    fn nbinom_reduce(&self, means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> PyResult<f64> {
+    fn nbinom_reduce(
+        &self,
+        means: PyReadonlyArray1<'_, f64>,
+        overdisp: f64,
+    ) -> PyResult<f64> {
         let means = means.as_slice()?;
 
         Ok(self.inner.nbinom_reduce(means, overdisp))
