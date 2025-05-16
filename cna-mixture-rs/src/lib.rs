@@ -148,22 +148,6 @@ impl CnaEmissionCompressed {
     }
 
     pub fn update_weights(&mut self, weights: ArrayView2<'_, f64>) {
-        assert_eq!(
-            self.ks.len(),
-            weights.shape()[0],
-            "Expected array shape: {:?}, but found: {:?}",
-            (self.ks.len(), self.num_states),
-            (weights.shape()[0], weights.shape()[1])
-        );
-
-        assert_eq!(
-            self.num_states,
-            weights.shape()[1],
-            "Expected array shape: {:?}, but found: {:?}",
-            (self.ks.len(), self.num_states),
-            (weights.shape()[0], weights.shape()[1])
-        );
-
         let mut nb_weights = Array2::<f64>::zeros((self.ks.len(), weights.shape()[1]));
         let mut bb_weights = Array2::<f64>::zeros((self.ks.len(), weights.shape()[1]));
 
