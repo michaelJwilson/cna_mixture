@@ -132,7 +132,6 @@ impl CnaEmission {
         } else {
             let num_obs = ks.len();
 
-            // In the uncompressed case, use the original weights
             CnaEmission {
                 ks,
                 xs,

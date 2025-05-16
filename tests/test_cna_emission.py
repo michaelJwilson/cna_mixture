@@ -104,13 +104,18 @@ def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
     cna_em = CnaEmissionRs(
         emission.ks, emission.xs, emission.bs, emission.ns, weights, compress=compress
     )
-
+    
     # TODO accept bafs, dispersion
     result = benchmark(lambda: cna_em.betabinom_reduce(alphas, betas))
 
     if compress is False:
-        exp = (weights * betabinom_rs(emission.ks, emission.xs, alphas, betas)).sum()
+        base = betabinom_rs(emission.ks, emission.xs, alphas, betas)
 
+        npt.assert_allclose(cna_em.betabinom(alphas, betas), base, rtol=1.0e-2, atol=1.0e-2)
+        
+        exp = (weights * base).sum()
+
+        # TODO fails.
         npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
 
 
