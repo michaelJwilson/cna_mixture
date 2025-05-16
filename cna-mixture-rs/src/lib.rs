@@ -136,9 +136,9 @@ impl CnaEmission {
                 xs,
                 bs,
                 ns,
-                nb_mapping,
+                nb_mapping: (0..ks.len()).collect(),
                 nb_weights: weights.clone(),
-                bb_mapping,
+                bb_mapping: (0..ks.len()).collect(),
                 bb_weights: weights,
                 thread_pool,
             }
@@ -196,6 +196,14 @@ impl CnaEmissionRs {
         let inner = CnaEmission::new(ks, xs, bs, ns, ws, compress);
 
         Ok(CnaEmissionRs { inner })
+    }
+
+    fn nb_mapping(&self) -> Vec<usize> {
+        self.inner.nb_mapping.clone()
+    }
+
+    fn bb_mapping(&self) -> Vec<usize> {
+	   self.inner.bb_mapping.clone()
     }
 
     fn nbinom(
