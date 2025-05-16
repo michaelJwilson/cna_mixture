@@ -1,4 +1,4 @@
-use cna_mixture_rs::{betabinom, betabinom_reduce, nbinom, nbinom_reduce, CnaEmission};
+use cna_mixture_rs::{betabinom, betabinom_reduce, nbinom, nbinom_reduce, CnaEmission, CnaEmissionCompressed};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ndarray::Array2;
 
@@ -52,7 +52,7 @@ fn benchmark_CnaEmission(c: &mut Criterion) {
 
     let num_states = means.len();
 
-    let mut cna_em = CnaEmission::new(num_states, ks, xs, bs, ns, true);
+    let mut cna_em = CnaEmissionCompressed::new(num_states, ks, xs, bs, ns);
     cna_em.update_weights(weights.view());
 
     c.bench_function("nbinom", |b| {
