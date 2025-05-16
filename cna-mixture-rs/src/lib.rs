@@ -175,7 +175,7 @@ impl CnaEmissionCompressed {
         self.bb_weights = bb_weights;
     }
 
-    // NB  compressed representation
+    // WARN compressed representation
     pub fn nbinom(&self, means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
         self.thread_pool
             .install(|| nbinom(&self.ks, &self.xs, means, overdisp))
@@ -186,7 +186,7 @@ impl CnaEmissionCompressed {
             .install(|| nbinom_reduce(&self.ks, &self.xs, means, overdisp, self.nb_weights.view()))
     }
 
-    // NB  compressed representation
+    // WARN compressed representation
     pub fn betabinom(&self, alphas: &[f64], betas: &[f64]) -> Vec<Vec<f64>> {
         self.thread_pool
             .install(|| betabinom(&self.bs, &self.ns, alphas, betas))
