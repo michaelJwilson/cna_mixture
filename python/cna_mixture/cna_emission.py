@@ -59,22 +59,26 @@ class CNA_emission_backed_rs:
         self.bs = bs.copy()
         self.ns = ns.copy()
 
-        self.ws = np.ones((len(ks), num_states), dtype=float) if ws is None else ws
-
         self.compress = compress
         self.num_states = num_states
 
         self.engine = CnaEmissionRs(
+            num_states,
             self.ks,
             self.xs,
             self.bs,
             self.ns,
-            self.ws,
             compress,
         )
 
+        if ws is not None:
+            self.engine.update_weights(ws)
+
         logger.info("Initialized rust emission class.")
 
+    def update_weights(self, weights):
+        self.engine.update_weights(weights)
+        
     def nbinom(self, rdrs, rdr_overdispersion):
         return self.engine.nbinom(rdrs, rdr_overdispersion)
 
@@ -122,6 +126,9 @@ class CNA_emission_backend:
 
         logger.info("Initialized (python) validation emission class.")
 
+    def update_weights(self, ws):
+        self.ws = ws
+        
     def nbinom(self, rdrs, rdr_overdispersion):
         """
         Evaluate log prob. under NegativeBinom model.
@@ -180,15 +187,36 @@ class CNA_emission:
     def __init__(
         self, num_states, ks, xs, bs, ns, ws=None, backend="rust", compress=True
     ):
+        self.length = len(ks)
         self.num_states = num_states
-
+        
         if backend == "rust":
             self.backend = CNA_emission_backed_rs(
                 num_states, ks, xs, bs, ns, ws, compress=compress
             )
         else:
+            
             self.backend = CNA_emission_backend(num_states, ks, xs, bs, ns, ws)
 
+    @property
+    def ks(self):
+        return self.backend.ks
+
+    @property
+    def	xs(self):
+        return self.backend.xs
+
+    @property
+    def	bs(self):
+        return self.backend.bs
+
+    @property
+    def	ns(self):
+        return self.backend.ns
+    
+    def __len__(self):
+        return len(self.ks)
+            
     def unpack_params(self, params):
         """
         Given a cost parameter vector, unpack into named cna mixture
@@ -213,6 +241,9 @@ class CNA_emission:
         rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
         return np.c_[rdrs, bafs]
 
+    def update_weights(self):
+        self.backend.update_weights(ws)
+    
     def nbinom(self, params):
         rdrs, rdr_overdispersion, *_ = self.unpack_params(params)
         return self.backend.nbinom(rdrs, rdr_overdispersion)

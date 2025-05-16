@@ -5,7 +5,6 @@ import numpy as np
 import numpy.testing as npt
 from cna_mixture.cna_emission import (
     CNA_emission,
-    cna_mixture_nbinom_eval,
     reparameterize_beta_binom,
     reparameterize_nbinom,
 )
@@ -78,12 +77,14 @@ def test_betabinom_rs(benchmark, emission, emission_params):
 def test_cna_emission_rs_nb(benchmark, emission, emission_params, compress):
     rdrs, phi, _, _ = emission_params
 
-    weights = np.random.uniform(size=(len(emission.ks), len(rdrs)))
+    weights = np.random.uniform(size=(emission.length, emission.num_states))
     
     cna_em = CnaEmissionRs(
-        emission.ks, emission.xs, emission.bs, emission.ns, weights, compress=compress
+        emission.num_states, emission.ks, emission.xs, emission.bs, emission.ns, compress=compress
     )
-
+    
+    cna_em.update_weights(weights)
+    
     result = benchmark(lambda: cna_em.nbinom_reduce(rdrs, phi))
 
     if compress is False:
@@ -100,8 +101,10 @@ def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
     weights = np.random.uniform(size=(len(emission.ks), len(alphas)))
     
     cna_em = CnaEmissionRs(
-        emission.ks, emission.xs, emission.bs, emission.ns, weights, compress=compress
+        emission.num_states, emission.ks, emission.xs, emission.bs, emission.ns, compress=compress
     )
+    
+    cna_em.update_weights(weights)
     
     # TODO accept bafs, dispersion
     result = benchmark(lambda: cna_em.betabinom_reduce(alphas, betas))
