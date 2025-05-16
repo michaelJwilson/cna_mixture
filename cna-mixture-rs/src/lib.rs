@@ -149,7 +149,7 @@ impl CnaEmissionCompressed {
 
     pub fn update_weights(&mut self, weights: ArrayView2<'_, f64>) {
         let mut nb_weights = Array2::<f64>::zeros((self.ks.len(), weights.shape()[1]));
-        let mut bb_weights = Array2::<f64>::zeros((self.ks.len(), weights.shape()[1]));
+        let mut bb_weights = Array2::<f64>::zeros((self.bs.len(), weights.shape()[1]));
 
         for (obs_idx, &map_idx) in self.nb_mapping.iter().enumerate() {
             nb_weights

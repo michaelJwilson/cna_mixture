@@ -163,6 +163,12 @@ class CNA_inference:
         
         self.state_posteriors = np.exp(self.ln_state_posteriors)
 
+        nb_mapping = np.array(self.emission_model.backend.engine_compressed.nb_mapping())
+        
+        print(self.state_posteriors.shape, len(self.data), len(nb_mapping), nb_mapping.min(), nb_mapping.max())
+
+        # exit(0)
+        
         self.emission_model.update_weights(self.state_posteriors)
         
     def pstep(self):
