@@ -1,6 +1,6 @@
-use ndarray::Array2;
 use cna_mixture_rs::{betabinom, betabinom_reduce, nbinom, nbinom_reduce, CnaEmission};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use ndarray::Array2;
 
 fn benchmark_cna_emission(c: &mut Criterion) {
     let ks: Vec<f64> = (1_000..=2_000).map(|x| x as f64).collect();
@@ -14,7 +14,13 @@ fn benchmark_cna_emission(c: &mut Criterion) {
 
     c.bench_function("nbinom_reduce", |b| {
         b.iter(|| {
-            nbinom_reduce(black_box(&ks), black_box(&xs), black_box(&means), black_box(0.01), black_box(weights.view()));
+            nbinom_reduce(
+                black_box(&ks),
+                black_box(&xs),
+                black_box(&means),
+                black_box(0.01),
+                black_box(weights.view()),
+            );
         })
     });
 
@@ -23,7 +29,13 @@ fn benchmark_cna_emission(c: &mut Criterion) {
 
     c.bench_function("betabinom_reduce", |b| {
         b.iter(|| {
-            betabinom_reduce(black_box(&bs), black_box(&ns), black_box(&alphas), black_box(&betas), black_box(weights.view()));
+            betabinom_reduce(
+                black_box(&bs),
+                black_box(&ns),
+                black_box(&alphas),
+                black_box(&betas),
+                black_box(weights.view()),
+            );
         })
     });
 }

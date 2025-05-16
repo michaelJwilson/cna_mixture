@@ -697,6 +697,42 @@ mod tests {
 
         let exp = (interim * &weights).sum();
 
+        //  println!("{}  {}", result, exp);
+
+        assert!(
+            (result - exp).abs() < 1e-6,
+            "result: {}, expected: {}",
+            result,
+            exp
+        );
+    }
+
+    #[test]
+    fn test_betabinom_reduce() {
+        let k = vec![1.0, 2.0, 3.0];
+        let n = vec![5.0, 6.0, 7.0];
+        let a = vec![1.0, 2.0, 3.0];
+        let b = vec![4.0, 5.0, 6.0];
+
+        let weights = vec![
+            vec![1.0, 0.8, 0.6],
+            vec![0.9, 0.7, 0.5],
+            vec![0.8, 0.6, 0.4],
+        ];
+
+        let weights: Vec<f64> = weights.into_iter().flatten().collect();
+        let weights = Array2::from_shape_vec((3, 3), weights).unwrap();
+
+        let result = betabinom_reduce(&k, &n, &a, &b, weights.view());
+
+        let interim = betabinom(&k, &n, &a, &b);
+        let interim =
+            Array2::from_shape_vec((3, 3), interim.into_iter().flatten().collect()).unwrap();
+            
+        let exp = (interim * &weights).sum();
+
+        //  println!("{}  {}", result, exp); 
+
         assert!(
             (result - exp).abs() < 1e-6,
             "result: {}, expected: {}",
