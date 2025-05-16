@@ -121,6 +121,7 @@ class CNA_emission:
         bs = bs.copy()
         ns = ns.copy()
 
+        # NB initialized weights is sensible due to compress capability.
         ws = np.ones((len(ks), num_states), dtype=float) if ws is None else ws
 
         self.num_states = num_states
