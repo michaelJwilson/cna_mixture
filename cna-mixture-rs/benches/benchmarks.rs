@@ -40,7 +40,6 @@ fn benchmark_cna_emission(c: &mut Criterion) {
     });
 }
 
-/*
 fn benchmark_CnaEmission(c: &mut Criterion) {
     let ks: Vec<f64> = (1_000..=2_000).map(|x| x as f64).collect();
     let xs: Vec<f64> = ks.clone().into_iter().map(|x| 2. * x).collect();
@@ -51,6 +50,7 @@ fn benchmark_CnaEmission(c: &mut Criterion) {
     let cna_em = CnaEmission::new(ks, xs, bs, ns, true);
 
     let means: Vec<f64> = (10..=20).map(|x| (x as f64)).collect();
+    let weights = Array2::from_elem((ks.len(), means.len()), 1.0);
 
     c.bench_function("nbinom", |b| {
         b.iter(|| {
@@ -60,7 +60,7 @@ fn benchmark_CnaEmission(c: &mut Criterion) {
 
     c.bench_function("nbinom_reduce", |b| {
         b.iter(|| {
-            let _result = cna_em.nbinom_reduce(black_box(&means), black_box(0.01));
+            cna_em.nbinom_reduce(black_box(&means), black_box(0.01), black_box(weights.view()));
         })
     });
 
@@ -75,13 +75,12 @@ fn benchmark_CnaEmission(c: &mut Criterion) {
 
     c.bench_function("betabinom_reduce", |b| {
         b.iter(|| {
-            let _result = cna_em.betabinom_reduce(black_box(&alphas), black_box(&betas));
+            let cna_em.betabinom_reduce(black_box(&alphas), black_box(&betas), black_box(weights.view()));
         })
     });
 }
-*/
 
-// criterion_group!(benches, benchmark_CnaEmission);
+criterion_group!(benches, benchmark_CnaEmission);
+//  criterion_group!(benches, benchmark_cna_emission);
 
-criterion_group!(benches, benchmark_cna_emission);
 criterion_main!(benches);
