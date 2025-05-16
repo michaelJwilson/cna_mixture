@@ -141,10 +141,9 @@ class CNA_inference:
 
         self.state_prior_model.initialize(**kwargs)
 
-        self.ln_state_emission = self.emission_model.get_ln_state_emission_update(
-            self.initial_params
-        )
+        self.ln_state_emission = self.emission_model.emission(self.initial_params)
 
+        # TODO BUG prior == posterior - emission.
         # NB Markov requires emission probabilities for all other states to define state prior.
         #    Categorical ignores
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors(
@@ -180,9 +179,7 @@ class CNA_inference:
 
         NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
         """
-        self.ln_state_emission = self.emission_model.get_ln_state_emission_update(
-            params
-        )
+        self.ln_state_emission = self.emission_model.emission(params)
 
         # NB responsibilites rik, where i is the sample and k is the state.
         #    this is *not* state-posterior weighted log-likelihood.

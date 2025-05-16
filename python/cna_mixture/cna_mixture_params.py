@@ -3,7 +3,6 @@ import logging
 import numpy as np
 
 from dataclasses import dataclass, field
-from cna_mixture.cna_emission import get_ln_state_emission
 from cna_mixture.plotting import plot_rdr_baf_flat
 
 logger = logging.getLogger(__name__)

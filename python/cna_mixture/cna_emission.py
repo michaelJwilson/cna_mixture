@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 from cna_mixture_rs.core import (
     nbinom_rs,
@@ -6,6 +7,8 @@ from cna_mixture_rs.core import (
 )
 from scipy.special import digamma
 from scipy.stats import betabinom, nbinom, poisson
+
+logger = logging.getLogger(__name__)
 
 
 def reparameterize_beta_binom(bafs, overdispersion):
@@ -45,11 +48,9 @@ def reparameterize_nbinom(means, overdisp):
     return np.ravel(rs), np.ravel(ps)
 
 
-class CNA_emission_backend:
-    """
-    python equivalent validation class for CnaEmissionRs.
-    """
-    def __init__(self, num_states, ks, xs, bs, ns, ws):
+class CNA_emission_backed_rs:
+    # NB patch class that handles bafs -> alphas, betas + delegates.
+    def __init__(self, num_states, ks, xs, bs, ns, ws=None, compress=True):
         # NB ks are NB derived.  xs (exposure) == T_n x lambda_g.
         self.ks = ks.copy()
         self.xs = xs.copy()
@@ -60,7 +61,53 @@ class CNA_emission_backend:
 
         self.ws = np.ones((len(ks), num_states), dtype=float) if ws is None else ws
 
+        self.compress = compress
         self.num_states = num_states
+
+        self.engine = CnaEmissionRs(
+            self.ks,
+            self.xs,
+            self.bs,
+            self.ns,
+            self.ws,
+            compress,
+        )
+
+        logger.info("Initialized rust emission class.")
+
+    def nbinom(self, rdrs, rdr_overdispersion):
+        return self.engine.nbinom(rdrs, rdr_overdispersion)
+
+    def nbinom_reduce(self, rdrs, rdr_overdispersion):
+        return self.engine.nbinom(rdrs, rdr_overdispersion)
+
+    def betabinom(self, bafs, baf_overdispersion):
+        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
+        return self.engine.betabinom(betas, alphas)
+
+    def betabinom_reduce(self, bafs, baf_overdispersion):
+        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
+        return self.engine.betabinom_reduce(betas, alphas)
+
+
+class CNA_emission_backend:
+    """
+    python equivalent validation class for CnaEmissionRs.
+    """
+    def __init__(self, num_states, ks, xs, bs, ns, ws=None):
+        # NB ks are NB derived.  xs (exposure) == T_n x lambda_g.
+        self.ks = ks
+        self.xs = xs
+
+        # NB bs and ns are BB derived.
+        self.bs = bs
+        self.ns = ns
+
+        self.ws = np.ones((len(ks), num_states), dtype=float) if ws is None else ws
+
+        self.num_states = num_states
+
+        logger.info("Initialized (python) validation emission class.")
 
     def nbinom(self, rdrs, rdr_overdispersion):
         """
@@ -90,11 +137,7 @@ class CNA_emission_backend:
         Evaluate log prob. under BetaBinom model given model parameter vector.
         Returns (# sample, # state) array.
         """
-        alphas, betas = reparameterize_beta_binom(
-            bafs,
-            baf_overdispersion,
-        )
-
+        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
         result = np.zeros((len(self.bs), len(alphas)))
 
         for col, (alpha, beta) in enumerate(zip(alphas, betas)):
@@ -105,31 +148,21 @@ class CNA_emission_backend:
 
     def betabinom_reduce(self, bafs, baf_overdispersion):
         result = self.cna_mixture_betabinom_update(bafs, baf_overdispersion)
-
         return (self.ws * result).sum()
 
 
 class CNA_emission:
     def __init__(
-        self, num_states, ks, xs, bs, ns, ws=None, backend=None, compress=False
+        self, num_states, ks, xs, bs, ns, ws=None, backend="rust", compress=True
     ):
-        # NB ks are NB derived.  xs (exposure) == T_n x lambda_g.
-        ks = ks.copy()
-        xs = xs.copy()
-
-        # NB bs and ns are BB derived.
-        bs = bs.copy()
-        ns = ns.copy()
-
-        # NB initialized weights is sensible due to compress capability.
-        ws = np.ones((len(ks), num_states), dtype=float) if ws is None else ws
-
         self.num_states = num_states
 
-        if backend is None:
-            self.backend = CNA_emission_backend(num_states, ks, xs, bs, ns, ws)
+        if backend is "rust":
+            self.backend = CNA_emission_backed_rs(
+                num_states, ks, xs, bs, ns, ws, compress=compress
+            )
         else:
-            self.backend = CnaEmissionRs(ks, xs, bs, ns, ws, compress=compress)
+            self.backend = CNA_emission_backend(num_states, ks, xs, bs, ns, ws)
 
     def unpack_params(self, params):
         """
@@ -153,7 +186,6 @@ class CNA_emission:
 
     def get_states_bag(self, params):
         rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
-
         return np.c_[rdrs, bafs]
 
     def nbinom(self, params):

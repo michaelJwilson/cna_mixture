@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-from cna_mixture.cna_emission import get_ln_state_emission
+from cna_mixture.cna_emission import CNA_emission
 from cna_mixture.plotting import plot_rdr_baf_flat
 from cna_mixture.utils import deprecated
 
@@ -109,13 +109,16 @@ class CNA_mixture_initialize:
         return -cost
 
     @deprecated
-    def mixture_plusplus(self, ks, xs, ns, N=4, validate=False):
+    def mixture_plusplus(self, ks, xs, bs, ns, N=4, validate=False):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.
         """
         logger.info(f"Initializing CNA mixture params with {N}-greedy CNA_mixture++")
 
+        # TODO
+        em = CNA_emission(N, ks, xs, bs, ns, ws=None, backend=None, compress=True)
+        
         idx = np.arange(len(ks))
         samples = np.c_[ks, xs, ns]
 
