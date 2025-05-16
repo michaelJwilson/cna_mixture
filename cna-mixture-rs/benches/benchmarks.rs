@@ -17,6 +17,15 @@ fn benchmark_cna_emission(c: &mut Criterion) {
             nbinom_reduce(black_box(&ks), black_box(&xs), black_box(&means), black_box(0.01), black_box(weights.view()));
         })
     });
+
+    let alphas: Vec<f64> = (1..=10).map(|x| x as f64).collect();
+    let betas: Vec<f64> = (1..=10).map(|x| x as f64).collect();
+
+    c.bench_function("betabinom_reduce", |b| {
+        b.iter(|| {
+            betabinom_reduce(black_box(&bs), black_box(&ns), black_box(&alphas), black_box(&betas), black_box(weights.view()));
+        })
+    });
 }
 
 /*
