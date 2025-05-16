@@ -1,3 +1,4 @@
+use ndarray::Array2;
 use cna_mixture_rs::{betabinom, betabinom_reduce, nbinom, nbinom_reduce, CnaEmission};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
@@ -9,10 +10,11 @@ fn benchmark_cna_emission(c: &mut Criterion) {
     let ns: Vec<f64> = bs.clone().into_iter().map(|x| 10. * x).collect();
 
     let means: Vec<f64> = (10..=20).map(|x| (x as f64)).collect();
+    let weights = Array2::from_elem((ks.len(), means.len()), 1.0);
 
-    c.bench_function("nbinom", |b| {
+    c.bench_function("nbinom_reduce", |b| {
         b.iter(|| {
-            nbinom(&ks, &xs, black_box(&means), black_box(0.01));
+            nbinom_reduce(black_box(&ks), black_box(&xs), black_box(&means), black_box(0.01), black_box(weights.view()));
         })
     });
 }
