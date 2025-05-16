@@ -152,9 +152,17 @@ def test_CNA_emission_bb(emission, emission_params):
     assert np.array_equal(states_bag, np.array([[1.0, 0.2]]))
     assert unpacked == (rdrs, phi, bafs, tau)
 
+    alphas, betas = reparameterize_beta_binom(bafs, tau)
+    
     # NB >>>>>>  beta-binomial checks.
-    bb = emission.betabinom(params)
-
+    bb = CnaEmissionRs(
+        emission.num_states,
+        emission.ks,
+        emission.xs,
+        emission.bs,
+        emission.ns,
+    ).betabinom(betas, alphas)
+    
     exp = CNA_emission(
         emission.num_states,
         emission.ks,
@@ -174,17 +182,27 @@ def test_CNA_emission_nb(emission, emission_params):
     rdrs, phi, bafs, tau = emission_params
     params = np.array([*rdrs, phi, *bafs, tau])
 
-    # NB >>>>>>  nbinom checks.
-    rs_nb_update = emission.cna_mixture_nbinom_update(params)
+    nb = CnaEmissionRs(
+        emission.num_states,
+        emission.ks,
+        emission.xs,
+        emission.bs,
+        emission.ns,
+    ).nbinom(rdrs, phi)
 
-    emission.RUST_BACKEND = False
-
-    nb_update = emission.cna_mixture_nbinom_update(params)
-
-    npt.assert_allclose(rs_nb_update, nb_update, rtol=1.0e-5, atol=1.0e-8)
+    exp = CNA_emission(
+        emission.num_states,
+        emission.ks,
+        emission.xs,
+        emission.bs,
+        emission.ns,
+        backend=None,
+    ).nbinom(params)
+    
+    npt.assert_allclose(nb, exp, rtol=1.0e-5, atol=1.0e-8)
 
     # NB all log probabilites should be <= 0
-    assert np.all(nb_update <= 0.0)
+    assert np.all(nb <= 0.0)
 
 
 @pytest.mark.skip(reason="TODO rework gradient calc.")
