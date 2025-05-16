@@ -52,7 +52,7 @@ def emission(emission_params):
     bs = betabinom.rvs(snp_coverage, betas, alphas, size=10_000).astype(np.float64)
 
     ns = snp_coverage * np.ones_like(bs).astype(np.float64)
-    
+
     return CNA_emission(num_states, ks, xs, bs, ns)
 
 
@@ -71,7 +71,7 @@ def test_nbinom_rs(benchmark, emission, emission_params):
 def test_betabinom_rs(benchmark, emission, emission_params):
     _, _, bafs, tau = emission_params
     alphas, betas = reparameterize_beta_binom(bafs, tau)
-    
+
     benchmark(lambda: betabinom_rs(emission.bs, emission.ns, betas, alphas))
 
 
@@ -80,16 +80,19 @@ def test_betabinom_rs(benchmark, emission, emission_params):
 def test_cna_emission_rs_nb(benchmark, emission, emission_params, compress):
     rdrs, phi, _, _ = emission_params
 
+    weights = np.random.uniform(size=(len(emission.ks), len(rdrs)))
+    
     cna_em = CnaEmissionRs(
-        emission.ks, emission.xs, emission.bs, emission.ns, compress=compress
+        emission.ks, emission.xs, emission.bs, emission.ns, weights, compress=compress
     )
 
     result = benchmark(lambda: cna_em.nbinom_reduce(rdrs, phi))
 
     if compress is False:
-        exp = nbinom_rs(emission.ks, emission.xs, rdrs, phi).sum()
-
+        exp = (weights * nbinom_rs(emission.ks, emission.xs, rdrs, phi)).sum()
+        
         npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
+
 
 # TODO reduce with compress
 @pytest.mark.parametrize("compress", [True, False])
@@ -100,15 +103,15 @@ def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
     cna_em = CnaEmissionRs(
         emission.ks, emission.xs, emission.bs, emission.ns, compress=compress
     )
-    
+
     # TODO accept bafs, dispersion
     result = benchmark(lambda: cna_em.betabinom_reduce(alphas, betas))
 
     if compress is False:
         exp = betabinom_rs(emission.ks, emission.xs, alphas, betas).sum()
-    
+
         npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
-    
+
 
 def test_CNA_emission_bb(emission, emission_params):
     rdrs, phi, bafs, tau = emission_params
