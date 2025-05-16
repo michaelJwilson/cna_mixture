@@ -21,23 +21,11 @@ pub struct CnaEmission {
     xs: Vec<f64>,
     bs: Vec<f64>,
     ns: Vec<f64>,
-    nb_mapping: Vec<usize>,
-    bb_mapping: Vec<usize>,
-    nb_weights: Array2<f64>,
-    bb_weights: Array2<f64>,
     thread_pool: ThreadPool,
-    compress: bool,
 }
 
 impl CnaEmission {
-    pub fn new(
-        num_states: usize,
-        ks: Vec<f64>,
-        xs: Vec<f64>,
-        bs: Vec<f64>,
-        ns: Vec<f64>,
-        compress: bool,
-    ) -> Self {
+    pub fn new(num_states: usize, ks: Vec<f64>, xs: Vec<f64>, bs: Vec<f64>, ns: Vec<f64>) -> Self {
         let num_threads = env::var("RAYON_NUM_THREADS")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -48,93 +36,124 @@ impl CnaEmission {
             .build()
             .expect("Failed to build ThreadPool");
 
-        if compress {
-            let mut unique_nb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
-                HashMap::new();
+        let num_obs = ks.len();
+        let weights = Array2::from_elem((num_obs, num_states), 1.0);
 
-            let mut unique_bb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
-                HashMap::new();
+        CnaEmission {
+            num_states,
+            ks,
+            xs,
+            bs,
+            ns,
+            thread_pool,
+        }
+    }
 
-            let mut unique_ks: Vec<f64> = Vec::new();
-            let mut unique_xs: Vec<f64> = Vec::new();
+    // TODO return type?
+    pub fn nbinom(&self, means: &[f64], overdisp: f64) -> Array2<f64> {
+        self.thread_pool
+            .install(|| nbinom(&self.ks, &self.xs, means, overdisp));
+    }
 
-            let mut unique_bs: Vec<f64> = Vec::new();
-            let mut unique_ns: Vec<f64> = Vec::new();
+    // TODO return type?
+    pub fn betabinom(&self, alphas: &[f64], betas: &[f64]) -> Array2<f64> {
+        self.thread_pool
+            .install(|| betabinom(&self.bs, &self.ns, alphas, betas));
+    }
+}
 
-            let mut nb_mapping: Vec<usize> = Vec::new();
-            let mut bb_mapping: Vec<usize> = Vec::new();
+pub struct CnaEmissionCompressed {
+    num_states: usize,
+    ks: Vec<f64>,
+    xs: Vec<f64>,
+    bs: Vec<f64>,
+    ns: Vec<f64>,
+    nb_mapping: Vec<usize>,
+    bb_mapping: Vec<usize>,
+    nb_weights: Array2<f64>,
+    bb_weights: Array2<f64>,
+    thread_pool: ThreadPool,
+}
 
-            for (&k, &x) in izip!(ks.iter(), xs.iter()) {
-                let key = (OrderedFloat(k), OrderedFloat(x));
+impl CnaEmissionCompressed {
+    pub fn new(num_states: usize, ks: Vec<f64>, xs: Vec<f64>, bs: Vec<f64>, ns: Vec<f64>) -> Self {
+        let num_threads = env::var("RAYON_NUM_THREADS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or_else(|| num_cpus::get());
 
-                if let Some(&index) = unique_nb_map.get(&key) {
-                    nb_mapping.push(index);
-                } else {
-                    let new_index = unique_ks.len();
+        let thread_pool = ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            .build()
+            .expect("Failed to build ThreadPool");
 
-                    unique_nb_map.insert(key, new_index);
+        let mut unique_nb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
+            HashMap::new();
 
-                    unique_ks.push(k);
-                    unique_xs.push(x);
+        let mut unique_bb_map: HashMap<(OrderedFloat<f64>, OrderedFloat<f64>), usize> =
+            HashMap::new();
 
-                    nb_mapping.push(new_index);
-                }
+        let mut unique_ks: Vec<f64> = Vec::new();
+        let mut unique_xs: Vec<f64> = Vec::new();
+
+        let mut unique_bs: Vec<f64> = Vec::new();
+        let mut unique_ns: Vec<f64> = Vec::new();
+
+        let mut nb_mapping: Vec<usize> = Vec::new();
+        let mut bb_mapping: Vec<usize> = Vec::new();
+
+        for (&k, &x) in izip!(ks.iter(), xs.iter()) {
+            let key = (OrderedFloat(k), OrderedFloat(x));
+
+            if let Some(&index) = unique_nb_map.get(&key) {
+                nb_mapping.push(index);
+            } else {
+                let new_index = unique_ks.len();
+
+                unique_nb_map.insert(key, new_index);
+
+                unique_ks.push(k);
+                unique_xs.push(x);
+
+                nb_mapping.push(new_index);
             }
+        }
 
-            for (&b, &n) in izip!(bs.iter(), ns.iter()) {
-                let key = (OrderedFloat(b), OrderedFloat(n));
+        for (&b, &n) in izip!(bs.iter(), ns.iter()) {
+            let key = (OrderedFloat(b), OrderedFloat(n));
 
-                if let Some(&index) = unique_bb_map.get(&key) {
-                    bb_mapping.push(index);
-                } else {
-                    let new_index = unique_bs.len();
+            if let Some(&index) = unique_bb_map.get(&key) {
+                bb_mapping.push(index);
+            } else {
+                let new_index = unique_bs.len();
 
-                    unique_bb_map.insert(key, new_index);
+                unique_bb_map.insert(key, new_index);
 
-                    unique_bs.push(b);
-                    unique_ns.push(n);
+                unique_bs.push(b);
+                unique_ns.push(n);
 
-                    bb_mapping.push(new_index);
-                }
+                bb_mapping.push(new_index);
             }
+        }
 
-            let weights = Array2::from_elem((unique_ks.len(), num_states), 1.0);
+        let weights = Array2::from_elem((unique_ks.len(), num_states), 1.0);
 
-            CnaEmission {
-                num_states,
-                ks: unique_ks,
-                xs: unique_xs,
-                bs: unique_bs,
-                ns: unique_ns,
-                nb_mapping,
-                bb_mapping,
-                nb_weights: weights.clone(),
-                bb_weights: weights,
-                thread_pool,
-                compress,
-            }
-        } else {
-            let num_obs = ks.len();
-            let weights = Array2::from_elem((ks.len(), num_states), 1.0);
-
-            CnaEmission {
-                num_states,
-                ks,
-                xs,
-                bs,
-                ns,
-                nb_mapping: (0..num_obs).collect(),
-                bb_mapping: (0..num_obs).collect(),
-                nb_weights: weights.clone(),
-                bb_weights: weights,
-                thread_pool,
-                compress,
-            }
+        CnaEmissionCompressed {
+            num_states,
+            ks: unique_ks,
+            xs: unique_xs,
+            bs: unique_bs,
+            ns: unique_ns,
+            nb_mapping,
+            bb_mapping,
+            nb_weights: weights.clone(),
+            bb_weights: weights,
+            thread_pool,
+            compress,
         }
     }
 
     pub fn update_weights(&mut self, weights: ArrayView2<'_, f64>) {
-        //  TODO if no compression, assign directly.
         let mut nb_weights = Array2::<f64>::zeros((self.ks.len(), weights.shape()[1]));
         let mut bb_weights = Array2::<f64>::zeros((self.ks.len(), weights.shape()[1]));
 
@@ -164,7 +183,7 @@ impl CnaEmission {
 
     pub fn nbinom(&self, means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
         self.thread_pool
-            .install(|| nbinom(&self.ks, &self.xs, means, overdisp))
+            .install(|| nbinom(&self.ks, &self.xs, means, overdisp));
     }
 
     pub fn nbinom_reduce(&self, means: &[f64], overdisp: f64) -> f64 {
@@ -182,6 +201,7 @@ impl CnaEmission {
             .install(|| betabinom_reduce(&self.bs, &self.ns, alphas, betas, self.bb_weights.view()))
     }
 
+    /*
     pub fn emission(
         &self,
         means: &[f64],
@@ -215,15 +235,16 @@ impl CnaEmission {
 
         result
     }
+    */
 }
 
 #[pyclass]
-struct CnaEmissionRs {
+struct CnaEmissionCompressedRs {
     inner: CnaEmission,
 }
 
 #[pymethods]
-impl CnaEmissionRs {
+impl CnaEmissionCompressedRs {
     #[new]
     fn new(
         num_states: usize,
@@ -231,16 +252,15 @@ impl CnaEmissionRs {
         xs: PyReadonlyArray1<'_, f64>,
         bs: PyReadonlyArray1<'_, f64>,
         ns: PyReadonlyArray1<'_, f64>,
-        compress: bool,
     ) -> PyResult<Self> {
         let ks = ks.as_slice()?.to_vec();
         let xs = xs.as_slice()?.to_vec();
         let bs = bs.as_slice()?.to_vec();
         let ns = ns.as_slice()?.to_vec();
 
-        let inner = CnaEmission::new(num_states, ks, xs, bs, ns, compress);
+        let inner = CnaEmissionCompressed::new(num_states, ks, xs, bs, ns, compress);
 
-        Ok(CnaEmissionRs { inner })
+        Ok(CnaEmissionCompressedRs { inner })
     }
 
     fn nb_mapping(&self) -> Vec<usize> {
@@ -253,7 +273,6 @@ impl CnaEmissionRs {
 
     fn update_weights(&mut self, weights: PyReadonlyArray2<'_, f64>) {
         let ws = weights.as_array();
-
         self.inner.update_weights(ws);
     }
 
@@ -305,6 +324,7 @@ impl CnaEmissionRs {
         Ok(self.inner.betabinom_reduce(alphas, betas))
     }
 
+    /*
     fn emission(
         &self,
         py: Python,
@@ -339,6 +359,7 @@ impl CnaEmissionRs {
 
         Ok(self.inner.nbinom_reduce(means, overdisp) + self.inner.betabinom_reduce(alphas, betas))
     }
+    */
 }
 
 //  NB  104.98 µs -> 70 µs (for all cores)

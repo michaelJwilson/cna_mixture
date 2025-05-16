@@ -72,24 +72,29 @@ def test_betabinom_rs(benchmark, emission, emission_params):
 
     benchmark(lambda: betabinom_rs(emission.bs, emission.ns, betas, alphas))
 
-    
+
 @pytest.mark.parametrize("compress", [True, False])
 def test_cna_emission_rs_nb(benchmark, emission, emission_params, compress):
     rdrs, phi, _, _ = emission_params
 
     weights = np.random.uniform(size=(emission.length, emission.num_states))
-    
+
     cna_em = CnaEmissionRs(
-        emission.num_states, emission.ks, emission.xs, emission.bs, emission.ns, compress=compress
+        emission.num_states,
+        emission.ks,
+        emission.xs,
+        emission.bs,
+        emission.ns,
+        compress=compress,
     )
-    
+
     cna_em.update_weights(weights)
-    
+
     result = benchmark(lambda: cna_em.nbinom_reduce(rdrs, phi))
 
     if compress is False:
         exp = (weights * nbinom_rs(emission.ks, emission.xs, rdrs, phi)).sum()
-        
+
         npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
 
 
@@ -99,21 +104,28 @@ def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
     alphas, betas = reparameterize_beta_binom(bafs, tau)
 
     weights = np.random.uniform(size=(len(emission.ks), len(alphas)))
-    
+
     cna_em = CnaEmissionRs(
-        emission.num_states, emission.ks, emission.xs, emission.bs, emission.ns, compress=compress
+        emission.num_states,
+        emission.ks,
+        emission.xs,
+        emission.bs,
+        emission.ns,
+        compress=compress,
     )
-    
+
     cna_em.update_weights(weights)
-    
+
     # TODO accept bafs, dispersion
     result = benchmark(lambda: cna_em.betabinom_reduce(alphas, betas))
 
     if compress is False:
         base = betabinom_rs(emission.bs, emission.ns, alphas, betas)
 
-        npt.assert_allclose(cna_em.betabinom(alphas, betas), base, rtol=1.0e-2, atol=1.0e-2)
-        
+        npt.assert_allclose(
+            cna_em.betabinom(alphas, betas), base, rtol=1.0e-2, atol=1.0e-2
+        )
+
         exp = (weights * base).sum()
 
         npt.assert_allclose(result, exp, rtol=1.0e-2, atol=1.0e-2)
@@ -131,16 +143,21 @@ def test_CNA_emission_bb(emission, emission_params):
     assert unpacked == (rdrs, phi, bafs, tau)
 
     # NB >>>>>>  beta-binomial checks.
-    rs_bb_update = emission.cna_mixture_betabinom_update(params)
+    bb = emission.betabinom(params)
 
-    emission.RUST_BACKEND = False
+    exp = CNA_emission(
+        emission.num_states,
+        emission.ks,
+        emission.xs,
+        emission.bs,
+        emission.ns,
+        backend=None,
+    ).betabinom(params)
 
-    bb_update = emission.cna_mixture_betabinom_update(params)
-
-    npt.assert_allclose(rs_bb_update, bb_update, rtol=1.0e-5, atol=1.0e-8)
+    npt.assert_allclose(bb, exp, rtol=1.0e-5, atol=1.0e-8)
 
     # NB all log probabilites should be <= 0
-    assert np.all(bb_update <= 0.0)
+    assert np.all(bb <= 0.0)
 
 
 def test_CNA_emission_nb(emission, emission_params):
@@ -148,8 +165,6 @@ def test_CNA_emission_nb(emission, emission_params):
     params = np.array([*rdrs, phi, *bafs, tau])
 
     # NB >>>>>>  nbinom checks.
-    emission.RUST_BACKEND = True
-
     rs_nb_update = emission.cna_mixture_nbinom_update(params)
 
     emission.RUST_BACKEND = False
