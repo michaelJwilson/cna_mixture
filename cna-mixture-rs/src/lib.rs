@@ -244,6 +244,7 @@ pub fn nbinom_reduce(
                 .zip(weights_row.iter())
                 .map(|(&mean_val, &weight)| {
                     let factor = 1.0 + overdisp * x_val * mean_val;
+                    
                     let ln_pp: f64 = -factor.ln();
                     let ln_qq: f64 = (1.0 - 1.0 / factor).ln();
 
@@ -625,6 +626,7 @@ mod tests {
     fn test_nbinom_reduce() {
         let k = vec![1.0, 2.0, 3.0];
         let x = vec![0.5, 1.5, 2.5];
+        
         let means = vec![1.0, 2.0, 3.0];
         let overdisp = 0.1;
 
@@ -638,13 +640,17 @@ mod tests {
         let weights = Array2::from_shape_vec((3, 3), weights).unwrap();
 
         let result = nbinom_reduce(&k, &x, &means, overdisp, weights.view());
-        let expected = -7.158349;
+
+        let interim = nbinom(&k, &x, &means, overdisp);
+        let interim = Array2::from_shape_vec((3, 3), interim.into_iter().flatten().collect()).unwrap();
+        
+        let exp = (interim * &weights).sum();
 
         assert!(
-            (result - expected).abs() < 1e-6,
+            (result - exp).abs() < 1e-6,
             "result: {}, expected: {}",
             result,
-            expected
+            exp
         );
     }
 }
