@@ -259,39 +259,7 @@ pub fn nbinom_reduce(
 
     return result;
 }
-/*
-//  NB  264.86 µs -> 91.962 µs
-pub fn nbinom(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> Array2<f64> {
-    let rr = 1.0 / overdisp;
-    let mut result = Array2::<f64>::zeros((k.len(), means.len()));
 
-    result.axis_iter(Axis(0)).into_par_iter()
-        .zip(k.par_iter())
-        .zip(x.par_iter())
-        .map(|(weights_row, k_val, &x_val)| {
-            let zero_point = -ln_gamma(1.0 + k_val);
-
-            means
-                .iter()
-                .zip(weights_row.iter())
-                .map(|&mean_val, &weight_val| {
-                    let factor = 1.0 + overdisp * x_val * mean_val;
-                    let ln_pp = -factor.ln();
-                    let ln_qq = (1.0 - 1.0 / factor).ln();
-
-                    let mut interim = zero_point;
-
-                    interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
-                    interim += ln_gamma(k_val + rr);
-
-                    *weight_val = interim
-                })
-
-        });
-
-    result
-}
-*/
 //  NB  264.86 µs -> 91.962 µs
 pub fn nbinom(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
     let rr = 1.0 / overdisp;
