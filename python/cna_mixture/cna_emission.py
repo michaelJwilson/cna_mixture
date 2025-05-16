@@ -109,18 +109,6 @@ class CNA_emission_backend:
 
         return (self.ws * result).sum()
 
-    def emission(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):
-        ln_state_emission_betabinom = self.betabinom(bafs, baf_overdispersion)
-        ln_state_emission_nbinom = self.nbinom(rdrs, rdr_overdispersion)
-
-        # NB assumes independent
-        return ln_state_emission_betabinom + ln_state_emission_nbinom
-
-    def emission_reduce(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):
-        return self.nbinom_reduce(
-            rdrs, rdr_overdispersion
-        ) + self.cna_mixture_betabinom_reduce(bafs, baf_overdispersion)
-
 
 class CNA_emission:
     def __init__(
@@ -195,13 +183,18 @@ class CNA_emission:
     def emission(self, params):
         rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
 
-        return self.backend.emission(rdrs, rdr_overdispersion, bafs, baf_overdispersion)
+        # NB assumes independent
+        return self.backend.nbinom(rdrs, rdr_overdispersion) + self.backend.betabinom(
+            bafs, baf_overdispersion
+        )
 
     def emission_reduce(self, params):
         rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
-        return self.backend.emission_reduce(
-            rdrs, rdr_overdispersion, bafs, baf_overdispersion
-        )
+
+        # NB assumes independent
+        return self.backend.nbinom_reduce(
+            rdrs, rdr_overdispersion
+        ) + self.backend.betabinom_reduce(bafs, baf_overdispersion)
 
     """
     def grad_em_cost_nb(self, params, state_posteriors):

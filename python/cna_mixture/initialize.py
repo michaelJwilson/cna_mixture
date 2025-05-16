@@ -18,19 +18,19 @@ class CNA_mixture_initialize:
     ):
         self.seed = seed
         self.rng = np.random.default_rng(self.seed)
-        
+
         self.mode = mode
         self.params = mixture_params
 
     # TODO
     def run(self, rdr_baf=None, data=None):
-        match self.mode:        
+        match self.mode:
             case "random":
                 mixture_params, cost = self.random()
-                
+
             case "nonnormal":
                 mixture_params, cost = self.nonnormal(rdr_baf)
-                
+
             case "plusplus":
                 mixture_params, cost = self.plusplus(
                     self.data["read_coverage"],
@@ -42,7 +42,7 @@ class CNA_mixture_initialize:
                 raise ValueError(msg)
 
         return mixture_params, cost
-            
+
     def random(self):
         # NB list of (baf, rdr) for k=4 states, without replacement.
         integers = self.rng.choice(
@@ -57,11 +57,11 @@ class CNA_mixture_initialize:
         self.params.cna_states = np.array(
             [self.params.normal_state.tolist(), *cna_states]
         )
-        
+
         self.params.verify()
 
         return self.params, np.inf
-        
+
     def nonnormal(self, rdr_baf, threshold=0.05, non_normal=True):
         """
         Given an instance of (RDR, BAF) data, update the mixture params
@@ -83,7 +83,7 @@ class CNA_mixture_initialize:
         cna_states = np.vstack([self.params.normal_state, samples[idx]])
 
         self.params.cna_states = cna_states[cna_states[:, 0].argsort()]
-        
+
         # TODO return cost.
         return self.params, np.inf
 

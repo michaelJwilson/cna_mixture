@@ -110,9 +110,11 @@ class CNA_inference:
         # NB defines initial (BAF, RDR) for each of K states and shared overdispersions.
         mixture_params = CNA_mixture_params(num_cna_states=self.num_cna_states)
 
-        initializer = CNA_mixture_initialize(mixture_params, seed=self.seed, mode=self.initialize_mode)
+        initializer = CNA_mixture_initialize(
+            mixture_params, seed=self.seed, mode=self.initialize_mode
+        )
         mixture_params, cost = initializer.run()
-        
+
         return mixture_params, cost
 
     def initialize(self, **kwargs):
@@ -166,7 +168,7 @@ class CNA_inference:
         and re-compute the ln_state_priors.
         """
         self.state_prior_model.update(ln_state_emission=self.ln_state_emission)
-        
+
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors(
             ln_state_emission=self.ln_state_emission
         )

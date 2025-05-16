@@ -12,15 +12,19 @@ logger = logging.getLogger(__name__)
 def deprecated(reason: str):
     """
     A decorator to mark functions or methods as deprecated.
-    
+
     Raises a RuntimeError with the provided reason when the function is called.
     """
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            raise RuntimeError(f"The function '{func.__name__}' is deprecated: {reason}")
+            raise RuntimeError(
+                f"The function '{func.__name__}' is deprecated: {reason}"
+            )
+
         return wrapper
-    
+
     return decorator
 
 
