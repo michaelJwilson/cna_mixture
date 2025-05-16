@@ -130,15 +130,17 @@ impl CnaEmission {
                 thread_pool,
             }
         } else {
+            let num_obs = ks.len();
+
             // In the uncompressed case, use the original weights
             CnaEmission {
                 ks,
                 xs,
                 bs,
                 ns,
-                nb_mapping: (0..ks.len()).collect(),
+                nb_mapping: (0..num_obs).collect(),
                 nb_weights: weights.clone(),
-                bb_mapping: (0..ks.len()).collect(),
+                bb_mapping: (0..num_obs).collect(),
                 bb_weights: weights,
                 thread_pool,
             }
