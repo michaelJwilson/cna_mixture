@@ -30,7 +30,14 @@ pub struct CnaEmission {
 }
 
 impl CnaEmission {
-    pub fn new(num_states: usize, ks: Vec<f64>, xs: Vec<f64>, bs: Vec<f64>, ns: Vec<f64>, compress: bool) -> Self {
+    pub fn new(
+        num_states: usize,
+        ks: Vec<f64>,
+        xs: Vec<f64>,
+        bs: Vec<f64>,
+        ns: Vec<f64>,
+        compress: bool,
+    ) -> Self {
         let num_threads = env::var("RAYON_NUM_THREADS")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -57,8 +64,7 @@ impl CnaEmission {
             let mut nb_mapping: Vec<usize> = Vec::new();
             let mut bb_mapping: Vec<usize> = Vec::new();
 
-            for (&k, &x) in izip!(ks.iter(), xs.iter())
-            {
+            for (&k, &x) in izip!(ks.iter(), xs.iter()) {
                 let key = (OrderedFloat(k), OrderedFloat(x));
 
                 if let Some(&index) = unique_nb_map.get(&key) {
@@ -75,8 +81,7 @@ impl CnaEmission {
                 }
             }
 
-            for (&b, &n) in izip!(bs.iter(), ns.iter())
-            {
+            for (&b, &n) in izip!(bs.iter(), ns.iter()) {
                 let key = (OrderedFloat(b), OrderedFloat(n));
 
                 if let Some(&index) = unique_bb_map.get(&key) {
@@ -110,7 +115,7 @@ impl CnaEmission {
             }
         } else {
             let num_obs = ks.len();
-            let	weights	= Array2::from_elem((ks.len(), num_states), 1.0);
+            let weights = Array2::from_elem((ks.len(), num_states), 1.0);
 
             CnaEmission {
                 num_states,
@@ -246,13 +251,10 @@ impl CnaEmissionRs {
         self.inner.bb_mapping.clone()
     }
 
-    fn update_weights(
-       &mut self,
-       weights: PyReadonlyArray2<'_, f64>,
-    ) {
-       let ws = weights.as_array();
+    fn update_weights(&mut self, weights: PyReadonlyArray2<'_, f64>) {
+        let ws = weights.as_array();
 
-       self.inner.update_weights(ws);
+        self.inner.update_weights(ws);
     }
 
     fn nbinom(
@@ -269,11 +271,7 @@ impl CnaEmissionRs {
         Ok(array.to_owned())
     }
 
-    fn nbinom_reduce(
-        &self,
-        means: PyReadonlyArray1<'_, f64>,
-        overdisp: f64,
-    ) -> PyResult<f64> {
+    fn nbinom_reduce(&self, means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> PyResult<f64> {
         let means = means.as_slice()?;
 
         Ok(self.inner.nbinom_reduce(means, overdisp))

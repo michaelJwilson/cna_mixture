@@ -50,7 +50,10 @@ fn benchmark_CnaEmission(c: &mut Criterion) {
     let means: Vec<f64> = (10..=20).map(|x| (x as f64)).collect();
     let weights = Array2::from_elem((ks.len(), means.len()), 1.0);
 
-    let cna_em = CnaEmission::new(ks, xs, bs, ns, weights, true);
+    let num_states = means.len();
+
+    let mut cna_em = CnaEmission::new(num_states, ks, xs, bs, ns, true);
+    cna_em.update_weights(weights.view());
 
     c.bench_function("nbinom", |b| {
         b.iter(|| {
