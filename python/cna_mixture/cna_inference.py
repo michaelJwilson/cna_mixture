@@ -271,9 +271,7 @@ class CNA_inference:
             )
 
             # TODO may not be necessary?  Depends how solver calls cost (emission update) vs grad.
-            self.ln_state_emission = self.emission_model.get_ln_state_emission_update(
-                new_params
-            )
+            self.ln_state_emission = self.emission_model.emission(new_params)
 
             # NB update ln/state posteriors based on new emission.
             self.estep()

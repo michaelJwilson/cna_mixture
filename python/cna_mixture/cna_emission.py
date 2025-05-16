@@ -90,14 +90,16 @@ class CNA_emission_backed_rs:
         return self.engine.betabinom_reduce(betas, alphas)
 
     def emission(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):
+        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
+        
         # NB assumes independent
-        return self.engine.emission(rdrs, rdr_overdispersion, bafs, baf_overdispersion)
+        return self.engine.emission(rdrs, rdr_overdispersion, betas, alphas)
 
     def emission_reduce(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):
+        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
+        
         # NB assumes independent
-        return self.engine.emission_reduce(
-            rdrs, rdr_overdispersion, bafs, baf_overdispersion
-        )
+        return self.engine.emission_reduce(rdrs, rdr_overdispersion, betas, alphas)
 
 
 class CNA_emission_backend:
@@ -180,7 +182,7 @@ class CNA_emission:
     ):
         self.num_states = num_states
 
-        if backend is "rust":
+        if backend == "rust":
             self.backend = CNA_emission_backed_rs(
                 num_states, ks, xs, bs, ns, ws, compress=compress
             )
