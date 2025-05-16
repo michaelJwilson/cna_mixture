@@ -245,7 +245,7 @@ class CNA_emission:
         rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
         return np.c_[rdrs, bafs]
 
-    def update_weights(self):
+    def update_weights(self, ws):
         self.backend.update_weights(ws)
     
     def nbinom(self, params):

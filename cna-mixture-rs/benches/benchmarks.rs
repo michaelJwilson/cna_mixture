@@ -1,4 +1,6 @@
-use cna_mixture_rs::{betabinom, betabinom_reduce, nbinom, nbinom_reduce, CnaEmission, CnaEmissionCompressed};
+use cna_mixture_rs::{
+    betabinom, betabinom_reduce, nbinom, nbinom_reduce, CnaEmission, CnaEmissionCompressed,
+};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ndarray::Array2;
 

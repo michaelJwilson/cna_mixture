@@ -148,6 +148,22 @@ impl CnaEmissionCompressed {
     }
 
     pub fn update_weights(&mut self, weights: ArrayView2<'_, f64>) {
+        assert_eq!(
+            self.ks.len(),
+            weights.shape()[0],
+            "Expected array shape: {:?}, but found: {:?}",
+            (self.ks.len(), self.num_states),
+            (weights.shape()[0], weights.shape()[1])
+        );
+
+        assert_eq!(
+            self.num_states,
+            weights.shape()[1],
+            "Expected array shape: {:?}, but found: {:?}",
+            (self.ks.len(), self.num_states),
+            (weights.shape()[0], weights.shape()[1])
+        );
+
         let mut nb_weights = Array2::<f64>::zeros((self.ks.len(), weights.shape()[1]));
         let mut bb_weights = Array2::<f64>::zeros((self.ks.len(), weights.shape()[1]));
 
@@ -269,8 +285,8 @@ impl CnaEmissionRs {
         let result = self.inner.nbinom(means, overdisp);
 
         let array = PyArray2::from_vec2(py, &result)
-                .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to create NumPy array"))?;
-        
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to create NumPy array"))?;
+
         Ok(array.to_owned())
     }
 
@@ -282,12 +298,12 @@ impl CnaEmissionRs {
     ) -> PyResult<Py<PyArray2<f64>>> {
         let alphas = alphas.as_slice()?;
         let betas = betas.as_slice()?;
-        
+
         let result = self.inner.betabinom(alphas, betas);
 
         let array = PyArray2::from_vec2(py, &result)
-                .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to create NumPy array"))?;
-        
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to create NumPy array"))?;
+
         Ok(array.to_owned())
     }
 }

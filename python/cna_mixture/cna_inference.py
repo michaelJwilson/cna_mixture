@@ -160,8 +160,11 @@ class CNA_inference:
         self.ln_state_posteriors = self.state_prior_model.get_ln_state_posteriors(
             ln_state_emission=self.ln_state_emission
         )
+        
         self.state_posteriors = np.exp(self.ln_state_posteriors)
 
+        self.emission_model.update_weights(self.state_posteriors)
+        
     def pstep(self):
         """
         Update the state prior model based on the current state posteriors,
@@ -180,7 +183,7 @@ class CNA_inference:
 
         NB ln_lambdas are treated independently as they are subject to a "sum to unity" constraint.
         """
-        self.ln_state_emission = self.emission_model.emission(params)
+        # self.ln_state_emission = self.emission_model.emission(params)
 
         # NB responsibilites rik, where i is the sample and k is the state.
         #    this is *not* state-posterior weighted log-likelihood.
@@ -189,8 +192,10 @@ class CNA_inference:
         # DEPRECATE by holding state priors fixed in the M-step, zero point drops out.
         # cost = -self.state_posteriors * self.ln_state_prior
 
-        cost = -(self.state_posteriors * self.ln_state_emission).sum()
+        # cost = -(self.state_posteriors * self.ln_state_emission).sum()
 
+        cost = -self.emission_model.emission_reduce(params)
+        
         if verbose:
             self.log_mstep(self.nit, self.last_params, self.params, params, cost)
 
