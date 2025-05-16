@@ -326,47 +326,8 @@ pub fn nbinom(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> Vec<Vec<f64
 
     result
 }
-/*
+
 //  NB  300 µs -> 108.68 µs (all cores)
-pub fn betabinom_reduce(k: &[f64], n: &[f64], a: &[f64], b: &[f64], weights: ArrayView2<'_, f64>,) -> f64 {
-    //
-    //  Efficient beta binomial evaluation for many samples x many states.
-    //
-    //  see: https://en.wikipedia.org/wiki/Beta-binomial_distribution
-    let ga: Vec<f64> = a.iter().map(|&x| ln_gamma(x)).collect();
-    let gb: Vec<f64> = b.iter().map(|&x| ln_gamma(x)).collect();
-    let gab: Vec<f64> = a
-        .iter()
-        .zip(b.iter())
-        .map(|(&x, &y)| ln_gamma(x + y))
-        .collect();
-
-    let result: f64 = k
-        .par_iter()
-        .zip(n.par_iter())
-        .map(|(&k_val, &n_val)| {
-            let zero_point =
-                ln_gamma(n_val + 1.0) - ln_gamma(k_val + 1.0) - ln_gamma(n_val - k_val + 1.0);
-
-            let sum: f64 = izip!(a, b, &ga, &gb, &gab)
-                .map(|(&a_val, &b_val, &ga_val, &gb_val, &gab_val)| {
-                    let mut interim = zero_point + gab_val - ga_val - gb_val;
-
-                    interim += ln_gamma(k_val + a_val) + ln_gamma(n_val - k_val + b_val)
-                        - ln_gamma(n_val + a_val + b_val);
-
-                    interim
-                })
-                .sum();
-
-            sum
-        })
-        .sum();
-
-    result
-}
-*/
-
 pub fn betabinom_reduce(
     k: &[f64],
     n: &[f64],
