@@ -74,7 +74,7 @@ class CNA_inference:
             data["b_reads"],
             data["snp_coverage"],
         )
-
+        
         match state_prior:
             case "categorical":
                 self.state_prior_model = CNA_categorical_prior
@@ -113,6 +113,7 @@ class CNA_inference:
         initializer = CNA_mixture_initialize(
             mixture_params, seed=self.seed, mode=self.initialize_mode
         )
+        
         mixture_params, cost = initializer.run()
 
         return mixture_params, cost
