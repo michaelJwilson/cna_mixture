@@ -12,31 +12,41 @@ logger = logging.getLogger(__name__)
 class CNA_mixture_initialize:
     def __init__(
         self,
+        data,
         mixture_params,
         seed=314,
         mode="random",
     ):
+        self.data = data
         self.seed = seed
         self.rng = np.random.default_rng(self.seed)
 
         self.mode = mode
         self.params = mixture_params
 
-    # TODO
-    def run(self, rdr_baf=None, data=None):
+    @property
+    def rdr(self):
+	# NB baseline coverage == Tn * lambdas, where lambdas.sum() == 1.                                                                                                                                           
+	return self.data["read_coverage"] / self.data["baseline_coverage"]
+
+    @property
+    def baf(self):
+        return self.data["b_reads"] / self.data["snp_coverage"]
+
+    @property
+    def rdr_baf(self):
+        return np.c_[self.rdr, self.baf]
+
+    def run(self):
         match self.mode:
             case "random":
                 mixture_params, cost = self.random()
-
+                
             case "nonnormal":
-                mixture_params, cost = self.nonnormal(rdr_baf)
-
+                mixture_params, cost = self.nonnormal()
+                
             case "plusplus":
-                mixture_params, cost = self.plusplus(
-                    self.data["read_coverage"],
-                    self.data["b_reads"],
-                    self.data["snp_coverage"],
-                )
+                mixture_params, cost = self.plusplus()
             case _:
                 msg = f"{self.initialize_mode} style initialization is not supported."
                 raise ValueError(msg)
@@ -62,12 +72,14 @@ class CNA_mixture_initialize:
 
         return self.params, np.inf
 
-    def nonnormal(self, rdr_baf, threshold=0.05, non_normal=True):
+    def nonnormal(self, threshold=0.05, non_normal=True):
         """
         Given an instance of (RDR, BAF) data, update the mixture params
         to be a random sample of the *non-normal* data, i.e. a copy number
         that is not unity.
         """
+        rdr_baf = self.rdr_baf
+        
         if non_normal:
             samples = rdr_baf[np.abs(rdr_baf[:, 0] - 1.0) > threshold]
         else:
@@ -109,12 +121,17 @@ class CNA_mixture_initialize:
         return -cost
 
     @deprecated
-    def mixture_plusplus(self, ks, xs, bs, ns, N=4, validate=False):
+    def plusplus(self, ks, xs, bs, ns, N=4, validate=False):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.
         """
         logger.info(f"Initializing CNA mixture params with {N}-greedy CNA_mixture++")
+
+        ks = self.data["read_coverage"],
+        xs = self.data["baseline_coverage"]
+        bs = self.data["b_reads"],
+        ns = self.data["snp_coverage"],
 
         # TODO
         em = CNA_emission(N, ks, xs, bs, ns, ws=None, backend=None, compress=True)
