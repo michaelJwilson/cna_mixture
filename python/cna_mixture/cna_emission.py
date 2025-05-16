@@ -49,23 +49,24 @@ class CNA_emission_backend:
     """
     python equivalent validation class for CnaEmissionRs.
     """
+
     def __init__(self, num_states, ks, xs, bs, ns, ws):
-        # NB ks are NB derived.  xs (exposure) == T_n x lambda_g.                                                                                                                                                    
+        # NB ks are NB derived.  xs (exposure) == T_n x lambda_g.
         self.ks = ks.copy()
         self.xs = xs.copy()
 
-        # NB bs and ns are BB derived.                                                                                                                                                                                
+        # NB bs and ns are BB derived.
         self.bs = bs.copy()
         self.ns = ns.copy()
-        
+
         self.ws = np.ones((len(ks), num_states), dtype=float) if ws is None else ws
 
         self.num_states = num_states
 
     def nbinom(self, rdrs, rdr_overdispersion):
-        """                                                                                                                                                                                                          
-        Evaluate log prob. under NegativeBinom model.                                                                                                                                                                
-        Return (# sample, # state) array.                                                                                                                                                                            
+        """
+        Evaluate log prob. under NegativeBinom model.
+        Return (# sample, # state) array.
         """
         result = np.zeros((len(self.ks), len(rdrs)))
 
@@ -77,18 +78,18 @@ class CNA_emission_backend:
                 )
 
                 result[row, col] = nbinom.logpmf(kk, rr, pp)
-        
+
         return result
 
     def nbinom_reduce(self, rdrs, rdr_overdispersion):
         result = self.cna_mixture_nbinom_update(rdrs, rdr_overdispersion)
 
         return (self.ws * result).sum()
-    
+
     def betabinom(self, bafs, baf_overdispersion):
-        """                                                                                                                                                                                                          
-        Evaluate log prob. under BetaBinom model given model parameter vector.                                                                                                                                       
-        Returns (# sample, # state) array.                                                                                                                                                                           
+        """
+        Evaluate log prob. under BetaBinom model given model parameter vector.
+        Returns (# sample, # state) array.
         """
         alphas, betas = reparameterize_beta_binom(
             bafs,
@@ -103,8 +104,8 @@ class CNA_emission_backend:
 
         return result
 
-     def betabinom_reduce(self, bafs, baf_overdispersion):
-        result = self.cna_mixture_betabinom_update(bafs, baf_overdispersion) 
+    def betabinom_reduce(self, bafs, baf_overdispersion):
+        result = self.cna_mixture_betabinom_update(bafs, baf_overdispersion)
 
         return (self.ws * result).sum()
 
@@ -112,15 +113,19 @@ class CNA_emission_backend:
         ln_state_emission_betabinom = self.betabinom(bafs, baf_overdispersion)
         ln_state_emission_nbinom = self.nbinom(rdrs, rdr_overdispersion)
 
-        # NB assumes independent                                                                                                                                                                                    
+        # NB assumes independent
         return ln_state_emission_betabinom + ln_state_emission_nbinom
-    
+
     def emission_reduce(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):
-        return self.nbinom_reduce(rdrs, rdr_overdispersion) + self.cna_mixture_betabinom_reduce(bafs, baf_overdispersion)
-    
+        return self.nbinom_reduce(
+            rdrs, rdr_overdispersion
+        ) + self.cna_mixture_betabinom_reduce(bafs, baf_overdispersion)
+
 
 class CNA_emission:
-    def __init__(self, num_states, ks, xs, bs, ns, ws=None, backend=None, compress=False):
+    def __init__(
+        self, num_states, ks, xs, bs, ns, ws=None, backend=None, compress=False
+    ):
         # NB ks are NB derived.  xs (exposure) == T_n x lambda_g.
         ks = ks.copy()
         xs = xs.copy()
@@ -130,10 +135,10 @@ class CNA_emission:
         ns = ns.copy()
 
         ws = np.ones((len(ks), num_states), dtype=float) if ws is None else ws
-        
+
         self.num_states = num_states
 
-        if backend is None:            
+        if backend is None:
             self.backend = CNA_emission_backend(num_states, ks, xs, bs, ns, ws)
         else:
             self.backend = CnaEmissionRs(ks, xs, bs, ns, ws, compress=compress)
@@ -180,22 +185,24 @@ class CNA_emission:
         return self.backend.betabinom(bafs, baf_overdispersion)
 
     def betabinom_reduce(self, params):
-        """                                                                                                                                                                                                          
-        Returns (# sample, # state) array.                                                                                                                                                                           
+        """
+        Returns (# sample, # state) array.
         """
         *_, bafs, baf_overdispersion = self.unpack_params(params)
 
-	return self.backend.betabinom_reduce(bafs, baf_overdispersion)
-    
+        return self.backend.betabinom_reduce(bafs, baf_overdispersion)
+
     def emission(self, params):
         rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
-        
+
         return self.backend.emission(rdrs, rdr_overdispersion, bafs, baf_overdispersion)
 
     def emission_reduce(self, params):
         rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
-        return self.backend.emission_reduce(rdrs, rdr_overdispersion, bafs, baf_overdispersion)
-        
+        return self.backend.emission_reduce(
+            rdrs, rdr_overdispersion, bafs, baf_overdispersion
+        )
+
     """
     def grad_em_cost_nb(self, params, state_posteriors):
         ks = self.ks
