@@ -166,6 +166,7 @@ class CNA_inference:
         and re-compute the ln_state_priors.
         """
         self.state_prior_model.update(ln_state_emission=self.ln_state_emission)
+        
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors(
             ln_state_emission=self.ln_state_emission
         )

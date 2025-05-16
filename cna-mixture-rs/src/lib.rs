@@ -111,9 +111,9 @@ impl CnaEmission {
             .install(|| nbinom(&self.ks, &self.xs, means, overdisp))
     }
 
-    pub fn nbinom_reduce(&self, means: &[f64], overdisp: f64) -> f64 {
+    pub fn nbinom_reduce(&self, means: &[f64], overdisp: f64, weights: Option<&[&[f64]]>) -> f64 {
         self.thread_pool
-            .install(|| nbinom_reduce(&self.ks, &self.xs, means, overdisp))
+            .install(|| nbinom_reduce(&self.ks, &self.xs, means, overdisp, weights))
     }
 
     pub fn betabinom(&self, alphas: &[f64], betas: &[f64]) -> Vec<Vec<f64>> {
@@ -121,9 +121,14 @@ impl CnaEmission {
             .install(|| betabinom(&self.bs, &self.ns, alphas, betas))
     }
 
-    pub fn betabinom_reduce(&self, alphas: &[f64], betas: &[f64]) -> f64 {
+    pub fn betabinom_reduce(
+        &self,
+        alphas: &[f64],
+        betas: &[f64],
+        weights: Option<&[&[f64]]>,
+    ) -> f64 {
         self.thread_pool
-            .install(|| betabinom_reduce(&self.bs, &self.ns, alphas, betas))
+            .install(|| betabinom_reduce(&self.bs, &self.ns, alphas, betas, weights))
     }
 }
 
@@ -204,33 +209,47 @@ impl CnaEmissionRs {
 }
 
 //  NB  104.98 µs -> 70 µs (for all cores)
-pub fn nbinom_reduce(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> f64 {
+pub fn nbinom_reduce(
+    k: &[f64],
+    x: &[f64],
+    means: &[f64],
+    overdisp: f64,
+    weights: Option<&[&[f64]]>,
+) -> f64 {
     let rr = 1.0 / overdisp;
 
-    let result: f64 = k
-        .par_iter()
-        .zip(x.par_iter())
-        .map(|(k_val, &x_val)| {
-            let zero_point = -ln_gamma(1.0 + k_val);
+    if let Some(weights) = weights {
+        let result: f64 = k
+            .par_iter()
+            .zip(x.par_iter())
+            .zip(weights.par_iter())
+            .map(|(k_val, &x_val, &weights_row)| {
+                let zero_point = -ln_gamma(1.0 + k_val);
 
-            means
-                .iter()
-                .map(|&mean_val| {
-                    let factor = 1.0 + overdisp * x_val * mean_val;
-                    let ln_pp = -factor.ln();
-                    let ln_qq = (1.0 - 1.0 / factor).ln();
+                means
+                    .iter()
+                    .zip(weights_row.iter())
+                    .map(|&mean_val, &weight| {
+                        let factor = 1.0 + overdisp * x_val * mean_val;
+                        let ln_pp = -factor.ln();
+                        let ln_qq = (1.0 - 1.0 / factor).ln();
 
-                    let mut interim = zero_point;
-                    interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
-                    interim += ln_gamma(k_val + rr);
+                        let mut interim = zero_point;
+                        interim += k_val * ln_qq + rr * ln_pp - ln_gamma(rr);
+                        interim += ln_gamma(k_val + rr);
 
-                    interim
-                })
-                .sum::<f64>()
-        })
-        .sum();
+                        weight * interim
+                    })
+                    .sum::<f64>()
+            })
+            .sum();
 
-    result
+        return result;
+    } else {
+        weights = vec![vec![1.0; means.len()]; k.len()];
+
+        return nbinom_reduce(k, x, means, overdisp, weights);
+    }
 }
 
 //  NB  264.86 µs -> 91.962 µs
