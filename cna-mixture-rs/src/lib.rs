@@ -36,9 +36,6 @@ impl CnaEmission {
             .build()
             .expect("Failed to build ThreadPool");
 
-        let num_obs = ks.len();
-        let weights = Array2::from_elem((num_obs, num_states), 1.0);
-
         CnaEmission {
             num_states,
             ks,
@@ -49,16 +46,14 @@ impl CnaEmission {
         }
     }
 
-    // TODO return type?
-    pub fn nbinom(&self, means: &[f64], overdisp: f64) -> Array2<f64> {
+    pub fn nbinom(&self, means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
         self.thread_pool
-            .install(|| nbinom(&self.ks, &self.xs, means, overdisp));
+            .install(|| nbinom(&self.ks, &self.xs, means, overdisp))
     }
 
-    // TODO return type?
-    pub fn betabinom(&self, alphas: &[f64], betas: &[f64]) -> Array2<f64> {
+    pub fn betabinom(&self, alphas: &[f64], betas: &[f64]) -> Vec<Vec<f64>> {
         self.thread_pool
-            .install(|| betabinom(&self.bs, &self.ns, alphas, betas));
+            .install(|| betabinom(&self.bs, &self.ns, alphas, betas))
     }
 }
 
@@ -149,7 +144,6 @@ impl CnaEmissionCompressed {
             nb_weights: weights.clone(),
             bb_weights: weights,
             thread_pool,
-            compress,
         }
     }
 
@@ -181,9 +175,10 @@ impl CnaEmissionCompressed {
         self.bb_weights = bb_weights;
     }
 
+    // NB  compressed representation
     pub fn nbinom(&self, means: &[f64], overdisp: f64) -> Vec<Vec<f64>> {
         self.thread_pool
-            .install(|| nbinom(&self.ks, &self.xs, means, overdisp));
+            .install(|| nbinom(&self.ks, &self.xs, means, overdisp))
     }
 
     pub fn nbinom_reduce(&self, means: &[f64], overdisp: f64) -> f64 {
@@ -191,6 +186,7 @@ impl CnaEmissionCompressed {
             .install(|| nbinom_reduce(&self.ks, &self.xs, means, overdisp, self.nb_weights.view()))
     }
 
+    // NB  compressed representation
     pub fn betabinom(&self, alphas: &[f64], betas: &[f64]) -> Vec<Vec<f64>> {
         self.thread_pool
             .install(|| betabinom(&self.bs, &self.ns, alphas, betas))
@@ -239,8 +235,66 @@ impl CnaEmissionCompressed {
 }
 
 #[pyclass]
-struct CnaEmissionCompressedRs {
+pub struct CnaEmissionRs {
     inner: CnaEmission,
+}
+
+#[pymethods]
+impl CnaEmissionRs {
+    #[new]
+    pub fn new(
+        num_states: usize,
+        ks: PyReadonlyArray1<'_, f64>,
+        xs: PyReadonlyArray1<'_, f64>,
+        bs: PyReadonlyArray1<'_, f64>,
+        ns: PyReadonlyArray1<'_, f64>,
+    ) -> PyResult<Self> {
+        let ks = ks.as_slice()?.to_vec();
+        let xs = xs.as_slice()?.to_vec();
+        let bs = bs.as_slice()?.to_vec();
+        let ns = ns.as_slice()?.to_vec();
+
+        let inner = CnaEmission::new(num_states, ks, xs, bs, ns);
+
+        Ok(CnaEmissionRs { inner })
+    }
+
+    pub fn nbinom(
+        &self,
+        py: Python,
+        means: PyReadonlyArray1<'_, f64>,
+        overdisp: f64,
+    ) -> PyResult<Py<PyArray2<f64>>> {
+        let means = means.as_slice()?;
+        let result = self.inner.nbinom(means, overdisp);
+
+        let array = PyArray2::from_vec2(py, &result)
+                .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to create NumPy array"))?;
+        
+        Ok(array.to_owned())
+    }
+
+    pub fn betabinom(
+        &self,
+        py: Python,
+        alphas: PyReadonlyArray1<'_, f64>,
+        betas: PyReadonlyArray1<'_, f64>,
+    ) -> PyResult<Py<PyArray2<f64>>> {
+        let alphas = alphas.as_slice()?;
+        let betas = betas.as_slice()?;
+        
+        let result = self.inner.betabinom(alphas, betas);
+
+        let array = PyArray2::from_vec2(py, &result)
+                .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to create NumPy array"))?;
+        
+        Ok(array.to_owned())
+    }
+}
+
+#[pyclass]
+struct CnaEmissionCompressedRs {
+    inner: CnaEmissionCompressed,
 }
 
 #[pymethods]
@@ -258,7 +312,7 @@ impl CnaEmissionCompressedRs {
         let bs = bs.as_slice()?.to_vec();
         let ns = ns.as_slice()?.to_vec();
 
-        let inner = CnaEmissionCompressed::new(num_states, ks, xs, bs, ns, compress);
+        let inner = CnaEmissionCompressed::new(num_states, ks, xs, bs, ns);
 
         Ok(CnaEmissionCompressedRs { inner })
     }
