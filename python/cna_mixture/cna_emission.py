@@ -4,6 +4,7 @@ from cna_mixture_rs.core import (
     nbinom_rs,
     betabinom_rs,
     CnaEmissionRs,
+    CnaEmissionCompressedRs,
 )
 from scipy.special import digamma
 from scipy.stats import betabinom, nbinom, poisson
@@ -62,13 +63,12 @@ class CNA_emission_backed_rs:
         self.compress = compress
         self.num_states = num_states
 
-        self.engine = CnaEmissionRs(
+        self.engine = CnaEmissionCompressedRs(
             num_states,
             self.ks,
             self.xs,
             self.bs,
             self.ns,
-            compress,
         )
 
         if ws is not None:
@@ -80,12 +80,16 @@ class CNA_emission_backed_rs:
         self.engine.update_weights(weights)
         
     def nbinom(self, rdrs, rdr_overdispersion):
+        logger.warning("CnaEmissionCompressedRs.nbinom is compressed.")
+        
         return self.engine.nbinom(rdrs, rdr_overdispersion)
 
     def nbinom_reduce(self, rdrs, rdr_overdispersion):
         return self.engine.nbinom(rdrs, rdr_overdispersion)
 
     def betabinom(self, bafs, baf_overdispersion):
+        logger.warning("CnaEmissionCompressedRs.nbinom is compressed.")
+        
         alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
         return self.engine.betabinom(betas, alphas)
 
@@ -94,6 +98,8 @@ class CNA_emission_backed_rs:
         return self.engine.betabinom_reduce(betas, alphas)
 
     def emission(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):
+        logger.warning("CnaEmissionCompressedRs.nbinom is compressed.")
+        
         alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
         
         # NB assumes independent
@@ -103,7 +109,7 @@ class CNA_emission_backed_rs:
         alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
         
         # NB assumes independent
-        return self.engine.emission_reduce(rdrs, rdr_overdispersion, betas, alphas)
+        return self.engine.nbinom_reduce(rdrs, rdr_overdispersion) + self.engine.betabinom_reduce(betas, alphas)
 
 
 class CNA_emission_backend:

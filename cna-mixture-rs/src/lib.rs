@@ -796,6 +796,7 @@ fn ln_transition_probs_rs<'py>(
 #[pyo3(name = "core")]
 fn core(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<CnaEmissionRs>()?;
+    m.add_class::<CnaEmissionCompressedRs>()?;
     m.add_function(wrap_pyfunction!(nbinom_rs, m)?)?;
     m.add_function(wrap_pyfunction!(betabinom_rs, m)?)?;
     m.add_function(wrap_pyfunction!(grad_cna_mixture_em_cost_nb_rs, m)?)?;

@@ -8,7 +8,12 @@ from cna_mixture.cna_emission import (
     reparameterize_beta_binom,
     reparameterize_nbinom,
 )
-from cna_mixture_rs.core import CnaEmissionRs, nbinom_rs, betabinom_rs
+from cna_mixture_rs.core import (
+    CnaEmissionRs,
+    CnaEmissionCompressedRs,
+    nbinom_rs,
+    betabinom_rs,
+)
 from scipy.stats import betabinom, nbinom
 
 np.random.seed(314)
@@ -79,13 +84,12 @@ def test_cna_emission_rs_nb(benchmark, emission, emission_params, compress):
 
     weights = np.random.uniform(size=(emission.length, emission.num_states))
 
-    cna_em = CnaEmissionRs(
+    cna_em = CnaEmissionCompressedRs(
         emission.num_states,
         emission.ks,
         emission.xs,
         emission.bs,
         emission.ns,
-        compress=compress,
     )
 
     cna_em.update_weights(weights)
@@ -105,13 +109,12 @@ def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
 
     weights = np.random.uniform(size=(len(emission.ks), len(alphas)))
 
-    cna_em = CnaEmissionRs(
+    cna_em = CnaEmissionCompressedRs(
         emission.num_states,
         emission.ks,
         emission.xs,
         emission.bs,
         emission.ns,
-        compress=compress,
     )
 
     cna_em.update_weights(weights)
@@ -121,9 +124,16 @@ def test_cna_emission_rs_bb(benchmark, emission, emission_params, compress):
 
     if compress is False:
         base = betabinom_rs(emission.bs, emission.ns, alphas, betas)
+        tester = CnaEmissionRs(
+            emission.num_states,
+            emission.ks,
+            emission.xs,
+            emission.bs,
+            emission.ns,
+        )
 
         npt.assert_allclose(
-            cna_em.betabinom(alphas, betas), base, rtol=1.0e-2, atol=1.0e-2
+            tester.betabinom(alphas, betas), base, rtol=1.0e-2, atol=1.0e-2
         )
 
         exp = (weights * base).sum()
