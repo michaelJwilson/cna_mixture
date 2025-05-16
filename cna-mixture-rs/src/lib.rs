@@ -25,6 +25,7 @@ pub struct CnaEmission {
     bb_mapping: Vec<usize>,
     bb_weights: Array2<f64>,
     thread_pool: ThreadPool,
+    compress: bool,
 }
 
 impl CnaEmission {
@@ -65,7 +66,9 @@ impl CnaEmission {
             let mut nb_weights = Array2::<f64>::zeros((0, weights.shape()[1]));
             let mut bb_weights = Array2::<f64>::zeros((0, weights.shape()[1]));
 
-            for (&k, &x, weights_row) in izip!(ks.iter(), xs.iter(), weights.axis_iter(Axis(0)).into_iter()) {
+            for (&k, &x, weights_row) in
+                izip!(ks.iter(), xs.iter(), weights.axis_iter(Axis(0)).into_iter())
+            {
                 let key = (OrderedFloat(k), OrderedFloat(x));
 
                 if let Some(&index) = unique_nb_map.get(&key) {
@@ -92,7 +95,9 @@ impl CnaEmission {
                 }
             }
 
-            for (&b, &n, weights_row) in izip!(bs.iter(), ns.iter(), weights.axis_iter(Axis(0)).into_iter()) {
+            for (&b, &n, weights_row) in
+                izip!(bs.iter(), ns.iter(), weights.axis_iter(Axis(0)).into_iter())
+            {
                 let key = (OrderedFloat(b), OrderedFloat(n));
 
                 if let Some(&index) = unique_bb_map.get(&key) {
@@ -128,6 +133,7 @@ impl CnaEmission {
                 bb_mapping,
                 bb_weights,
                 thread_pool,
+                compress,
             }
         } else {
             let num_obs = ks.len();
@@ -142,6 +148,7 @@ impl CnaEmission {
                 bb_mapping: (0..num_obs).collect(),
                 bb_weights: weights,
                 thread_pool,
+                compress,
             }
         }
     }
@@ -161,13 +168,43 @@ impl CnaEmission {
             .install(|| betabinom(&self.bs, &self.ns, alphas, betas))
     }
 
-    pub fn betabinom_reduce(
-        &self,
-        alphas: &[f64],
-        betas: &[f64],
-    ) -> f64 {
+    pub fn betabinom_reduce(&self, alphas: &[f64], betas: &[f64]) -> f64 {
         self.thread_pool
             .install(|| betabinom_reduce(&self.bs, &self.ns, alphas, betas, self.bb_weights.view()))
+    }
+
+    pub fn emission(
+        &self,
+        means: &[f64],
+        overdisp: f64,
+        alphas: &[f64],
+        betas: &[f64],
+    ) -> Array2<f64> {
+        let nb_result = self.nbinom(means, overdisp);
+        let bb_result = self.betabinom(alphas, betas);
+
+        //  TODO compress=false implies we can do without mapping queries.
+        let nb = Array2::from_shape_vec(
+            (self.nb_mapping.len(), means.len()),
+            self.nb_mapping
+                .iter()
+                .flat_map(|&index| nb_result[index].clone())
+                .collect(),
+        )
+        .unwrap();
+
+        let bb = Array2::from_shape_vec(
+            (self.bb_mapping.len(), alphas.len()),
+            self.bb_mapping
+                .iter()
+                .flat_map(|&index| bb_result[index].clone())
+                .collect(),
+        )
+        .unwrap();
+
+        let result = &nb + &bb;
+
+        result
     }
 }
 
@@ -204,7 +241,7 @@ impl CnaEmissionRs {
     }
 
     fn bb_mapping(&self) -> Vec<usize> {
-	   self.inner.bb_mapping.clone()
+        self.inner.bb_mapping.clone()
     }
 
     fn nbinom(
@@ -223,7 +260,7 @@ impl CnaEmissionRs {
 
     fn nbinom_reduce(&self, means: PyReadonlyArray1<'_, f64>, overdisp: f64) -> PyResult<f64> {
         let means = means.as_slice()?;
-        
+
         Ok(self.inner.nbinom_reduce(means, overdisp))
     }
 
@@ -253,6 +290,41 @@ impl CnaEmissionRs {
         let betas = betas.as_slice()?;
 
         Ok(self.inner.betabinom_reduce(alphas, betas))
+    }
+
+    fn emission(
+        &self,
+        py: Python,
+        means: PyReadonlyArray1<'_, f64>,
+        overdisp: f64,
+        alphas: PyReadonlyArray1<'_, f64>,
+        betas: PyReadonlyArray1<'_, f64>,
+    ) -> PyResult<Py<PyArray2<f64>>> {
+        let means = means.as_slice()?;
+
+        let alphas = alphas.as_slice()?;
+        let betas = betas.as_slice()?;
+
+        let result = self.inner.emission(means, overdisp, alphas, betas);
+
+        let array = PyArray2::from_array(py, &result).to_owned();
+
+        Ok(array)
+    }
+
+    fn emission_reduce(
+        &self,
+        means: PyReadonlyArray1<'_, f64>,
+        overdisp: f64,
+        alphas: PyReadonlyArray1<'_, f64>,
+        betas: PyReadonlyArray1<'_, f64>,
+    ) -> PyResult<f64> {
+        let means = means.as_slice()?;
+
+        let alphas = alphas.as_slice()?;
+        let betas = betas.as_slice()?;
+
+        Ok(self.inner.nbinom_reduce(means, overdisp) + self.inner.betabinom_reduce(alphas, betas))
     }
 }
 

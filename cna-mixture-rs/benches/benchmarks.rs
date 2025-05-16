@@ -60,10 +60,7 @@ fn benchmark_CnaEmission(c: &mut Criterion) {
 
     c.bench_function("nbinom_reduce", |b| {
         b.iter(|| {
-            cna_em.nbinom_reduce(
-                black_box(&means),
-                black_box(0.01),
-            );
+            cna_em.nbinom_reduce(black_box(&means), black_box(0.01));
         })
     });
 
