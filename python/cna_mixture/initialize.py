@@ -134,7 +134,7 @@ class CNA_mixture_initialize:
 
         return cost
 
-    def plusplus(self, N=4, validate=False):
+    def plusplus(self, N=4, validate=True):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.
@@ -179,10 +179,9 @@ class CNA_mixture_initialize:
 
                 states_bag = centers.copy()
 
-                # TODO HACK
                 plot_rdr_baf_flat(
-                    f"plots/plusplus_{len(centers)}_rdr_baf_flat.pdf",
-                    ks / self.xs,
+                    f"plots/plusplus_{len(centers)}_rdr_baf_flat.pdf", # TODO HACK
+                    ks / xs,
                     bs / ns,
                     ln_state_posteriors=np.log(tmp_cost),
                     states_bag=states_bag,
