@@ -121,7 +121,7 @@ class CNA_mixture_initialize:
         return -cost
 
     @deprecated
-    def plusplus(self, ks, xs, bs, ns, N=4, validate=False):
+    def plusplus(self, N=4, validate=False):
         """
         Initialize with a mixture++ pattern, where subsequent selections are
         proportional to the cost for the current subset of states.
@@ -133,18 +133,18 @@ class CNA_mixture_initialize:
         bs = self.data["b_reads"],
         ns = self.data["snp_coverage"],
 
-        # TODO
-        em = CNA_emission(N, ks, xs, bs, ns, ws=None, backend=None, compress=True)
+        em = CNA_emission(1, ks, xs, bs, ns, ws=None, backend="rs", compress=True)
         
         idx = np.arange(len(ks))
-        samples = np.c_[ks, xs, ns]
+        samples = np.c_[ks, xs, bs, ns]
 
         # NB we assume a normal-like state to start.
         normal = self.normal_state.tolist()
-        normal[0] *= self.genome_coverage
 
         centers = np.array([normal])
 
+        cost = -em.nbinom(cen)
+        
         cost = self.mixture_plusplus_cost(
             samples, centers, self.overdisp_phi, self.overdisp_tau
         )

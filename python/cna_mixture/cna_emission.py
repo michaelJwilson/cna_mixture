@@ -155,16 +155,15 @@ class CNA_emission_backend:
         return result
 
     def nbinom_reduce(self, rdrs, rdr_overdispersion):
-        result = self.cna_mixture_nbinom_update(rdrs, rdr_overdispersion)
+        result = self.nbinom(rdrs, rdr_overdispersion)
 
         return (self.ws * result).sum()
 
-    def betabinom(self, bafs, baf_overdispersion):
+    def betabinom(self, alphas, betas):
         """
         Evaluate log prob. under BetaBinom model given model parameter vector.
         Returns (# sample, # state) array.
         """
-        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
         result = np.zeros((len(self.bs), len(alphas)))
 
         for col, (alpha, beta) in enumerate(zip(alphas, betas)):
@@ -173,20 +172,21 @@ class CNA_emission_backend:
 
         return result
 
-    def betabinom_reduce(self, bafs, baf_overdispersion):
-        result = self.cna_mixture_betabinom_update(bafs, baf_overdispersion)
+    def betabinom_reduce(self, alphas, betas):
+        result = self.betabinom(alphas, betas)
+        
         return (self.ws * result).sum()
 
-    def emission(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):
+    def emission(self, rdrs, rdr_overdispersion, alphas, betas):
         # NB assumes independent
         return self.nbinom(rdrs, rdr_overdispersion) + self.betabinom(
-            bafs, baf_overdispersion
+            alphas, betas,
         )
 
-    def emission_reduce(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):
-        # NB assumes independent
+    def emission_reduce(self, rdrs, rdr_overdispersion, alphas, betas):
+        # NB assumes indepeendent
         return self.nbinom_reduce(rdrs, rdr_overdispersion) + self.betabinom_reduce(
-            bafs, baf_overdispersion
+            alphas, betas
         )
 
 
@@ -258,19 +258,27 @@ class CNA_emission:
 
     def betabinom(self, params):
         *_, bafs, baf_overdispersion = self.unpack_params(params)
-        return self.backend.betabinom(bafs, baf_overdispersion)
+        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
+        
+        return self.backend.betabinom(alphas, betas)
 
     def betabinom_reduce(self, params):
         *_, bafs, baf_overdispersion = self.unpack_params(params)
-        return self.backend.betabinom_reduce(bafs, baf_overdispersion)
+        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
+        
+        return self.backend.betabinom_reduce(alphas, betas)
 
     def emission(self, params):
         rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
-        return self.backend.emission(rdrs, rdr_overdispersion, bafs, baf_overdispersion)
+        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
+        
+        return self.backend.emission(rdrs, rdr_overdispersion, alphas, betas)
 
     def emission_reduce(self, params):
         rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
-        return self.backend.emission_reduce(rdrs, rdr_overdispersion, bafs, baf_overdispersion)
+        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
+        
+        return self.backend.emission_reduce(rdrs, rdr_overdispersion, alphas, betas)
 
     """
     def grad_em_cost_nb(self, params, state_posteriors):

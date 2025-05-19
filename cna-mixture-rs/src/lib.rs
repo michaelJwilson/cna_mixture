@@ -25,6 +25,7 @@ pub struct CnaEmission {
 }
 
 impl CnaEmission {
+    //  NB num_states required to define (num_obs x num_states) weights array, initially unity.
     pub fn new(num_states: usize, ks: Vec<f64>, xs: Vec<f64>, bs: Vec<f64>, ns: Vec<f64>) -> Self {
         let num_threads = env::var("RAYON_NUM_THREADS")
             .ok()
