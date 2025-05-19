@@ -167,7 +167,6 @@ class CNA_mixture_initialize:
             #    state.
             ps = cost / cost.sum()
 
-            # TODO HACK
             if validate:
                 tmp_cost = self.plusplus_cost(
                     samples,
@@ -180,6 +179,7 @@ class CNA_mixture_initialize:
 
                 states_bag = centers.copy()
 
+                # TODO HACK
                 plot_rdr_baf_flat(
                     f"plots/plusplus_{len(centers)}_rdr_baf_flat.pdf",
                     ks / self.xs,
