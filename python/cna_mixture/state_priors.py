@@ -108,7 +108,7 @@ class CNA_markov_prior:
         self.num_states = num_states
 
     def __str__(self):
-        return f"PI={np.exp(self.ln_start_prior)}\n\tT=\n{self.transfer}"
+        return f"PI={np.exp(self.ln_start_prior)}\nT=\n{self.transfer}"
 
     def initialize(self, **kwargs):
         self.ln_start_prior = kwargs.get(

@@ -140,7 +140,7 @@ def plot_rdr_baf_genome(
     axes[1].set_xlabel("segment index")
 
     if title is not None:
-        pl.title(title)
+        axes[0].set_title(title, fontsize=14)
 
     pl.savefig(fpath)
 

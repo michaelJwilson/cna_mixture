@@ -22,6 +22,7 @@ TODOs:
   - prior to prevent single-state occupancy.                                                                                            
 """
 
+np.set_printoptions(linewidth=100)
 
 def run_inference(
     sim_dir, sim_id, num_cna_states, state_prior, initialize_mode, seed=42, **kwargs

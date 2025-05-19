@@ -385,13 +385,13 @@ class CNA_inference:
             self.emission_model.unpack_params(params)
         )
 
-        msg = f"Iteration {nit}:  Minimized cost to value: {cost:.6f} for:\n"
-        msg += f"\t{self.state_prior_model}\n"
-        msg += f"\tread_depths={state_read_depths}\n"
-        msg += f"\tread_depth_overdispersion={rdr_overdispersion}\n"
-        msg += f"\tbafs={bafs}\n"
-        msg += f"\tbaf_overdispersion={baf_overdispersion}\n"
-        msg += f"\tMax. frac. parameter diff. compared to last and current state posterior: {param_diff(last_params, new_params)}, {param_diff(params, new_params)}"
+        msg = f"Iteration {nit}:  Minimized cost to value: {cost:.6e} for:\n\n"
+        msg += f"rdrs={state_read_depths}\n"
+        msg += f"rdr_overdispersion={rdr_overdispersion}\n"
+        msg += f"bafs={bafs}\n"
+        msg += f"baf_overdispersion={baf_overdispersion}\n"
+        msg += f"{self.state_prior_model}\n\n"
+        msg += f"Max. frac. parameter diff. compared to last and current state posterior: {param_diff(last_params, new_params):.6f}, {param_diff(params, new_params):.6f}\n"
 
         logger.info(msg)
 
