@@ -25,10 +25,10 @@ def get_sim_params():
                 [1.0,  0.50],
                 [3.0,  0.33],
                 [4.0,  0.25],
-                [6.0,  0.17],
-                [10.0, 0.10],
+                [6.0,  0.39],
+                [10.0, 0.30],
                 [12.0, 0.08],
-                [13.0, 0.07],
+                [13.0, 0.19],
             ]
         ),
         "overdisp_tau": 45.0,
@@ -67,7 +67,7 @@ class CNA_sim:
             setattr(self, key, value)
 
         self.transfer = CNA_transfer(self.jump_rate, self.num_states)
-
+        
         if data is None:
             # NB guard against inconsistent data/params.
             assert (
