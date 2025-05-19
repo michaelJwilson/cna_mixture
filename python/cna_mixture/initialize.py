@@ -140,15 +140,11 @@ class CNA_mixture_initialize:
 
         # NB we assume a normal-like state to start.
         normal = self.normal_state.tolist()
-
-        centers = np.array([normal])
-
-        cost = -em.nbinom(cen)
         
-        cost = self.mixture_plusplus_cost(
-            samples, centers, self.overdisp_phi, self.overdisp_tau
-        )
-
+        params = np.array([normal[0], self.overdisp_phi, normal[1], self.overdisp_tau])
+        
+        cost = -em.emission_reduce(params)
+        
         # NB one cost for normal state per sample.
         assert len(cost) == len(ks)
 
