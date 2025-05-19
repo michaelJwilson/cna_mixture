@@ -118,11 +118,11 @@ def plot_rdr_baf_genome(
     rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
 
     axes[0].scatter(
-        segment_index, patch_default(rdr, 1.0), c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
+        segment_index, rdr, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
     )
 
     axes[1].scatter(
-        segment_index, patch_default(baf, 0.5), c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
+        segment_index, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
     )
 
     axes[0].set_xlim(-100, 10_100)
