@@ -41,7 +41,7 @@ class CNA_categorical_prior:
         an assignment of each (RDR, BAF) point to it's nearest current state.
         """
         assert len(cna_states) == self.num_states
-
+        
         decoded_states = assign_closest(rdr_baf, cna_states)
 
         # NB categorical prior on state fractions
