@@ -21,5 +21,5 @@ def test_assign_closest(rdr_baf):
     
     idx = assign_closest(rdr_baf, centers)
 
-    print(rdr_baf)
-    print(idx)
+    assert len(idx) == len(rdr_baf) - 1
+

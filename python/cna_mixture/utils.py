@@ -61,8 +61,12 @@ def assign_closest(points, centers):
             f"Expected more centers than points, found {len(centers)} and {len(points)} respectively."
         )
 
+    # TODO warn on masking.
+    valid = np.isfinite(points)
+    valid = np.all(valid, axis=1)
+
     tree = KDTree(centers)
-    distances, idx = tree.query(points)
+    distances, idx = tree.query(points[valid])
 
     return idx
 
