@@ -33,7 +33,7 @@ def run_inference(
     Path(plots_dir).mkdir(exist_ok=True, parents=True)
     
     cna_sim = CNA_sim.load(sim_dir, sim_id)
-    """
+
     # fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat_{sim_id}.pdf", cna_sim.rdr_baf, seed=seed)
 
     # NB total number of states (inc. normal).
@@ -53,7 +53,7 @@ def run_inference(
         "initial",
         "Initial state posteriors (based on closest state lambdas).",
     )
-
+    """
     res = cna_inf.fit()
 
     cna_inf.plot(plots_dir, res.x, "final", "Final state posteriors")
