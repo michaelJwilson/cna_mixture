@@ -789,21 +789,21 @@ mod tests {
 
         let exp = (interim * &weights).sum();
 
-        println!("{}  {}", result, exp);
-        /*
+        //  println!("{}  {}", result, exp);
+        
         assert!(
             (result - exp).abs() < 1e-6,
             "result: {}, expected: {}",
             result,
             exp
         );
-        */
     }
 
     #[test]
     fn test_betabinom_reduce() {
         let k = vec![1.0, 2.0, 3.0];
         let n = vec![5.0, 6.0, 7.0];
+        
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
 
