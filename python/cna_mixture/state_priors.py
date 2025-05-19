@@ -57,7 +57,7 @@ class CNA_categorical_prior:
         self.ln_lambdas_closest(kwargs["rdr_baf"], kwargs["cna_states"])
 
         logger.info(
-            f"Initializing Categorical state prior with lambdas defined by nearest state assignment: {self}"
+            f"Initializing Categorical state prior with lambdas defined by nearest state assignment:\n{self}"
         )
 
     def get_ln_state_priors(self, *, ln_state_emission=None):  # noqa: ARG002

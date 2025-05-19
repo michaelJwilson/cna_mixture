@@ -186,6 +186,12 @@ class CNA_inference:
 
         self.ln_state_emission = self.emission_model.emission(self.initial_params)
 
+        valid = np.isfinite(self.ln_state_emission)
+
+        msg = "Initialization found non-finite emission probabilities"
+        
+        assert np.all(valid), msg
+        
         # TODO BUG prior == posterior - emission?  By definition?
         # NB Markov requires emission probabilities for all other states to define state prior.
         #    Categorical ignores
