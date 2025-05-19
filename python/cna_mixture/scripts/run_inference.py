@@ -31,9 +31,9 @@ def run_inference(
     plots_dir = f"{sim_dir}/cna_sim_{sim_id}/plots/"
 
     Path(plots_dir).mkdir(exist_ok=True, parents=True)
-
+    
     cna_sim = CNA_sim.load(sim_dir, sim_id)
-
+    """
     # fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat_{sim_id}.pdf", cna_sim.rdr_baf, seed=seed)
 
     # NB total number of states (inc. normal).
@@ -57,12 +57,14 @@ def run_inference(
     res = cna_inf.fit()
 
     cna_inf.plot(plots_dir, res.x, "final", "Final state posteriors")
-
+    """
     logger.info(f"Done ({time.time() - start:.3f} seconds).\n\n")
 
 
 def main():
-    # NB   run_inference --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 6 --initialize-mode non_normal --state-prior categorical
+    # NB
+    #      run_inference --sim-dir ~/scratch/cna_mixture/validation/data/ --sim-id ma --num_cna_states 6 --initialize-mode non_normal --state-prior categorical
+    #      run_inference --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 6 --initialize-mode non_normal --state-prior categorical
     #      run_inference --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 3 --state-prior markov --initialize-mode mixture_plusplus
     parser = argparse.ArgumentParser(description="Run CNA inference.")
     parser.add_argument(
@@ -73,7 +75,7 @@ def main():
     )
     parser.add_argument(
         "--sim-id",
-        type=int,
+        type=str,
         default=0,
         help="Simulation ID",
     )
