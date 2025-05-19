@@ -183,7 +183,7 @@ class CNA_mixture_initialize:
                     f"plots/plusplus_{len(centers)}_rdr_baf_flat.pdf", # TODO HACK
                     ks / xs,
                     bs / ns,
-                    ln_state_posteriors=np.log(tmp_cost),
+                    ln_state_posteriors=None, # np.log(tmp_cost),
                     states_bag=states_bag,
                     title=None,
                 )
