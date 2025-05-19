@@ -47,9 +47,9 @@ def run_inference(
     
     cna_inf.validate()
     
-    """
     cna_inf.initialize(**kwargs)
 
+    """
     cna_inf.plot(
         plots_dir,
         cna_inf.initial_params,
