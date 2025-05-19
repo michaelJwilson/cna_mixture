@@ -48,6 +48,7 @@ def reparameterize_nbinom(means, overdisp):
 
     return np.ravel(rs), np.ravel(ps)
 
+
 class CNA_emission_backed_rs:
     # NB patch class that handles bafs -> alphas, betas + delegates.
     def __init__(self, num_states, ks, xs, bs, ns, ws=None):
@@ -68,7 +69,7 @@ class CNA_emission_backed_rs:
             self.bs,
             self.ns,
         )
-        
+
         self.engine_compressed = CnaEmissionCompressedRs(
             num_states,
             self.ks,
@@ -85,14 +86,14 @@ class CNA_emission_backed_rs:
 
     def update_weights(self, weights):
         self.engine_compressed.update_weights(weights)
-        
-    def nbinom(self, rdrs, rdr_overdispersion):        
+
+    def nbinom(self, rdrs, rdr_overdispersion):
         return self.engine.nbinom(rdrs, rdr_overdispersion)
 
     def nbinom_reduce(self, rdrs, rdr_overdispersion):
         return self.engine_compressed.nbinom(rdrs, rdr_overdispersion)
 
-    def betabinom(self, alphas, betas): 
+    def betabinom(self, alphas, betas):
         return self.engine.betabinom(betas, alphas)
 
     def betabinom_reduce(self, alphas, betas):
@@ -100,11 +101,15 @@ class CNA_emission_backed_rs:
 
     def emission(self, rdrs, rdr_overdispersion, alphas, betas):
         # NB assumes independent
-        return self.engine.nbinom(rdrs, rdr_overdispersion) + self.engine.betabinom(betas, alphas)
+        return self.engine.nbinom(rdrs, rdr_overdispersion) + self.engine.betabinom(
+            betas, alphas
+        )
 
     def emission_reduce(self, rdrs, rdr_overdispersion, alphas, betas):
         # NB assumes independent
-        return self.engine_compressed.nbinom_reduce(rdrs, rdr_overdispersion) + self.engine_compressed.betabinom_reduce(betas, alphas)
+        return self.engine_compressed.nbinom_reduce(
+            rdrs, rdr_overdispersion
+        ) + self.engine_compressed.betabinom_reduce(betas, alphas)
 
 
 class CNA_emission_backend:
@@ -129,7 +134,7 @@ class CNA_emission_backend:
 
     def update_weights(self, ws):
         self.ws = ws
-        
+
     def nbinom(self, rdrs, rdr_overdispersion):
         """
         Evaluate log prob. under NegativeBinom model.
@@ -168,17 +173,18 @@ class CNA_emission_backend:
 
     def betabinom_reduce(self, alphas, betas):
         result = self.betabinom(alphas, betas)
-        
+
         return (self.ws * result).sum()
 
     def emission(self, rdrs, rdr_overdispersion, alphas, betas):
         # NB assumes independent
         return self.nbinom(rdrs, rdr_overdispersion) + self.betabinom(
-            alphas, betas,
+            alphas,
+            betas,
         )
 
     def emission_reduce(self, rdrs, rdr_overdispersion, alphas, betas):
-        # NB assumes indepeendent
+        # NB assumes independent
         return self.nbinom_reduce(rdrs, rdr_overdispersion) + self.betabinom_reduce(
             alphas, betas
         )
@@ -190,10 +196,10 @@ class CNA_emission:
     ):
         self.length = len(ks)
         self.num_states = num_states
-        
+
         if backend == "rust":
             self.backend = CNA_emission_backed_rs(num_states, ks, xs, bs, ns, ws)
-        else:            
+        else:
             self.backend = CNA_emission_backend(num_states, ks, xs, bs, ns, ws)
 
     @property
@@ -201,20 +207,20 @@ class CNA_emission:
         return self.backend.ks
 
     @property
-    def	xs(self):
+    def xs(self):
         return self.backend.xs
 
     @property
-    def	bs(self):
+    def bs(self):
         return self.backend.bs
 
     @property
-    def	ns(self):
+    def ns(self):
         return self.backend.ns
-    
+
     def __len__(self):
         return len(self.ks)
-            
+
     def unpack_params(self, params):
         """
         Given a cost parameter vector, unpack into named cna mixture
@@ -234,7 +240,7 @@ class CNA_emission:
         baf_overdispersion = params[2 * num_states + 1]
 
         alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
-        
+
         return rdrs, rdr_overdispersion, alphas, betas
 
     def get_states_bag(self, params):
@@ -243,7 +249,7 @@ class CNA_emission:
 
     def update_weights(self, ws):
         self.backend.update_weights(ws)
-    
+
     def nbinom(self, params):
         rdrs, rdr_overdispersion, *_ = self.unpack_params(params)
         return self.backend.nbinom(rdrs, rdr_overdispersion)
@@ -253,7 +259,7 @@ class CNA_emission:
         return self.backend.nbinom_reduce(rdrs, rdr_overdispersion)
 
     def betabinom(self, params):
-        *_, alphas, betas = self.unpack_params(params)        
+        *_, alphas, betas = self.unpack_params(params)
         return self.backend.betabinom(alphas, betas)
 
     def betabinom_reduce(self, params):
