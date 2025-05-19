@@ -398,6 +398,10 @@ pub fn nbinom(k: &[f64], x: &[f64], means: &[f64], overdisp: f64) -> Vec<Vec<f64
         .par_iter()
         .zip(x.par_iter())
         .map(|(&k_val, &x_val)| {
+            if x_val == 0.0 {
+                return vec![0.0; means.len()];
+            }
+
             let zero_point = -ln_gamma(1.0 + k_val);
 
             let row: Vec<f64> = means
