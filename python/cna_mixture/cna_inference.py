@@ -111,7 +111,7 @@ class CNA_inference:
         mixture_params = CNA_mixture_params(num_cna_states=self.num_cna_states)
 
         initializer = CNA_mixture_initialize(
-            mixture_params, seed=self.seed, mode=self.initialize_mode
+            self.data, mixture_params, seed=self.seed, mode=self.initialize_mode
         )
         
         mixture_params, cost = initializer.run()

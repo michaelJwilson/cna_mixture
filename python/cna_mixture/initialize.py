@@ -26,8 +26,8 @@ class CNA_mixture_initialize:
 
     @property
     def rdr(self):
-	# NB baseline coverage == Tn * lambdas, where lambdas.sum() == 1.                                                                                                                                           
-	return self.data["read_coverage"] / self.data["baseline_coverage"]
+        # NB baseline coverage == Tn * lambdas, where lambdas.sum() == 1.
+        return self.data["read_coverage"] / self.data["baseline_coverage"]
 
     @property
     def baf(self):
