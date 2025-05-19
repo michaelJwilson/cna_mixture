@@ -167,31 +167,28 @@ class CNA_mixture_initialize:
             #    state.
             ps = cost / cost.sum()
 
-            """
             # TODO HACK
             if validate:
-                tmp_cost = self.mixture_plusplus_cost(
+                tmp_cost = self.plusplus_cost(
                     samples,
                     centers,
                     self.params.rdr_overdispersion,
                     self.params.baf_overdispersion,
-                    collapse=True,
                 )
 
                 tmp_cost /= tmp_cost.max()
 
                 states_bag = centers.copy()
-                states_bag[:, 0] /= self.genome_coverage
 
                 plot_rdr_baf_flat(
-                    f"plots/mixture++_{len(centers)}_rdr_baf_flat.pdf",
-                    ks / self.genome_coverage,
-                    xs / ns,
+                    f"plots/plusplus_{len(centers)}_rdr_baf_flat.pdf",
+                    ks / self.xs,
+                    bs / ns,
                     ln_state_posteriors=np.log(tmp_cost),
                     states_bag=states_bag,
                     title=None,
                 )
-            """
+
             select_samples = samples[self.rng.choice(idx, p=ps, size=N, replace=False)]
 
             # NB given a trial center in (ks, xs, bs, ns) estimate RDR, BAF.
