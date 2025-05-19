@@ -110,13 +110,24 @@ class CNA_mixture_initialize:
     ):
         ks, xs, bs, ns = samples.T
 
+        # TODO UGH
+        ks = ks.copy()
+        xs = xs.copy()
+        
+        bs = bs.copy()
+        ns = ns.copy()
+
+        rdrs = centers[:, 0].copy()
+        
+        alphas, betas = reparameterize_beta_binom(centers[:, 1], overdisp_tau)
+        
         cost = -(
-            nbinom_rs(ks, xs, centers[:, 0], self.overdisp_phi)
-            + betabinom_rs(bs, ns, centers[:, 1], self.overdisp_tau)
+            nbinom_rs(ks, xs, rdrs, overdisp_phi)
+            + betabinom_rs(bs, ns, betas, alphas)
         )
 
         # NB one cost for normal state per sample.
-        assert cost.shape == (len(self.ks), self.num_states)
+        assert cost.shape == (len(ks), len(centers))
 
         # NB emission probability for "most likely" state.
         cost = np.min(cost, axis=1)
@@ -130,26 +141,28 @@ class CNA_mixture_initialize:
         """
         logger.info(f"Initializing CNA mixture params with {N}-greedy CNA_mixture++")
 
-        ks = (self.data["read_coverage"],)
+        ks = self.data["read_coverage"]
         xs = self.data["baseline_coverage"]
 
-        bs = (self.data["b_reads"],)
-        ns = (self.data["snp_coverage"],)
+        bs = self.data["b_reads"]
+        ns = self.data["snp_coverage"]
 
         samples = np.c_[ks, xs, bs, ns]
         idx = np.arange(len(samples))
 
         # NB we assume a normal-like state to start, in (rdr, baf 'units').
-        centers = self.normal_state.tolist()
+        centers = np.array(self.params.normal_state.tolist()).reshape(1, 2)
+
+        # TODO line search in phi/tau?  why both?
         cost = self.plusplus_cost(
-            samples, centers, self.overdisp_phi, self.overdisp_tau
+            samples, centers, self.params.rdr_overdispersion, self.params.baf_overdispersion
         )
 
         logger.info(
             f"Initialized mixture++ with mixture++ cost for a normal state: {cost.sum()}"
         )
 
-        while len(centers) < self.num_states:
+        while len(centers) < self.params.num_states:
             # NB initially, there is one state.  Thereafter, reduced to "most likely"
             #    state.
             ps = cost / cost.sum()
@@ -160,8 +173,8 @@ class CNA_mixture_initialize:
                 tmp_cost = self.mixture_plusplus_cost(
                     samples,
                     centers,
-                    self.overdisp_phi,
-                    self.overdisp_tau,
+                    self.params.rdr_overdispersion,
+                    self.params.baf_overdispersion,
                     collapse=True,
                 )
 
@@ -191,8 +204,8 @@ class CNA_mixture_initialize:
                 self.plusplus_cost(
                     samples,
                     np.vstack([centers, tc]),
-                    self.overdisp_phi,
-                    self.overdisp_tau,
+                    self.params.rdr_overdispersion,
+                    self.params.baf_overdispersion
                 )
                 for tc in trial_centers
             ]
@@ -203,7 +216,9 @@ class CNA_mixture_initialize:
             cost = costs[minimizer]
             centers = np.vstack([centers, trial_centers[minimizer]])
 
-        self.cna_states = centers.copy()
-        self.cna_states = self.cna_states[self.cna_states[:, 0].argsort()]
+        cna_states = centers.copy()
+        cna_states = cna_states[cna_states[:, 0].argsort()]
 
-        return self.cna_states, cost
+        self.params.cna_states = cna_states
+        
+        return self.params, cost
