@@ -54,11 +54,11 @@ class CNA_categorical_prior:
         self.ln_lambdas = np.log(counts) - np.log(np.sum(counts))
 
     def initialize(self, **kwargs):
-        logger.info(
-            "Initializing Categorical state prior with lambdas defined by nearest state assignment"
-        )
-
         self.ln_lambdas_closest(kwargs["rdr_baf"], kwargs["cna_states"])
+
+        logger.info(
+            f"Initializing Categorical state prior with lambdas defined by nearest state assignment: {self}"
+        )
 
     def get_ln_state_priors(self, *, ln_state_emission=None):  # noqa: ARG002
         ln_norm = logsumexp(self.ln_lambdas)
