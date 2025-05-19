@@ -100,7 +100,6 @@ class CNA_mixture_initialize:
         # TODO return cost.
         return self.params, np.inf
 
-    # TODO provided with an emission model directly.
     @staticmethod
     def plusplus_cost(
         samples,
@@ -113,17 +112,16 @@ class CNA_mixture_initialize:
         # TODO UGH
         ks = ks.copy()
         xs = xs.copy()
-        
+
         bs = bs.copy()
         ns = ns.copy()
 
         rdrs = centers[:, 0].copy()
-        
+
         alphas, betas = reparameterize_beta_binom(centers[:, 1], overdisp_tau)
-        
+
         cost = -(
-            nbinom_rs(ks, xs, rdrs, overdisp_phi)
-            + betabinom_rs(bs, ns, betas, alphas)
+            nbinom_rs(ks, xs, rdrs, overdisp_phi) + betabinom_rs(bs, ns, betas, alphas)
         )
 
         # NB one cost for normal state per sample.
@@ -133,6 +131,37 @@ class CNA_mixture_initialize:
         cost = np.min(cost, axis=1)
 
         return cost
+
+    def validate_plusplus(self, samples, centers, overdisp_phi, overdisp_tau):
+        ks, xs, bs, ns = samples.T
+
+        # TODO UGH
+        # ks = ks.copy()
+        # xs = xs.copy()
+
+        # bs = bs.copy()
+        # ns = ns.copy()
+
+        # rdrs = centers[:, 0].copy()
+
+        tmp_cost = self.plusplus_cost(
+            samples,
+            centers,
+            overdisp_phi,
+            overdisp_tau,
+        )
+
+        tmp_cost /= tmp_cost.max()
+
+        states_bag = centers.copy()
+
+        plot_rdr_baf_flat(
+            f"plots/plusplus_{len(centers)}_rdr_baf_flat.pdf",  # TODO HACK
+            ks / xs,
+            bs / ns,
+            ln_state_posteriors=None,  # np.log(tmp_cost),
+            states_bag=states_bag,
+        )
 
     def plusplus(self, N=4, validate=True):
         """
@@ -155,11 +184,14 @@ class CNA_mixture_initialize:
 
         # TODO line search in phi/tau?  why both?
         cost = self.plusplus_cost(
-            samples, centers, self.params.rdr_overdispersion, self.params.baf_overdispersion
+            samples,
+            centers,
+            self.params.rdr_overdispersion,
+            self.params.baf_overdispersion,
         )
 
         logger.info(
-            f"Initialized mixture++ with mixture++ cost for a normal state: {cost.sum()}"
+            f"Initialized mixture++ with mixture++ cost for a normal state: {cost.sum()}.  Solving for {self.params.num_states} states."
         )
 
         while len(centers) < self.params.num_states:
@@ -168,25 +200,7 @@ class CNA_mixture_initialize:
             ps = cost / cost.sum()
 
             if validate:
-                tmp_cost = self.plusplus_cost(
-                    samples,
-                    centers,
-                    self.params.rdr_overdispersion,
-                    self.params.baf_overdispersion,
-                )
-
-                tmp_cost /= tmp_cost.max()
-
-                states_bag = centers.copy()
-
-                plot_rdr_baf_flat(
-                    f"plots/plusplus_{len(centers)}_rdr_baf_flat.pdf", # TODO HACK
-                    ks / xs,
-                    bs / ns,
-                    ln_state_posteriors=None, # np.log(tmp_cost),
-                    states_bag=states_bag,
-                    title=None,
-                )
+                self.validate_plusplus(samples, centers, self.params.rdr_overdispersion, self.params.baf_overdispersion)
 
             select_samples = samples[self.rng.choice(idx, p=ps, size=N, replace=False)]
 
@@ -201,7 +215,7 @@ class CNA_mixture_initialize:
                     samples,
                     np.vstack([centers, tc]),
                     self.params.rdr_overdispersion,
-                    self.params.baf_overdispersion
+                    self.params.baf_overdispersion,
                 )
                 for tc in trial_centers
             ]
@@ -212,9 +226,12 @@ class CNA_mixture_initialize:
             cost = costs[minimizer]
             centers = np.vstack([centers, trial_centers[minimizer]])
 
+        if validate:
+            self.validate_plusplus(samples, centers, self.params.rdr_overdispersion, self.params.baf_overdispersion)
+
         cna_states = centers.copy()
         cna_states = cna_states[cna_states[:, 0].argsort()]
 
         self.params.cna_states = cna_states
-        
+
         return self.params, cost
