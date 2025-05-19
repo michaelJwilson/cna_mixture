@@ -125,9 +125,12 @@ def plot_rdr_baf_genome(
         segment_index, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
     )
 
-    axes[0].set_xlim(-100, 10_100)
+    valid = np.isfinite(rdr)
+    
+    axes[0].set_xlim(-100, len(rdr))
+    axes[0].set_ylim(-0.5, np.percentile(rdr[valid], 99.))
     axes[0].set_ylabel(r"read depth ratio")
-
+    
     axes[1].set_ylabel(r"$b$-allele frequency")
     axes[1].set_xlabel("segment index")
 
