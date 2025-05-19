@@ -62,7 +62,7 @@ def run_inference(
 
 
 def main():
-    # NB   run_inference --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 3 --initialize-mode random --state-prior categorical
+    # NB   run_inference --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 6 --initialize-mode non_normal --state-prior categorical
     #      run_inference --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 3 --state-prior markov --initialize-mode mixture_plusplus
     parser = argparse.ArgumentParser(description="Run CNA inference.")
     parser.add_argument(
@@ -80,7 +80,7 @@ def main():
     parser.add_argument(
         "--num_cna_states",
         type=int,
-        default=4,
+        default=6,
         help="Number of CNA components - does not include normal.",
     )
     parser.add_argument(
