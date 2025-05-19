@@ -42,13 +42,13 @@ class CNA_mixture_initialize:
             case "random":
                 mixture_params, cost = self.random()
                 
-            case "nonnormal":
-                mixture_params, cost = self.nonnormal()
+            case "non_normal":
+                mixture_params, cost = self.non_normal()
                 
             case "plusplus":
                 mixture_params, cost = self.plusplus()
             case _:
-                msg = f"{self.initialize_mode} style initialization is not supported."
+                msg = f"{self.mode} style initialization is not supported."
                 raise ValueError(msg)
 
         return mixture_params, cost
@@ -72,7 +72,7 @@ class CNA_mixture_initialize:
 
         return self.params, np.inf
 
-    def nonnormal(self, threshold=0.05, non_normal=True):
+    def non_normal(self, threshold=0.05, non_normal=True):
         """
         Given an instance of (RDR, BAF) data, update the mixture params
         to be a random sample of the *non-normal* data, i.e. a copy number

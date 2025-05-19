@@ -51,7 +51,7 @@ class CNA_inference:
         """
         # NB see e.g. https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html#optimize-minimize-slsqp
         assert optimizer in ["nelder-mead", "L-BFGS-B", "SLSQP"]
-        assert initialize_mode in ["random", "mixture_plusplus"]
+        assert initialize_mode in ["random", "non_normal", "plusplus"]
 
         self.data = data
         self.seed = seed
@@ -144,7 +144,7 @@ class CNA_inference:
 
         self.ln_state_emission = self.emission_model.emission(self.initial_params)
 
-        # TODO BUG prior == posterior - emission.
+        # TODO BUG prior == posterior - emission?  By definition? 
         # NB Markov requires emission probabilities for all other states to define state prior.
         #    Categorical ignores
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors(

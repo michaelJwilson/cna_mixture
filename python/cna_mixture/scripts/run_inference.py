@@ -46,7 +46,7 @@ def run_inference(
     )
     
     cna_inf.initialize(**kwargs)
-
+    """
     cna_inf.plot(
         plots_dir,
         cna_inf.initial_params,
@@ -57,7 +57,7 @@ def run_inference(
     res = cna_inf.fit()
 
     cna_inf.plot(plots_dir, res.x, "final", "Final state posteriors")
-
+    """
     logger.info(f"Done ({time.time() - start:.3f} seconds).\n\n")
 
 
@@ -94,7 +94,7 @@ def main():
         "--initialize-mode",
         type=str,
         default=None,
-        choices=["random", "mixture_plusplus"],
+        choices=["random", "non_normal", "plusplus"],
         help="Assumed model for initialization of state parameters.",
     )
     parser.add_argument(

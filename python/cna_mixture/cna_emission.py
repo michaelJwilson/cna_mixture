@@ -48,7 +48,7 @@ def reparameterize_nbinom(means, overdisp):
 
     return np.ravel(rs), np.ravel(ps)
 
-
+# TODO DEPRECATE
 class CNA_emission_backed_rs:
     # NB patch class that handles bafs -> alphas, betas + delegates.
     def __init__(self, num_states, ks, xs, bs, ns, ws=None):
