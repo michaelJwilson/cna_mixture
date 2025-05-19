@@ -244,7 +244,11 @@ class CNA_emission:
         return rdrs, rdr_overdispersion, alphas, betas
 
     def get_states_bag(self, params):
-        rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
+        rdrs, rdr_overdispersion, alphas, betas = self.unpack_params(params)
+
+        baf_overdispersion = (alphas + betas)[0]
+        bafs = betas / baf_overdispersion
+        
         return np.c_[rdrs, bafs]
 
     def update_weights(self, ws):
