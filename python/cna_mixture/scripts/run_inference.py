@@ -49,14 +49,13 @@ def run_inference(
     
     cna_inf.initialize(**kwargs)
 
-    """
     cna_inf.plot(
         plots_dir,
         cna_inf.initial_params,
         "initial",
         "Initial state posteriors (based on closest state lambdas).",
     )
-    
+    """
     res = cna_inf.fit()
 
     cna_inf.plot(plots_dir, res.x, "final", "Final state posteriors")
