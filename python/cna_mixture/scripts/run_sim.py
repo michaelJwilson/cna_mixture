@@ -34,7 +34,7 @@ def run_sim(output_dir, num_sims=1, seed=314):
 
 
 def main():
-    # NB python python/cna_mixture/scripts/run_sim.py --output-dir ~/scratch/cna_mixture/sims/
+    # NB  run_sim --output-dir ~/scratch/cna_mixture/sims/
     parser = argparse.ArgumentParser(description="Create CNA simulation.")
     parser.add_argument(
         "--output-dir",

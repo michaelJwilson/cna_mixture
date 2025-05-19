@@ -17,15 +17,18 @@ logger = logging.getLogger(__name__)
 def get_sim_params():
     return {
         "num_segments": 10_000,
-        "num_states": 4,
+        "num_states": 7,
         "jump_rate": 1.0e-2,
         "normal_state": np.array([1.0, 0.5]),
         "cna_states": np.array(
             [
-                [1.0, 0.5],
-                [3.0, 0.33],
-                [4.0, 0.25],
-                [10.0, 0.1],
+                [1.0,  0.50],
+                [3.0,  0.33],
+                [4.0,  0.25],
+                [6.0,  0.17],
+                [10.0, 0.10],
+                [12.0, 0.08],
+                [13.0, 0.07],
             ]
         ),
         "overdisp_tau": 45.0,
