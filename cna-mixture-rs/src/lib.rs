@@ -450,7 +450,11 @@ pub fn betabinom_reduce(
         .par_iter()
         .zip(n.par_iter())
         .zip(weights.axis_iter(Axis(0)).into_par_iter())
-        .map(|((&k_val, &n_val), weights_row)| {
+        .filter_map(|((&k_val, &n_val), weights_row)| {
+            if n_val == 0.0 {
+                return None;
+            }
+
             let zero_point =
                 ln_gamma(n_val + 1.0) - ln_gamma(k_val + 1.0) - ln_gamma(n_val - k_val + 1.0);
 
@@ -465,7 +469,7 @@ pub fn betabinom_reduce(
                 })
                 .sum();
 
-            sum
+            Some(sum)
         })
         .sum();
 
@@ -490,6 +494,10 @@ pub fn betabinom(k: &[f64], n: &[f64], a: &[f64], b: &[f64]) -> Vec<Vec<f64>> {
         .par_iter()
         .zip(n.par_iter())
         .map(|(&k_val, &n_val)| {
+            if n_val == 0.0 {
+                return vec![0.0; a.len()];
+            }
+
             let zero_point =
                 ln_gamma(n_val + 1.0) - ln_gamma(k_val + 1.0) - ln_gamma(n_val - k_val + 1.0);
 
@@ -801,8 +809,8 @@ mod tests {
 
     #[test]
     fn test_betabinom_reduce() {
-        let k = vec![1.0, 2.0, 3.0];
-        let n = vec![5.0, 6.0, 7.0];
+        let k = vec![1.0, 2.0, 3.0, 5.0];
+        let n = vec![5.0, 6.0, 7.0, 0.0];
         
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
@@ -811,16 +819,17 @@ mod tests {
             vec![1.0, 0.8, 0.6],
             vec![0.9, 0.7, 0.5],
             vec![0.8, 0.6, 0.4],
+            vec![0.9, 0.7, 0.5],
         ];
 
         let weights: Vec<f64> = weights.into_iter().flatten().collect();
-        let weights = Array2::from_shape_vec((3, 3), weights).unwrap();
+        let weights = Array2::from_shape_vec((4, 3), weights).unwrap();
 
         let result = betabinom_reduce(&k, &n, &a, &b, weights.view());
 
         let interim = betabinom(&k, &n, &a, &b);
         let interim =
-            Array2::from_shape_vec((3, 3), interim.into_iter().flatten().collect()).unwrap();
+            Array2::from_shape_vec((4, 3), interim.into_iter().flatten().collect()).unwrap();
 
         let exp = (interim * &weights).sum();
 
