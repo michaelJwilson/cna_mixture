@@ -139,7 +139,7 @@ class CNA_inference:
             zero_percentage = (zero_mask.sum() / self.num_segments) * 100
 
             logger.info(
-                f"Field '{key.ljust(max_len)}' contain:\t\t{nan_percentage:.3f}% nans\t"
+                f"Field '{key.ljust(max_len)}' contain:\t{nan_percentage:.3f}% nans\t"
                 f"{inf_percentage:.3f}% infs\t{zero_percentage:.3f}% zeros."
             )
 
