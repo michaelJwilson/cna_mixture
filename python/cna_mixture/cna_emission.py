@@ -48,7 +48,6 @@ def reparameterize_nbinom(means, overdisp):
 
     return np.ravel(rs), np.ravel(ps)
 
-# TODO DEPRECATE
 class CNA_emission_backed_rs:
     # NB patch class that handles bafs -> alphas, betas + delegates.
     def __init__(self, num_states, ks, xs, bs, ns, ws=None):
@@ -79,6 +78,7 @@ class CNA_emission_backed_rs:
         )
 
         if ws is not None:
+            # NB weights are not utilized by non-compressed case.
             self.engine_compressed.update_weights(ws)
 
         logger.info("Initialized rust emission class.")
@@ -92,23 +92,17 @@ class CNA_emission_backed_rs:
     def nbinom_reduce(self, rdrs, rdr_overdispersion):
         return self.engine_compressed.nbinom(rdrs, rdr_overdispersion)
 
-    def betabinom(self, bafs, baf_overdispersion):        
-        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
+    def betabinom(self, alphas, betas): 
         return self.engine.betabinom(betas, alphas)
 
-    def betabinom_reduce(self, bafs, baf_overdispersion):
-        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
+    def betabinom_reduce(self, alphas, betas):
         return self.engine_compressed.betabinom_reduce(betas, alphas)
 
-    def emission(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):        
-        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
-        
+    def emission(self, rdrs, rdr_overdispersion, alphas, betas):
         # NB assumes independent
         return self.engine.nbinom(rdrs, rdr_overdispersion) + self.engine.betabinom(betas, alphas)
 
-    def emission_reduce(self, rdrs, rdr_overdispersion, bafs, baf_overdispersion):
-        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
-        
+    def emission_reduce(self, rdrs, rdr_overdispersion, alphas, betas):
         # NB assumes independent
         return self.engine_compressed.nbinom_reduce(rdrs, rdr_overdispersion) + self.engine_compressed.betabinom_reduce(betas, alphas)
 
@@ -239,7 +233,9 @@ class CNA_emission:
         bafs = params[num_states + 1 : 2 * num_states + 1]
         baf_overdispersion = params[2 * num_states + 1]
 
-        return rdrs, rdr_overdispersion, bafs, baf_overdispersion
+        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
+        
+        return rdrs, rdr_overdispersion, alphas, betas
 
     def get_states_bag(self, params):
         rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
@@ -257,27 +253,19 @@ class CNA_emission:
         return self.backend.nbinom_reduce(rdrs, rdr_overdispersion)
 
     def betabinom(self, params):
-        *_, bafs, baf_overdispersion = self.unpack_params(params)
-        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
-        
+        *_, alphas, betas = self.unpack_params(params)        
         return self.backend.betabinom(alphas, betas)
 
     def betabinom_reduce(self, params):
-        *_, bafs, baf_overdispersion = self.unpack_params(params)
-        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
-        
+        *_, alphas, betas = self.unpack_params(params)
         return self.backend.betabinom_reduce(alphas, betas)
 
     def emission(self, params):
-        rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
-        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
-        
+        rdrs, rdr_overdispersion, alphas, betas = self.unpack_params(params)
         return self.backend.emission(rdrs, rdr_overdispersion, alphas, betas)
 
     def emission_reduce(self, params):
-        rdrs, rdr_overdispersion, bafs, baf_overdispersion = self.unpack_params(params)
-        alphas, betas = reparameterize_beta_binom(bafs, baf_overdispersion)
-        
+        rdrs, rdr_overdispersion, alphas, betas = self.unpack_params(params)
         return self.backend.emission_reduce(rdrs, rdr_overdispersion, alphas, betas)
 
     """
