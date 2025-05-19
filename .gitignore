@@ -1,6 +1,7 @@
 target/
 dist/
 plots/
+validation/data/cna_sim_ma/
 *~
 *.so
 
