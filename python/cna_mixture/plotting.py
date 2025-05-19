@@ -55,7 +55,7 @@ def plot_rdr_baf_flat(
         rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)        
     else:
         rgb = np.zeros(shape=(len(rdr), 3))
-        alpha, cmap = None, None
+        alpha, cmap = 0.25, None
 
     pl.axhline(0.5, c="k", lw=0.5)
     plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
