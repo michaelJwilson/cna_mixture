@@ -52,6 +52,16 @@ def param_diff(params, new_params):
     return np.max(np.abs(1.0 - new_params / params))
 
 
+def patch_default(values, default):
+    # NB assumes one dimension.
+    valid = np.isfinite(values)
+
+    result = values.copy()
+    result[~valid] = default
+
+    return result
+
+
 def assign_closest(points, centers):
     """
     Assign points to the closest center.

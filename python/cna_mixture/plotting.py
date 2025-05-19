@@ -3,6 +3,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import pylab as pl
+from cna_mixture.utils import patch_default
 
 logger = logging.getLogger(__name__)
 
@@ -113,25 +114,18 @@ def plot_rdr_baf_genome(
     for state_rdr, state_baf in states_bag:
         axes[0].axhline(state_rdr, c="k", lw=0.1)
         axes[1].axhline(state_baf, c="k", lw=0.1)
-
-    # smooth_rdr = tophat_smooth(rdr, window_size=100)
-    # smooth_baf = tophat_smooth(baf, window_size=100)
-
+        
     rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
 
-    axes[0].set_xlim(-100, 10_100)
-
     axes[0].scatter(
-        segment_index, rdr, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
+        segment_index, patch_default(rdr, 1.0), c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
     )
-    # axes[0].scatter(segment_index, smooth_rdr)
 
     axes[1].scatter(
-        segment_index, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
+        segment_index, patch_default(baf, 0.5), c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
     )
-    # axes[1].plot(segment_index, baf)
-    # axes[1].plot(segment_index, smooth_baf)
 
+    axes[0].set_xlim(-100, 10_100)
     axes[0].set_ylabel(r"read depth ratio")
 
     axes[1].set_ylabel(r"$b$-allele frequency")
