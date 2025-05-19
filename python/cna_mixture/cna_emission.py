@@ -149,7 +149,8 @@ class CNA_emission_backend:
                     rdr_overdispersion,
                 )
 
-                result[row, col] = nbinom.logpmf(kk, rr, pp)
+                if xx > 0.0:
+                    result[row, col] = nbinom.logpmf(kk, rr, pp)
 
         return result
 
@@ -167,7 +168,8 @@ class CNA_emission_backend:
 
         for col, (alpha, beta) in enumerate(zip(alphas, betas)):
             for row, (b, n) in enumerate(zip(self.bs, self.ns, strict=False)):
-                result[row, col] = betabinom.logpmf(b, n, beta, alpha)
+                if n > 0:
+                    result[row, col] = betabinom.logpmf(b, n, beta, alpha)
 
         return result
 
