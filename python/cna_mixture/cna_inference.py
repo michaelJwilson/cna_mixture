@@ -400,18 +400,16 @@ class CNA_inference:
             f"{plots_dir}/{label}_rdr_baf_flat.pdf",
             self.rdr,
             self.baf,
-            ln_state_posteriors=ln_state_posteriors,
+            ln_state_posteriors=self.ln_state_posteriors,
             states_bag=self.emission_model.get_states_bag(params),
             title=title,
-            one_hot=one_hot,
         )
 
         plot_rdr_baf_genome(
             f"{plots_dir}/{label}_rdr_baf_genome.pdf",
             self.rdr,
             self.baf,
-            ln_state_posteriors=ln_state_posteriors,
+            ln_state_posteriors=self.ln_state_posteriors,
             states_bag=self.emission_model.get_states_bag(params),
             title=title,
-            one_hot=one_hot,
         )

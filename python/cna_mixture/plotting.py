@@ -3,23 +3,35 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import pylab as pl
-from cna_mixture.utils import patch_default
+from cna_mixture.utils import patch_default, tophat_smooth
 
 logger = logging.getLogger(__name__)
 
+def sample_colormap(num_states, cmap="tab20b"):
+    cmap = plt.get_cmap(cmap)    
+    indices = np.linspace(0, 1, num_states)
+        
+    return [cmap(i) for i in indices]
 
-def ln_probs_to_rgb(ln_probs, one_hot=True):
-    ln_state_posteriors = (
-        one_hotify(self.ln_state_posteriors) if one_hot else self.ln_state_posteriors
-    )
 
-    if ln_probs.ndim == 1:
-        # NB black
-        rgb = np.zeros(shape=(len(ln_probs), 3))
+def ln_probs_to_rgb(ln_probs):
+    nrows, ncols = ln_probs.shape
+
+    rgb = np.zeros(shape=(len(ln_probs), 3))
+    alpha, cmap = 0.25, None
+    
+    if ncols == 1:
         alpha = np.exp(ln_probs)
 
+    elif ncols > 5:
+        colors = sample_colormap(ncols)
+        
+        idx = np.argmax(ln_probs, axis=1)
+        rgb = [colors[ii] for ii in idx]
+        cmap = None
+
+    # TODO
     else:
-        # NB assumed to be normal probability.
         rgb = np.zeros(shape=(len(ln_probs), 3))
         alpha = 0.25
 
@@ -32,9 +44,7 @@ def ln_probs_to_rgb(ln_probs, one_hot=True):
                 )
                 break
 
-        cmap = None
-
-        return rgb, alpha, cmap
+    return rgb, alpha, cmap
 
 
 def plot_rdr_baf_flat(
@@ -52,15 +62,11 @@ def plot_rdr_baf_flat(
     """
     pl.clf()
 
-    if ln_state_posteriors is not None:
-        assert len(ln_state_posteriors) == len(
-            rdr
-        ), f"Found inconsistent RDR, BAF and state posteriors (size {len(rdr)} and {len(ln_state_posteriors)} respectively)"
+    assert len(ln_state_posteriors) == len(
+        rdr
+    ), f"Found inconsistent RDR, BAF and state posteriors (size {len(rdr)} and {len(ln_state_posteriors)} respectively)"
 
-        rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
-    else:
-        rgb = np.zeros(shape=(len(rdr), 3))
-        alpha, cmap = 0.25, None
+    rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
 
     pl.axhline(0.5, c="k", lw=0.5)
     plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
@@ -85,18 +91,9 @@ def plot_rdr_baf_flat(
     if title is not None:
         pl.title(title)
 
-    # plt.tight_layout()
     pl.savefig(fpath)
 
     logger.info(f"Plotted rdr_baf_flat to {fpath}")
-
-
-def tophat_smooth(data, window_size):
-    """
-    Top-hat convolution of a 1D signal.
-    """
-    kernel = np.ones(window_size) / window_size
-    return np.convolve(data, kernel, mode="same")
 
 
 def plot_rdr_baf_genome(
@@ -110,6 +107,10 @@ def plot_rdr_baf_genome(
 ):
     pl.clf()
 
+    assert len(ln_state_posteriors) == len(
+        rdr
+    ), f"Found inconsistent RDR, BAF and state posteriors (size {len(rdr)} and {len(ln_state_posteriors)} respectively)"
+    
     segment_index = np.arange(len(rdr))
 
     figsize = (15, 10)
@@ -141,7 +142,6 @@ def plot_rdr_baf_genome(
     if title is not None:
         pl.title(title)
 
-    # plt.tight_layout()
     pl.savefig(fpath)
 
     logger.info(f"Plotted rdr_baf_genome to {fpath}")

@@ -16,6 +16,13 @@ def one_hotify(array):
 
     return one_hot
 
+def tophat_smooth(data, window_size):
+    """                                                                                                                                                                                         
+    Top-hat convolution of a 1D signal.                                                                                                                                                         
+    """
+    kernel = np.ones(window_size) / window_size
+    return np.convolve(data, kernel, mode="same")
+
 def deprecated(reason: str):
     """
     A decorator to mark functions or methods as deprecated.
