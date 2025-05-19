@@ -74,7 +74,7 @@ class CNA_inference:
             data["b_reads"],
             data["snp_coverage"],
         )
-        
+
         match state_prior:
             case "categorical":
                 self.state_prior_model = CNA_categorical_prior
@@ -103,6 +103,48 @@ class CNA_inference:
     def rdr_baf(self):
         return np.c_[self.rdr, self.baf]
 
+    def validate(self):
+        keys = ["read_coverage", "baseline_coverage", "b_reads", "snp_coverage"]        
+        max_len = np.max([len(xx) for xx in keys])
+
+        mask = np.zeros(self.num_segments, dtype=int)
+        
+        for key in keys:
+            if key not in self.data.dtype.names:
+                logger.warning(
+                    f"Field '{key}' is missing in self.data. Skipping validation for this field."
+                )
+                continue
+
+            values = self.data[key]
+
+            if not isinstance(values, np.ndarray):
+                logger.warning(
+                    f"Data field '{key}' is not a NumPy array. Skipping validation."
+                )
+                continue
+
+            nan_mask = np.isnan(values)
+            inf_mask = np.isinf(values)
+
+            if key in ["baseline_coverage", "snp_coverage"]:
+                zero_mask = values == 0.0
+            else:
+                zero_mask = np.zeros_like(values, dtype=bool)
+
+            mask |= nan_mask | inf_mask | zero_mask
+
+            nan_percentage = (nan_mask.sum() / self.num_segments) * 100
+            inf_percentage = (inf_mask.sum() / self.num_segments) * 100
+            zero_percentage = (zero_mask.sum() / self.num_segments) * 100
+
+            logger.info(
+                f"Field '{key.ljust(max_len)}' contain:\t\t{nan_percentage:.3f}% nans\t"
+                f"{inf_percentage:.3f}% infs\t{zero_percentage:.3f}% zeros."
+            )
+
+        self.mask = mask
+
     def initialize_params(self):
         """
         Initialize mixture parameters, i.e. (RDR, BAF) for all cna_states and their dispersions.
@@ -113,7 +155,7 @@ class CNA_inference:
         initializer = CNA_mixture_initialize(
             self.data, mixture_params, seed=self.seed, mode=self.initialize_mode
         )
-        
+
         mixture_params, cost = initializer.run()
 
         return mixture_params, cost
@@ -144,7 +186,7 @@ class CNA_inference:
 
         self.ln_state_emission = self.emission_model.emission(self.initial_params)
 
-        # TODO BUG prior == posterior - emission?  By definition? 
+        # TODO BUG prior == posterior - emission?  By definition?
         # NB Markov requires emission probabilities for all other states to define state prior.
         #    Categorical ignores
         self.ln_state_prior = self.state_prior_model.get_ln_state_priors(
@@ -160,11 +202,11 @@ class CNA_inference:
         self.ln_state_posteriors = self.state_prior_model.get_ln_state_posteriors(
             ln_state_emission=self.ln_state_emission
         )
-        
+
         self.state_posteriors = np.exp(self.ln_state_posteriors)
-        
+
         self.emission_model.update_weights(self.state_posteriors)
-        
+
     def pstep(self):
         """
         Update the state prior model based on the current state posteriors,
@@ -195,7 +237,7 @@ class CNA_inference:
         # cost = -(self.state_posteriors * self.ln_state_emission).sum()
 
         cost = -self.emission_model.emission_reduce(params)
-        
+
         if verbose:
             self.log_mstep(self.nit, self.last_params, self.params, params, cost)
 

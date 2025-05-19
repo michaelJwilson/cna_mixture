@@ -45,6 +45,9 @@ def run_inference(
         seed=np.random.default_rng(seed),
     )
     
+    cna_inf.validate()
+    
+    """
     cna_inf.initialize(**kwargs)
 
     cna_inf.plot(
@@ -53,7 +56,7 @@ def run_inference(
         "initial",
         "Initial state posteriors (based on closest state lambdas).",
     )
-    """
+    
     res = cna_inf.fit()
 
     cna_inf.plot(plots_dir, res.x, "final", "Final state posteriors")
