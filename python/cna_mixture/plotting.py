@@ -8,7 +8,11 @@ from cna_mixture.utils import patch_default
 logger = logging.getLogger(__name__)
 
 
-def ln_probs_to_rgb(ln_probs):
+def ln_probs_to_rgb(ln_probs, one_hot=True):
+    ln_state_posteriors = (
+        one_hotify(self.ln_state_posteriors) if one_hot else self.ln_state_posteriors
+    )
+
     if ln_probs.ndim == 1:
         # NB black
         rgb = np.zeros(shape=(len(ln_probs), 3))
@@ -53,7 +57,7 @@ def plot_rdr_baf_flat(
             rdr
         ), f"Found inconsistent RDR, BAF and state posteriors (size {len(rdr)} and {len(ln_state_posteriors)} respectively)"
 
-        rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)        
+        rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
     else:
         rgb = np.zeros(shape=(len(rdr), 3))
         alpha, cmap = 0.25, None
@@ -114,7 +118,7 @@ def plot_rdr_baf_genome(
     for state_rdr, state_baf in states_bag:
         axes[0].axhline(state_rdr, c="k", lw=0.1)
         axes[1].axhline(state_baf, c="k", lw=0.1)
-        
+
     rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
 
     axes[0].scatter(
@@ -126,11 +130,11 @@ def plot_rdr_baf_genome(
     )
 
     valid = np.isfinite(rdr)
-    
+
     axes[0].set_xlim(-100, len(rdr))
-    axes[0].set_ylim(-0.5, np.percentile(rdr[valid], 99.))
+    axes[0].set_ylim(-0.5, np.percentile(rdr[valid], 99.0))
     axes[0].set_ylabel(r"read depth ratio")
-    
+
     axes[1].set_ylabel(r"$b$-allele frequency")
     axes[1].set_xlabel("segment index")
 

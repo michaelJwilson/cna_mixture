@@ -8,7 +8,7 @@ from cna_mixture.cna_mixture_params import CNA_mixture_params
 from cna_mixture.plotting import plot_rdr_baf_flat, plot_rdr_baf_genome
 from cna_mixture.state_priors import CNA_categorical_prior, CNA_markov_prior
 from cna_mixture.initialize import CNA_mixture_initialize
-from cna_mixture.utils import param_diff
+from cna_mixture.utils import param_diff, one_hotify
 
 logger = logging.getLogger(__name__)
 
@@ -104,11 +104,11 @@ class CNA_inference:
         return np.c_[self.rdr, self.baf]
 
     def validate(self):
-        keys = ["read_coverage", "baseline_coverage", "b_reads", "snp_coverage"]        
+        keys = ["read_coverage", "baseline_coverage", "b_reads", "snp_coverage"]
         max_len = np.max([len(xx) for xx in keys])
 
         mask = np.zeros(self.num_segments, dtype=int)
-        
+
         for key in keys:
             if key not in self.data.dtype.names:
                 logger.warning(
@@ -189,9 +189,9 @@ class CNA_inference:
         valid = np.isfinite(self.ln_state_emission)
 
         msg = "Initialization found non-finite emission probabilities"
-        
+
         assert np.all(valid), msg
-        
+
         # TODO BUG prior == posterior - emission?  By definition?
         # NB Markov requires emission probabilities for all other states to define state prior.
         #    Categorical ignores
@@ -395,21 +395,23 @@ class CNA_inference:
 
         logger.info(msg)
 
-    def plot(self, plots_dir, params, label, title=None):
+    def plot(self, plots_dir, params, label, title=None, one_hot=True):
         plot_rdr_baf_flat(
             f"{plots_dir}/{label}_rdr_baf_flat.pdf",
             self.rdr,
             self.baf,
-            ln_state_posteriors=self.ln_state_posteriors,
+            ln_state_posteriors=ln_state_posteriors,
             states_bag=self.emission_model.get_states_bag(params),
             title=title,
+            one_hot=one_hot,
         )
 
         plot_rdr_baf_genome(
             f"{plots_dir}/{label}_rdr_baf_genome.pdf",
             self.rdr,
             self.baf,
-            ln_state_posteriors=self.ln_state_posteriors,
+            ln_state_posteriors=ln_state_posteriors,
             states_bag=self.emission_model.get_states_bag(params),
             title=title,
+            one_hot=one_hot,
         )

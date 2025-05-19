@@ -8,6 +8,13 @@ from scipy.special import logsumexp
 
 logger = logging.getLogger(__name__)
 
+def one_hotify(array):
+    max_indices = np.argmax(array, axis=1)
+
+    one_hot = np.zeros_like(array)
+    one_hot[np.arange(len(max_indices)), max_indices] = 1.
+
+    return one_hot
 
 def deprecated(reason: str):
     """
