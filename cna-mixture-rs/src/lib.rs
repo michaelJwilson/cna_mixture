@@ -623,6 +623,7 @@ fn vector_sum(vec1: Vec<f64>, vec2: Vec<f64>) -> Vec<f64> {
 }
 
 fn grad_ln_bb_ab_zeropoint(a: f64, b: f64) -> Vec<f64> {
+    //  NB model/prior defined components.
     let gab = digamma(a + b);
     let ga = digamma(a);
     let gb = digamma(b);
