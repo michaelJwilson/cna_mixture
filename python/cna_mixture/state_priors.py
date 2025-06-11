@@ -9,22 +9,22 @@ from cna_mixture.utils import assign_closest, normalize_ln_probs, uniform_ln_pro
 
 logger = logging.getLogger()
 
+
 # NB setup is such that Categorical+Markov satisfy the same ABC; for clarity, keyword
 #    arguments are used.
 def validate_keyword_not_null(arg):
     if arg is None:
         raise ValueError(f"keyword argument must not be null.")
 
-    
+
 class CNA_categorical_prior:
-    def __init__(self, num_segments, num_states, production_mode=True):
+    def __init__(self, num_segments, num_states):
         logger.info(
             f"Initializing CNA_categorical_prior for num. segments, num. states = {num_segments}, {num_states} respectively."
         )
 
         self.num_states = num_states
         self.num_segments = num_segments
-        self.production_mode = production_mode
 
     def __str__(self):
         return f"lambdas={np.exp(self.ln_lambdas)}"
@@ -41,7 +41,7 @@ class CNA_categorical_prior:
         an assignment of each (RDR, BAF) point to it's nearest current state.
         """
         assert len(cna_states) == self.num_states
-
+        
         decoded_states = assign_closest(rdr_baf, cna_states)
 
         # NB categorical prior on state fractions
@@ -54,13 +54,13 @@ class CNA_categorical_prior:
         self.ln_lambdas = np.log(counts) - np.log(np.sum(counts))
 
     def initialize(self, **kwargs):
-        logger.info(
-            "Initializing Categorical state prior with lambdas defined by nearest state assignment"
-        )
-
         self.ln_lambdas_closest(kwargs["rdr_baf"], kwargs["cna_states"])
 
-    def get_ln_state_priors(self, *, ln_state_emission=None): # noqa: ARG002
+        logger.info(
+            f"Initializing Categorical state prior with lambdas defined by nearest state assignment:\n{self}"
+        )
+
+    def get_ln_state_priors(self, *, ln_state_emission=None):  # noqa: ARG002
         ln_norm = logsumexp(self.ln_lambdas)
 
         return np.broadcast_to(
@@ -73,7 +73,7 @@ class CNA_categorical_prior:
         posteriors.
         """
         validate_keyword_not_null(ln_state_emission)
-        
+
         ln_state_prior = self.get_ln_state_priors()
 
         return normalize_ln_probs(ln_state_emission + ln_state_prior)
@@ -85,15 +85,16 @@ class CNA_categorical_prior:
         Categorical model.
         """
         validate_keyword_not_null(ln_state_emission)
-        
-        if not self.production_mode:
-            assert ln_state_emission.ndim == 2
 
-            # NB *slow* guard against being passed probabilities, instead of log probs.
-            assert np.all(ln_state_posteriors <= 0.0)
+        assert ln_state_emission.ndim == 2
 
-        ln_state_posteriors = self.get_ln_state_posteriors(ln_state_emission=ln_state_emission)
-            
+        # NB *slow* guard against being passed probabilities, instead of log probs.
+        # assert np.all(ln_state_emission <= 0.0)
+
+        ln_state_posteriors = self.get_ln_state_posteriors(
+            ln_state_emission=ln_state_emission
+        )
+
         self.ln_lambdas = logsumexp(ln_state_posteriors, axis=0) - logsumexp(
             ln_state_posteriors
         )
@@ -107,14 +108,14 @@ class CNA_markov_prior:
         self.num_states = num_states
 
     def __str__(self):
-        return f"PI={np.exp(self.ln_start_prior)}\n\tT=\n{self.transfer}"
+        return f"PI={np.exp(self.ln_start_prior)}\nT=\n{self.transfer}"
 
     def initialize(self, **kwargs):
         self.ln_start_prior = kwargs.get(
             "ln_start_prior", np.log((1.0 / self.num_states) * np.ones(self.num_states))
         )
 
-        self.jump_rate = kwargs.get("jump_rate", 1.e-1)
+        self.jump_rate = kwargs.get("jump_rate", 1.0e-1)
         self.transfer = CNA_transfer(
             jump_rate=self.jump_rate, num_states=self.num_states
         ).transfer_matrix
@@ -145,7 +146,7 @@ class CNA_markov_prior:
         Equivalent to ln_state_posterior - ln_state_emission for each state.
         """
         validate_keyword_not_null(ln_state_emission)
-        
+
         ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
         ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
 
@@ -165,7 +166,7 @@ class CNA_markov_prior:
         Returns HMM ln_state_posterior probability.
         """
         validate_keyword_not_null(ln_state_emission)
-        
+
         ln_fs = forward(self.ln_start_prior, self.transfer, ln_state_emission)
         ln_bs = backward(self.ln_start_prior, self.transfer, ln_state_emission)
 

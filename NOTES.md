@@ -2,7 +2,7 @@
 uvx migrate-to-uv
 
 # Build cna-mixture-rs
-uv tool run maturin develop
+uv tool run maturin develop (--release)
 
 # Use as a virtual environment
 uv venv

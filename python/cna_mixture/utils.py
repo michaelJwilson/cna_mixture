@@ -1,4 +1,5 @@
 import logging
+import functools
 
 import numpy as np
 from numba import njit
@@ -6,6 +7,39 @@ from scipy.spatial import KDTree
 from scipy.special import logsumexp
 
 logger = logging.getLogger(__name__)
+
+def one_hotify(array):
+    max_indices = np.argmax(array, axis=1)
+
+    one_hot = np.zeros_like(array)
+    one_hot[np.arange(len(max_indices)), max_indices] = 1.
+
+    return one_hot
+
+def tophat_smooth(data, window_size):
+    """                                                                                                                                                                                         
+    Top-hat convolution of a 1D signal.                                                                                                                                                         
+    """
+    kernel = np.ones(window_size) / window_size
+    return np.convolve(data, kernel, mode="same")
+
+def deprecated(reason: str):
+    """
+    A decorator to mark functions or methods as deprecated.
+
+    Raises a RuntimeError with the provided reason when the function is called.
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            raise RuntimeError(
+                f"The function '{func.__name__}' is deprecated: {reason}"
+            )
+
+        return wrapper
+
+    return decorator
 
 
 def uniform_ln_probs(num_states):
@@ -32,6 +66,16 @@ def param_diff(params, new_params):
     return np.max(np.abs(1.0 - new_params / params))
 
 
+def patch_default(values, default):
+    # NB assumes one dimension.
+    valid = np.isfinite(values)
+
+    result = values.copy()
+    result[~valid] = default
+
+    return result
+
+
 def assign_closest(points, centers):
     """
     Assign points to the closest center.
@@ -41,8 +85,12 @@ def assign_closest(points, centers):
             f"Expected more centers than points, found {len(centers)} and {len(points)} respectively."
         )
 
+    # TODO warn on masking.
+    valid = np.isfinite(points)
+    valid = np.all(valid, axis=1)
+
     tree = KDTree(centers)
-    distances, idx = tree.query(points)
+    distances, idx = tree.query(points[valid])
 
     return idx
 
@@ -52,15 +100,14 @@ def logmatexp(transfer, ln_probs):
     max_ln_probs = np.max(ln_probs)
     return max_ln_probs + np.log(np.dot(transfer, np.exp(ln_probs - max_ln_probs)))
 
+
 @njit
 def cosine_similarity_origin(array):
     norm = np.linalg.norm(array[0])
     result = []
-    
+
     for row in array:
         row_norm = np.linalg.norm(row)
-        result.append(
-            np.dot(row, array[0]) / norm / row_norm
-        )
+        result.append(np.dot(row, array[0]) / norm / row_norm)
 
     return np.array(result)

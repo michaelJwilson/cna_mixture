@@ -3,34 +3,57 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import pylab as pl
+from cna_mixture.utils import patch_default, tophat_smooth
 
 logger = logging.getLogger(__name__)
 
-
-def ln_probs_to_rgb(ln_probs):    
-    if ln_probs.ndim == 1:
-        # NB black
-        rgb = np.zeros(shape=(len(ln_probs), 3))
-        alpha = np.exp(ln_probs)
+def sample_colormap(num_states, cmap="tab20b"):
+    cmap = plt.get_cmap(cmap)    
+    indices = np.linspace(0, 1, num_states)
         
+    return [cmap(i) for i in indices]
+
+
+def ln_probs_to_rgb(ln_probs):
+    nrows, ncols = ln_probs.shape
+
+    rgb = np.zeros(shape=(len(ln_probs), 3))
+    alpha, cmap = 0.25, None
+    
+    if ncols == 1:
+        alpha = np.exp(ln_probs)
+
+    elif ncols > 5:
+        colors = sample_colormap(ncols)
+        
+        idx = np.argmax(ln_probs, axis=1)
+        rgb = [colors[ii] for ii in idx]
+        cmap = None
+
+    # TODO
     else:
-        # NB assumed to be normal probability.
         rgb = np.zeros(shape=(len(ln_probs), 3))
         alpha = 0.25
-        
+
         for ii in range(ln_probs.shape[1]):
             if ii <= 2:
                 rgb[:, -(1 + ii)] = np.exp(ln_probs[:, -(1 + ii)])
             else:
-                logger.warning(f"Failed to map all of {ln_probs.shape[1]} states to RGB when plotting")
+                logger.warning(
+                    f"Failed to map all of {ln_probs.shape[1]} states to RGB when plotting"
+                )
                 break
-                
-        cmap = None
-        
-        return rgb, alpha, cmap
+
+    return rgb, alpha, cmap
+
 
 def plot_rdr_baf_flat(
-    fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None
+    fpath,
+    rdr,
+    baf,
+    ln_state_posteriors=None,
+    states_bag=None,
+    title=None,
 ):
     """
     NB state_posteriors may be an integer, corresponding to a decoded state, or
@@ -39,12 +62,11 @@ def plot_rdr_baf_flat(
     """
     pl.clf()
 
-    if ln_state_posteriors is not None:
-        assert len(ln_state_posteriors) == len(
-            rdr
-        ), f"Found inconsistent RDR, BAF and state posteriors (size {len(rdr)} and {len(ln_state_posteriors)} respectively)"
+    assert len(ln_state_posteriors) == len(
+        rdr
+    ), f"Found inconsistent RDR, BAF and state posteriors (size {len(rdr)} and {len(ln_state_posteriors)} respectively)"
 
-        rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
+    rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
 
     pl.axhline(0.5, c="k", lw=0.5)
     plt.scatter(rdr, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap)
@@ -74,19 +96,21 @@ def plot_rdr_baf_flat(
     logger.info(f"Plotted rdr_baf_flat to {fpath}")
 
 
-def tophat_smooth(data, window_size):
-    """
-    Top-hat convolution of a 1D signal.
-    """
-    kernel = np.ones(window_size) / window_size
-    return np.convolve(data, kernel, mode="same")
-
-
 def plot_rdr_baf_genome(
-    fpath, rdr, baf, ln_state_posteriors=None, states_bag=None, title=None
+    fpath,
+    rdr,
+    baf,
+    ln_state_posteriors=None,
+    states_bag=None,
+    title=None,
+    outliers_mask=None,
 ):
     pl.clf()
 
+    assert len(ln_state_posteriors) == len(
+        rdr
+    ), f"Found inconsistent RDR, BAF and state posteriors (size {len(rdr)} and {len(ln_state_posteriors)} respectively)"
+    
     segment_index = np.arange(len(rdr))
 
     figsize = (15, 10)
@@ -96,31 +120,27 @@ def plot_rdr_baf_genome(
         axes[0].axhline(state_rdr, c="k", lw=0.1)
         axes[1].axhline(state_baf, c="k", lw=0.1)
 
-    # smooth_rdr = tophat_smooth(rdr, window_size=100)
-    # smooth_baf = tophat_smooth(baf, window_size=100)
-
     rgb, alpha, cmap = ln_probs_to_rgb(ln_state_posteriors)
-
-    axes[0].set_xlim(-100, 10_100)
 
     axes[0].scatter(
         segment_index, rdr, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
     )
-    # axes[0].scatter(segment_index, smooth_rdr)
 
     axes[1].scatter(
         segment_index, baf, c=rgb, marker=".", lw=0.0, alpha=alpha, cmap=cmap
     )
-    # axes[1].plot(segment_index, baf)
-    # axes[1].plot(segment_index, smooth_baf)
 
+    valid = np.isfinite(rdr)
+
+    axes[0].set_xlim(-100, len(rdr))
+    axes[0].set_ylim(-0.5, np.percentile(rdr[valid], 99.0))
     axes[0].set_ylabel(r"read depth ratio")
 
     axes[1].set_ylabel(r"$b$-allele frequency")
     axes[1].set_xlabel("segment index")
 
     if title is not None:
-        pl.title(title)
+        axes[0].set_title(title, fontsize=14)
 
     pl.savefig(fpath)
 

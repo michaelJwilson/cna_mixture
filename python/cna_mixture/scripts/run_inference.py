@@ -22,30 +22,32 @@ TODOs:
   - prior to prevent single-state occupancy.                                                                                            
 """
 
+np.set_printoptions(linewidth=100)
 
-def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=42, **kwargs):
+def run_inference(
+    sim_dir, sim_id, num_cna_states, state_prior, initialize_mode, seed=42, **kwargs
+):
     start = time.time()
 
     plots_dir = f"{sim_dir}/cna_sim_{sim_id}/plots/"
 
     Path(plots_dir).mkdir(exist_ok=True, parents=True)
-
+    
     cna_sim = CNA_sim.load(sim_dir, sim_id)
 
     # fit_gaussian_mixture(f"{plots_dir}/gmm_rdr_baf_flat_{sim_id}.pdf", cna_sim.rdr_baf, seed=seed)
 
-    rng = np.random.default_rng(seed)
-
     # NB total number of states (inc. normal).
     cna_inf = CNA_inference(
-        cna_sim.num_states,
-        cna_sim.genome_coverage,
+        num_cna_states,
         cna_sim.data,
         state_prior=state_prior,
         initialize_mode=initialize_mode,
-        seed=rng,
+        seed=np.random.default_rng(seed),
     )
-
+    
+    cna_inf.validate()
+    
     cna_inf.initialize(**kwargs)
 
     cna_inf.plot(
@@ -63,7 +65,10 @@ def run_inference(sim_dir, sim_id, state_prior, initialize_mode, seed=42, **kwar
 
 
 def main():
-    # NB python python/cna_mixture/scripts/run_inference.py --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --state-prior categorical --initialize-mode random
+    # NB
+    #      run_inference --sim-dir ~/scratch/cna_mixture/validation/data/ --sim-id ma --num_cna_states 6 --initialize-mode non_normal --state-prior markov
+    #      run_inference --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 6 --initialize-mode non_normal --state-prior categorical
+    #      run_inference --sim-dir ~/scratch/cna_mixture/sims/ --sim-id 0 --num_cna_states 3 --state-prior markov --initialize-mode mixture_plusplus
     parser = argparse.ArgumentParser(description="Run CNA inference.")
     parser.add_argument(
         "--sim-dir",
@@ -73,9 +78,15 @@ def main():
     )
     parser.add_argument(
         "--sim-id",
-        type=int,
+        type=str,
         default=0,
         help="Simulation ID",
+    )
+    parser.add_argument(
+        "--num_cna_states",
+        type=int,
+        default=6,
+        help="Number of CNA components - does not include normal.",
     )
     parser.add_argument(
         "--state-prior",
@@ -88,7 +99,7 @@ def main():
         "--initialize-mode",
         type=str,
         default=None,
-        choices=["random", "mixture_plusplus"],
+        choices=["random", "non_normal", "plusplus"],
         help="Assumed model for initialization of state parameters.",
     )
     parser.add_argument(
@@ -100,7 +111,14 @@ def main():
 
     args = parser.parse_args()
 
-    run_inference(args.sim_dir, args.sim_id, args.state_prior, args.initialize_mode, args.seed)
+    run_inference(
+        args.sim_dir,
+        args.sim_id,
+        args.num_cna_states,
+        args.state_prior,
+        args.initialize_mode,
+        args.seed,
+    )
 
 
 if __name__ == "__main__":
